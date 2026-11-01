@@ -395,6 +395,31 @@ public static class SeStringTree
     // 0xF0..0xFE marker.
     private static byte[] EncodeRunLength(int value, byte originalMarker)
     {
+        var encoded = EncodeRunLengthOriginal(value, originalMarker);
+        // un byte 0x00 dentro de la longitud trunca la cadena (terminador): se usa la codificacion minima del juego
+        // (marcador 0xF0|(mascara-1) y solo los bytes distintos de cero)
+        return Array.IndexOf(encoded, (byte)0) >= 0 ? EncodeRunLengthMinimal(value) : encoded;
+    }
+
+    private static byte[] EncodeRunLengthMinimal(int value)
+    {
+        if (value is >= 0 and <= 0xCE) { return [(byte)(value + 1)]; }
+        var mask = 0;
+        var bytes = new List<byte>();
+        for (var i = 0; i < 4; i++)
+        {
+            var shift = 24 - (8 * i);
+            var b = (byte)(value >> shift);
+            if (b == 0) { continue; }
+            mask |= 0b1000 >> i;
+            bytes.Add(b);
+        }
+        bytes.Insert(0, (byte)(0xF0 | (mask - 1)));
+        return bytes.ToArray();
+    }
+
+    private static byte[] EncodeRunLengthOriginal(int value, byte originalMarker)
+    {
         if (originalMarker is >= 0x01 and <= 0xCF)
         {
             if (value is >= 0 and <= 0xCE)
