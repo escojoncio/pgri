@@ -90,14 +90,16 @@ public sealed class SeStringExtraNewLineTests
     [Fact]
     public void ReorderedTokens_AreRejectedEvenWithAnExtraNewLine()
     {
-        // 0x41 is an arbitrary leaf macro: tokenized as <Payload41> (not special to this feature).
+        // 0x41 is an arbitrary leaf macro; its token name comes from the tokenizer (derived below).
         byte[] other = [0x02, 0x41, 0x01, 0x03];
         var vanilla = Join(Text("A"), NewLineBytes, Text("B"), other, Text("C"));
         var source = SeStringTreeTokenizer.TokenizeRawText(vanilla);
         Assert.Contains("<NewLine>", source, StringComparison.Ordinal);
-        Assert.Contains("<Payload41>", source, StringComparison.Ordinal);
 
-        var target = "A<Payload41>B<NewLine>C<NewLine#2>";
+        var otherToken = System.Text.RegularExpressions.Regex.Match(source, "<(?!NewLine)[^>]+>").Value;
+        Assert.NotEqual(string.Empty, otherToken);
+
+        var target = "A" + otherToken + "B<NewLine>C<NewLine#2>";
         var report = SeStringCompatibilityValidator.Validate(source, target);
         Assert.False(report.IsCompatible);
         Assert.Contains(report.Violations, v => v.Kind == SeStringViolationKind.ReorderedPayloads);
