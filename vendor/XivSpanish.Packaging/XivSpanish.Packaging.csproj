@@ -1,0 +1,14 @@
+<!-- Wraps the library-grade primitives originally copied from the upstream Packager tool (its
+     Program.cs Main is NOT vendored). Owned, hand-editable code (seeded 2026-06; read-only rule
+     lifted 2026-06-24). -->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>XivSpanish.Packager</RootNamespace>
+    <AssemblyName>XivSpanish.Packaging</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\XivSpanish.Core\XivSpanish.Core.csproj" />
+    <ProjectReference Include="..\XivSpanish.GameData\XivSpanish.GameData.csproj" />
+  </ItemGroup>
+</Project>

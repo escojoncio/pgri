@@ -1,0 +1,196 @@
+using FFXIVSpanishPatcher.Pipeline;
+using XivSpanish.Translation;
+using Xunit;
+
+namespace FFXIVSpanishPatcher.Tests;
+
+public sealed class TranslationCategoriesTests
+{
+    private static TranslationEntry ForSheet(string sheet)
+        => new() { SourceKey = new TranslationSourceKey { Sheet = sheet, RowId = 1u } };
+
+    [Theory]
+    [InlineData("Addon", "interfaz")]
+    [InlineData("Item", "items")]
+    [InlineData("Action", "acciones")]
+    [InlineData("Quest", "misiones")]
+    [InlineData("PlaceName", "nombres")]
+    // New individual domains for the post-Sprint-2 sheets.
+    [InlineData("Achievement", "logros")]
+    [InlineData("LogMessage", "registro")]
+    [InlineData("EventItem", "eventos")]
+    [InlineData("Orchestrion", "coleccionables")]
+    [InlineData("TripleTriadCard", "coleccionables")]
+    // Class/job names get their own toggle so users can keep them in English.
+    [InlineData("ClassJob", "clases")]
+    [InlineData("ClassJobCategory", "clases")]
+    // Long-tail sheets folded into the broader existing buckets.
+    [InlineData("FishParameter", "items")]
+    [InlineData("ActionTransient", "acciones")]
+    [InlineData("Title", "nombres")]
+    [InlineData("NpcYell", "misiones")]
+    [InlineData("JournalGenre", "misiones")]
+    [InlineData("InstanceContentTextData", "misiones")]
+    [InlineData("AirshipExplorationLog", "misiones")]
+    [InlineData("AnimaWeaponFUITalkParam", "misiones")]
+    [InlineData("CompleteJournal", "misiones")]
+    [InlineData("ContentUICategory", "misiones")]
+    [InlineData("DescriptionString", "misiones")]
+    [InlineData("Fate", "misiones")]
+    [InlineData("Leve", "misiones")]
+    [InlineData("TextCommand", "interfaz")]
+    [InlineData("TextCommandParam", "interfaz")]
+    [InlineData("KTGTypeWordTextData", "interfaz")]
+    [InlineData("ChatBubbleType", "interfaz")]
+    [InlineData("CircleActivity", "interfaz")]
+    [InlineData("EmjAddon", "interfaz")]
+    [InlineData("EventTutorial", "interfaz")]
+    [InlineData("EventTutorialPage", "interfaz")]
+    [InlineData("FGSAddon", "interfaz")]
+    [InlineData("FurnitureCatalogCategory", "interfaz")]
+    [InlineData("GuideTitle", "interfaz")]
+    [InlineData("GuildleveAssignment", "interfaz")]
+    [InlineData("GuildleveAssignmentTalk", "interfaz")]
+    [InlineData("GuildOrder", "interfaz")]
+    [InlineData("HWDDevLevelWebText", "interfaz")]
+    [InlineData("McGuffinUIData", "interfaz")]
+    [InlineData("MJIDisposalShopUICategory", "interfaz")]
+    [InlineData("MJIHudMode", "interfaz")]
+    [InlineData("MYCTemporaryItemUICategory", "interfaz")]
+    [InlineData("PerformGuideScore", "interfaz")]
+    [InlineData("QuestRedoChapterUI", "interfaz")]
+    [InlineData("QuestRedoChapterUICategory", "interfaz")]
+    [InlineData("QuestRedoChapterUITab", "interfaz")]
+    [InlineData("QuickChatTransient", "interfaz")]
+    [InlineData("SpearfishingEcology", "interfaz")]
+    [InlineData("SubmarineExplorationLog", "interfaz")]
+    [InlineData("WarpLogic", "interfaz")]
+    [InlineData("WebGuidance", "interfaz")]
+    [InlineData("WKSNextPlanetGuidance", "interfaz")]
+    [InlineData("WKSPraiseUI", "interfaz")]
+    [InlineData("YardCatalogCategory", "interfaz")]
+    [InlineData("ContentsTutorialPage", "interfaz")]
+    [InlineData("FieldMarker", "interfaz")]
+    [InlineData("Marker", "interfaz")]
+    [InlineData("OmikujiGuidance", "interfaz")]
+    [InlineData("Platform", "interfaz")]
+    [InlineData("TopicSelect", "interfaz")]
+    [InlineData("ConfigKey", "interfaz")]
+    [InlineData("ClassJobActionUICategory", "clases")]
+    [InlineData("AquariumWater", "items")]
+    [InlineData("BankaCraftWorks", "items")]
+    [InlineData("BuddyEquip", "items")]
+    [InlineData("CabinetSubCategory", "items")]
+    [InlineData("ChocoboRaceItem", "items")]
+    [InlineData("CollectablesShop", "items")]
+    [InlineData("CollectablesShopItemGroup", "items")]
+    [InlineData("CompanyCraftDraft", "items")]
+    [InlineData("CompanyCraftDraftCategory", "items")]
+    [InlineData("CompanyCraftManufactoryState", "items")]
+    [InlineData("CompanyCraftType", "items")]
+    [InlineData("CraftLeveTalk", "items")]
+    [InlineData("CraftType", "items")]
+    [InlineData("DeepDungeonEquipment", "items")]
+    [InlineData("DisposalShop", "items")]
+    [InlineData("DisposalShopFilterType", "items")]
+    [InlineData("EurekaAetherItem", "items")]
+    [InlineData("EurekaMagiciteItemType", "items")]
+    [InlineData("FccShop", "items")]
+    [InlineData("FittingShopCategory", "items")]
+    [InlineData("FittingShopItemSet", "items")]
+    [InlineData("GCShopItemCategory", "items")]
+    [InlineData("GilShop", "items")]
+    [InlineData("Glasses", "items")]
+    [InlineData("GlassesStyle", "items")]
+    [InlineData("HousingAppeal", "items")]
+    [InlineData("HousingEmploymentNpcRace", "items")]
+    [InlineData("HousingMateAuthority", "items")]
+    [InlineData("HousingMerchantPose", "items")]
+    [InlineData("HousingPlacement", "items")]
+    [InlineData("HousingPreset", "items")]
+    [InlineData("HousingRenovation", "items")]
+    [InlineData("HousingUnplacement", "items")]
+    [InlineData("HugeCraftworksNpc", "items")]
+    [InlineData("HWDCrafterSupplyTerm", "items")]
+    [InlineData("InclusionShop", "items")]
+    [InlineData("InclusionShopCategory", "items")]
+    [InlineData("InclusionShopWelcomText", "items")]
+    [InlineData("LotteryExchangeShop", "items")]
+    [InlineData("MJICraftworksObjectTheme", "items")]
+    [InlineData("MJIItemCategory", "items")]
+    [InlineData("RecipeSubCategory", "items")]
+    [InlineData("SharlayanCraftWorks", "items")]
+    [InlineData("SpecialShop", "items")]
+    [InlineData("Stain", "items")]
+    [InlineData("TomestoneConvert", "items")]
+    [InlineData("ValentionSweetsMaterial", "items")]
+    [InlineData("ValentionSweetsRecipe", "items")]
+    [InlineData("WKSItemSubCategory", "items")]
+    [InlineData("TofuBg", "items")]
+    [InlineData("TofuEditParam", "items")]
+    [InlineData("TofuObject", "items")]
+    [InlineData("TofuObjectCategory", "items")]
+    [InlineData("TofuPreset", "items")]
+    [InlineData("TofuPresetCategory", "items")]
+    [InlineData("Treasure", "items")]
+    [InlineData("Warp", "items")]
+    [InlineData("YKW", "items")]
+    [InlineData("BeastReputationRank", "nombres")]
+    [InlineData("DawnMemberUIParam", "nombres")]
+    [InlineData("AchievementKind", "logros")]
+    [InlineData("ContentsNote", "logros")]
+    [InlineData("ContentsNoteCategory", "logros")]
+    [InlineData("Description", "logros")]
+    [InlineData("DescriptionStandAloneTransient", "logros")]
+    [InlineData("VVDVoteRouteLabel", "logros")]
+    [InlineData("EventAction", "eventos")]
+    [InlineData("EventItemCategory", "eventos")]
+    [InlineData("MountTransient", "coleccionables")]
+    [InlineData("CompanionTransient", "coleccionables")]
+    [InlineData("OrchestrionCategory", "coleccionables")]
+    public void DomainOf_MapsCuratedSheets(string sheet, string expectedDomain)
+        => Assert.Equal(expectedDomain, TranslationCategories.DomainOf(ForSheet(sheet)));
+
+    [Fact]
+    public void DomainOf_UnknownSheet_FallsBackToSheetName()
+        => Assert.Equal("SomeNewSheet", TranslationCategories.DomainOf(ForSheet("SomeNewSheet")));
+
+    [Theory]
+    [InlineData("content/DeepDungeon2Entrance")]
+    [InlineData("custom/000/CmnDefInnDoor_00021")]
+    [InlineData("cut_scene/025/VoiceMan_02500")]
+    [InlineData("dungeon/000/DungeonSastasha_00000")]
+    [InlineData("guild_order/GuildOrderGuide")]
+    [InlineData("leve/GuildleveAssignment")]
+    [InlineData("opening/OpeningGridania")]
+    [InlineData("quest/000/ClsArc000_00021")]
+    public void DomainOf_KnownScriptPrefixes_MapToMisiones(string sheet)
+        => Assert.Equal("misiones", TranslationCategories.DomainOf(ForSheet(sheet)));
+
+    [Fact]
+    public void IsSelected_NullSelection_IncludesEverything()
+        => Assert.True(TranslationCategories.IsSelected(ForSheet("Item"), selected: null));
+
+    [Fact]
+    public void IsSelected_RespectsSelection_CaseInsensitive()
+    {
+        var selection = TranslationCategories.BuildSelection(["ITEMS"]);
+
+        Assert.True(TranslationCategories.IsSelected(ForSheet("Item"), selection));
+        Assert.False(TranslationCategories.IsSelected(ForSheet("Quest"), selection));
+    }
+
+    [Fact]
+    public void PenumbraCatalog_HasTenStableOptionsAndBuildsDefaults()
+    {
+        Assert.Equal(
+            ["misiones", "nombres", "clases", "items", "eventos", "coleccionables", "acciones", "logros", "registro", "interfaz"],
+            TranslationCategoryCatalog.All.Select(category => category.Domain));
+        Assert.Equal((1 << 10) - 1, TranslationCategoryCatalog.BuildDefaultSettings(selectedDomains: null));
+        Assert.Equal((1 << 3) | (1 << 9), TranslationCategoryCatalog.BuildDefaultSettings(["items", "INTERFAZ"]));
+    }
+
+    [Fact]
+    public void PenumbraCatalog_UnknownSheetFallsIntoVisibleInterfaceOption()
+        => Assert.Equal("interfaz", TranslationCategoryCatalog.DomainOf(ForSheet("SomeNewSheet")));
+}

@@ -1,0 +1,97 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>FFXIVSpanishPatcher.App</RootNamespace>
+    <AssemblyName>FFXIVSpanishPatcher</AssemblyName>
+    <BuiltInComInteropSupport>false</BuiltInComInteropSupport>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Company>256k</Company>
+    <Product>FFXIVSpanish Patcher</Product>
+    <Description>Generador del mod de traducción castellana para FINAL FANTASY XIV</Description>
+    <Copyright>Copyright © 2026 256k</Copyright>
+    <RepositoryUrl>https://github.com/escojoncio/pgri</RepositoryUrl>
+    <!-- Windows .exe file icon. -->
+    <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
+    <!-- Single-file publish tuning: embed symbols (no loose .pdb), leave the bundle uncompressed
+         to reduce AV false positives, and drop non-English satellite assemblies. -->
+    <DebugType>embedded</DebugType>
+    <EnableCompressionInSingleFile>false</EnableCompressionInSingleFile>
+    <PublishTrimmed>true</PublishTrimmed>
+    <TrimMode>full</TrimMode>
+    <!-- Use the canonical NuGet package. The SDK's implicit library-packs copy has the same
+         version but a different hash across SDK distributions, which breaks locked restore. -->
+    <DisableImplicitLibraryPacksFolder>true</DisableImplicitLibraryPacksFolder>
+    <!-- Lumina is rooted below because the pipeline intentionally reflects over generated sheet
+         metadata; suppress the package-level trim warning from Lumina's unannotated internals. -->
+    <NoWarn>$(NoWarn);IL2104</NoWarn>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <RepositorySlug Condition="'$(RepositorySlug)' == ''">escojoncio/pgri</RepositorySlug>
+    <LatestReleaseApiUrl Condition="'$(LatestReleaseApiUrl)' == ''">https://api.github.com/repos/$(RepositorySlug)/releases/latest</LatestReleaseApiUrl>
+    <LatestReleasePageUrl Condition="'$(LatestReleasePageUrl)' == ''">https://github.com/$(RepositorySlug)/releases/latest</LatestReleasePageUrl>
+    <!-- The Zstandard corpus (translations.dat) is always external: loaded from beside the executable. -->
+    <ExternalTranslations Condition="'$(ExternalTranslations)' == ''">true</ExternalTranslations>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="12.1.4" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.1.4" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.4" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.4" />
+    <PackageReference Include="Avalonia.AvaloniaEdit" Version="12.0.0" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageReference Include="Markdig" Version="1.5.0" />
+    <!-- Override Avalonia's Tmds.DBus.Protocol with the latest compatible release. Linux-only. -->
+    <PackageReference Include="Tmds.DBus.Protocol" Version="0.95.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\FFXIVSpanishPatcher.Pipeline\FFXIVSpanishPatcher.Pipeline.csproj" />
+  </ItemGroup>
+
+  <!-- The pipeline reflects over Lumina generated sheet types to map EXH string columns. Root both
+       Lumina assemblies so trimmed self-contained publishes keep that metadata. -->
+  <ItemGroup Condition="'$(PublishTrimmed)' == 'true'">
+    <TrimmerRootAssembly Include="Lumina" />
+    <TrimmerRootAssembly Include="Lumina.Excel" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AssemblyMetadata Include="RepositorySlug" Value="$(RepositorySlug)" />
+    <AssemblyMetadata Include="LatestReleaseApiUrl" Value="$(LatestReleaseApiUrl)" />
+    <AssemblyMetadata Include="LatestReleasePageUrl" Value="$(LatestReleasePageUrl)" />
+    <AssemblyMetadata Include="ExternalTranslations" Value="$(ExternalTranslations)" />
+  </ItemGroup>
+
+  <!-- App assets (window/taskbar icon) bundled as Avalonia resources. -->
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\**" />
+    <AvaloniaResource Include="..\..\docs\assets\arr-icon.png" Link="Assets\arr-icon.png" />
+    <AvaloniaResource Include="..\..\docs\assets\hw-icon.png" Link="Assets\hw-icon.png" />
+    <AvaloniaResource Include="..\..\docs\assets\stb-icon.png" Link="Assets\stb-icon.png" />
+    <AvaloniaResource Include="..\..\docs\assets\shb-icon.png" Link="Assets\shb-icon.png" />
+    <AvaloniaResource Include="..\..\docs\assets\logo-git.png" Link="Assets\logo-git.png" />
+  </ItemGroup>
+
+  <!-- translations.dat is NOT embedded nor versioned: the user supplies their own blob next to the executable. -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\data\recommended-game-version.txt">
+      <LogicalName>FFXIVSpanishPatcher.App.recommended-game-version.txt</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\..\data\translation-milestones.md">
+      <LogicalName>FFXIVSpanishPatcher.App.translation-milestones.md</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <Target Name="ValidateTranslationMilestones" BeforeTargets="BeforeBuild">
+    <Error Condition="!Exists('$(MSBuildProjectDirectory)/../../data/translation-milestones.md')"
+           Text="Falta data/translation-milestones.md." />
+    <ReadLinesFromFile File="$(MSBuildProjectDirectory)/../../data/translation-milestones.md"
+                       Condition="Exists('$(MSBuildProjectDirectory)/../../data/translation-milestones.md')">
+      <Output TaskParameter="Lines" ItemName="_TranslationMilestoneLines" />
+    </ReadLinesFromFile>
+    <Error Condition="'@(_TranslationMilestoneLines)' == ''"
+           Text="data/translation-milestones.md está vacío." />
+  </Target>
+</Project>

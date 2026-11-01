@@ -1,0 +1,16 @@
+[Bb]in/
+[Oo]bj/
+artifacts/
+publish/
+out/
+.vs/
+.idea/
+*.user
+*.suo
+.DS_Store
+Thumbs.db
+translations.dat
+*.exd
+*.exh
+*.pmp
+*.jsonl

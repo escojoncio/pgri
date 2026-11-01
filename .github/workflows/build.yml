@@ -1,0 +1,44 @@
+name: Build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore --locked-mode
+
+      - name: Build
+        run: dotnet build --no-restore -c Release
+
+      # Tests use synthetic data only; none reads translations.dat.
+      - name: Test
+        run: dotnet test --no-build -c Release --verbosity minimal
+
+      - name: Publish win-x64
+        run: >
+          dotnet publish src/FFXIVSpanishPatcher.App/FFXIVSpanishPatcher.App.csproj
+          -c Release -r win-x64 --self-contained
+          -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+          -o publish/win-x64
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ffxiv-patcher-win-x64
+          path: publish/win-x64/

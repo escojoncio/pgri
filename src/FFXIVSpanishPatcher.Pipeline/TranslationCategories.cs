@@ -1,0 +1,315 @@
+using XivSpanish.Translation;
+
+namespace FFXIVSpanishPatcher.Pipeline;
+
+/// <summary>
+/// Resolves a translation entry to its category domain and decides whether a given selection
+/// includes it. The domain map is the patcher's own curated taxonomy (<see cref="PatcherDomains"/>),
+/// a superset of the upstream <see cref="DomainMap.Sprint2Default"/>: it adds the sheets that became
+/// translated after Sprint 2 so every shipped sheet lands in a visible, toggleable advanced-panel
+/// category instead of an invisible per-sheet fallback bucket. A sheet still not listed falls back to
+/// its own name so nothing is silently dropped. The GUI maps these domains to the pretty labels and
+/// tooltips of the advanced panel (see <c>CategoryCatalog</c>).
+/// </summary>
+public static class TranslationCategories
+{
+    /// <summary>The curated sheet -> domain map used by the patcher's advanced panel.</summary>
+    public static DomainMap Domains => PatcherDomains;
+
+    private static readonly (string Prefix, string Domain)[] PrefixDomains =
+    [
+        ("content/", "misiones"),
+        ("custom/", "misiones"),
+        ("cut_scene/", "misiones"),
+        ("dungeon/", "misiones"),
+        ("guild_order/", "misiones"),
+        ("leve/", "misiones"),
+        ("opening/", "misiones"),
+        ("quest/", "misiones"),
+    ];
+
+    /// <summary>
+    /// Patcher taxonomy: every translated sheet -> one of the advanced-panel domains. Relevant,
+    /// distinct sheets get their own domain (items, acciones, logros, registro, eventos,
+    /// coleccionables); the long tail is folded into the broader existing buckets (interfaz,
+    /// nombres, misiones). This lives here (not in vendored <see cref="DomainMap"/>) because it is a
+    /// presentation decision of the patcher; the boundary rule keeps <c>vendor/</c> read-only.
+    /// </summary>
+    private static readonly DomainMap PatcherDomains = new(new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    {
+        // Interfaz: UI chrome, commands, help/tutorials, system messages, profile/plate UI.
+        ["Addon"] = "interfaz",
+        ["AddonTransient"] = "interfaz",
+        ["Completion"] = "interfaz",
+        ["Lobby"] = "interfaz",
+        ["TextCommand"] = "interfaz",
+        ["TextCommandParam"] = "interfaz",
+        ["MainCommand"] = "interfaz",
+        ["MainCommandCategory"] = "interfaz",
+        ["ExtraCommand"] = "interfaz",
+        ["QuickChat"] = "interfaz",
+        ["QuickChatTransient"] = "interfaz",
+        ["ChatBubbleType"] = "interfaz",
+        ["CircleActivity"] = "interfaz",
+        ["HowTo"] = "interfaz",
+        ["HowToCategory"] = "interfaz",
+        ["GuidePageString"] = "interfaz",
+        ["GuideTitle"] = "interfaz",
+        ["ContentsTutorial"] = "interfaz",
+        ["ContentsTutorialPage"] = "interfaz",
+        ["EventTutorial"] = "interfaz",
+        ["EventTutorialPage"] = "interfaz",
+        ["BannerDecoration"] = "interfaz",
+        ["CharaCardBase"] = "interfaz",
+        ["CharaCardPlayStyle"] = "interfaz",
+        ["Error"] = "interfaz",
+        ["MultipleHelp"] = "interfaz",
+        ["MultipleHelpString"] = "interfaz",
+        ["OnlineStatus"] = "interfaz",
+        ["Balloon"] = "interfaz",
+        ["AkatsukiNoteString"] = "interfaz",
+        ["KTGTypeWordTextData"] = "interfaz",
+        ["CreditListText"] = "interfaz",
+        ["RetainerTaskRandom"] = "interfaz",
+        ["ConfigKey"] = "interfaz",
+        ["EmjAddon"] = "interfaz",
+        ["FGSAddon"] = "interfaz",
+        ["FieldMarker"] = "interfaz",
+        ["FurnitureCatalogCategory"] = "interfaz",
+        ["GuildleveAssignment"] = "interfaz",
+        ["GuildleveAssignmentTalk"] = "interfaz",
+        ["GuildOrder"] = "interfaz",
+        ["HWDDevLevelWebText"] = "interfaz",
+        ["Marker"] = "interfaz",
+        ["McGuffinUIData"] = "interfaz",
+        ["MJIDisposalShopUICategory"] = "interfaz",
+        ["MJIHudMode"] = "interfaz",
+        ["MYCTemporaryItemUICategory"] = "interfaz",
+        ["OmikujiGuidance"] = "interfaz",
+        ["PerformGuideScore"] = "interfaz",
+        ["Platform"] = "interfaz",
+        ["TopicSelect"] = "interfaz",
+        ["QuestRedoChapterUI"] = "interfaz",
+        ["QuestRedoChapterUICategory"] = "interfaz",
+        ["QuestRedoChapterUITab"] = "interfaz",
+        ["SpearfishingEcology"] = "interfaz",
+        ["SubmarineExplorationLog"] = "interfaz",
+        ["WarpLogic"] = "interfaz",
+        ["WebGuidance"] = "interfaz",
+        ["WKSNextPlanetGuidance"] = "interfaz",
+        ["WKSPraiseUI"] = "interfaz",
+        ["YardCatalogCategory"] = "interfaz",
+
+        // Nombres: NPC/creatures, places, world flavor and character-creation lore terms.
+        ["ENpcResident"] = "nombres",
+        ["BNpcName"] = "nombres",
+        ["PlaceName"] = "nombres",
+        ["CutsceneName"] = "nombres",
+        ["EObjName"] = "nombres",
+        ["Title"] = "nombres",
+        ["Weather"] = "nombres",
+        ["Race"] = "nombres",
+        ["Tribe"] = "nombres",
+        ["BeastTribe"] = "nombres",
+        ["BeastReputationRank"] = "nombres",
+        ["GuardianDeity"] = "nombres",
+        ["Town"] = "nombres",
+        ["Aetheryte"] = "nombres",
+        ["GrandCompany"] = "nombres",
+        ["MonsterNote"] = "nombres",
+        ["Emote"] = "nombres",
+        ["EmoteCategory"] = "nombres",
+        ["DawnMemberUIParam"] = "nombres",
+
+        // Clases / trabajos: nombres de clases y trabajos y sus categorías (toggle propio para que
+        // el usuario pueda dejarlos en inglés sin afectar al resto de nombres).
+        ["ClassJob"] = "clases",
+        ["ClassJobCategory"] = "clases",
+        ["ClassJobActionUICategory"] = "clases",
+
+        // Items: inventory, gear/UI categories, gathering/fishing and deep-dungeon items.
+        ["Item"] = "items",
+        ["ItemUICategory"] = "items",
+        ["ItemSearchCategory"] = "items",
+        ["ItemSeries"] = "items",
+        ["ItemSpecialBonus"] = "items",
+        ["AquariumWater"] = "items",
+        ["BankaCraftWorks"] = "items",
+        ["CabinetSubCategory"] = "items",
+        ["ChocoboRaceItem"] = "items",
+        ["CollectablesShop"] = "items",
+        ["CollectablesShopItemGroup"] = "items",
+        ["CompanyCraftDraft"] = "items",
+        ["CompanyCraftDraftCategory"] = "items",
+        ["CompanyCraftManufactoryState"] = "items",
+        ["CompanyCraftType"] = "items",
+        ["CraftLeveTalk"] = "items",
+        ["CraftType"] = "items",
+        ["DisposalShop"] = "items",
+        ["DisposalShopFilterType"] = "items",
+        ["EurekaAetherItem"] = "items",
+        ["EurekaMagiciteItemType"] = "items",
+        ["FccShop"] = "items",
+        ["FittingShopCategory"] = "items",
+        ["FittingShopItemSet"] = "items",
+        ["GCShopItemCategory"] = "items",
+        ["GilShop"] = "items",
+        ["GlassesStyle"] = "items",
+        ["HousingAppeal"] = "items",
+        ["HousingEmploymentNpcRace"] = "items",
+        ["HousingMateAuthority"] = "items",
+        ["HousingMerchantPose"] = "items",
+        ["HousingPlacement"] = "items",
+        ["HousingPreset"] = "items",
+        ["HousingRenovation"] = "items",
+        ["HousingUnplacement"] = "items",
+        ["HugeCraftworksNpc"] = "items",
+        ["HWDCrafterSupplyTerm"] = "items",
+        ["InclusionShop"] = "items",
+        ["InclusionShopCategory"] = "items",
+        ["InclusionShopWelcomText"] = "items",
+        ["LotteryExchangeShop"] = "items",
+        ["MJICraftworksObjectTheme"] = "items",
+        ["MJIItemCategory"] = "items",
+        ["RecipeSubCategory"] = "items",
+        ["SharlayanCraftWorks"] = "items",
+        ["SpecialShop"] = "items",
+        ["Stain"] = "items",
+        ["TomestoneConvert"] = "items",
+        ["ValentionSweetsMaterial"] = "items",
+        ["ValentionSweetsRecipe"] = "items",
+        ["WKSItemSubCategory"] = "items",
+        ["DeepDungeonItem"] = "items",
+        ["DeepDungeonMagicStone"] = "items",
+        ["DeepDungeonEquipment"] = "items",
+        ["SpearfishingItem"] = "items",
+        ["FishParameter"] = "items",
+        ["GatheringPointName"] = "items",
+        ["GatheringPointBonusType"] = "items",
+        ["SecretRecipeBook"] = "items",
+        ["BuddyEquip"] = "items",
+        ["Glasses"] = "items",
+        ["TofuBg"] = "items",
+        ["TofuEditParam"] = "items",
+        ["TofuObject"] = "items",
+        ["TofuObjectCategory"] = "items",
+        ["TofuPreset"] = "items",
+        ["TofuPresetCategory"] = "items",
+        ["Treasure"] = "items",
+        ["Warp"] = "items",
+        ["YKW"] = "items",
+
+        // Acciones / habilidades: combat and crafting actions, traits, statuses.
+        ["Action"] = "acciones",
+        ["ActionTransient"] = "acciones",
+        ["ActionCategory"] = "acciones",
+        ["Trait"] = "acciones",
+        ["TraitTransient"] = "acciones",
+        ["Status"] = "acciones",
+        ["CraftAction"] = "acciones",
+        ["CompanyAction"] = "acciones",
+        ["PetAction"] = "acciones",
+        ["GeneralAction"] = "acciones",
+        ["BuddyAction"] = "acciones",
+        ["DeepDungeonFloorEffectUI"] = "acciones",
+
+        // Misiones: quest text/dialogue, journal structure, duty names, Gold Saucer, cosmic exploration, FATEs and levequests.
+        ["Quest"] = "misiones",
+        ["DefaultTalk"] = "misiones",
+        ["CustomTalk"] = "misiones",
+        ["NpcYell"] = "misiones",
+        ["PublicContentTextData"] = "misiones",
+        ["AirshipExplorationLog"] = "misiones",
+        ["AnimaWeaponFUITalkParam"] = "misiones",
+        ["WKSText"] = "misiones",
+        ["RideShootingTextData"] = "misiones",
+        ["PartyContentTextData"] = "misiones",
+        ["InstanceContentTextData"] = "misiones",
+        ["MJIText"] = "misiones",
+        ["LeveString"] = "misiones",
+        ["GoldSaucerTextData"] = "misiones",
+        ["WKSMissionText"] = "misiones",
+        ["GoldSaucerTalk"] = "misiones",
+        ["MassivePcContentTextData"] = "misiones",
+        ["CompleteJournal"] = "misiones",
+        ["JournalGenre"] = "misiones",
+        ["JournalCategory"] = "misiones",
+        ["JournalSection"] = "misiones",
+        ["ContentFinderCondition"] = "misiones",
+        ["ContentType"] = "misiones",
+        ["ContentRoulette"] = "misiones",
+        ["ContentUICategory"] = "misiones",
+        ["ContentTalk"] = "misiones",
+        ["DescriptionString"] = "misiones",
+        ["GimmickTalk"] = "misiones",
+        ["WeeklyBingoText"] = "misiones",
+        ["Fate"] = "misiones",
+        ["Leve"] = "misiones",
+
+        // Logros: achievements.
+        ["Achievement"] = "logros",
+        ["AchievementCategory"] = "logros",
+        ["AchievementKind"] = "logros",
+        ["ContentsNote"] = "logros",
+        ["ContentsNoteCategory"] = "logros",
+        ["Description"] = "logros",
+        ["DescriptionStandAloneTransient"] = "logros",
+        ["VVDVoteRouteLabel"] = "logros",
+
+        // Registro: combat/system log messages.
+        ["LogMessage"] = "registro",
+        ["LogFilter"] = "registro",
+        ["LogKind"] = "registro",
+
+        // Eventos: key/event items and their help text (distinct from inventory items).
+        ["EventItem"] = "eventos",
+        ["EventItemHelp"] = "eventos",
+        ["EventItemCategory"] = "eventos",
+        ["EventAction"] = "eventos",
+
+        // Coleccionables: mounts, minions, pets, ornaments, orchestrion and Triple Triad.
+        ["Mount"] = "coleccionables",
+        ["MountTransient"] = "coleccionables",
+        ["Companion"] = "coleccionables",
+        ["CompanionTransient"] = "coleccionables",
+        ["Pet"] = "coleccionables",
+        ["Ornament"] = "coleccionables",
+        ["Orchestrion"] = "coleccionables",
+        ["OrchestrionCategory"] = "coleccionables",
+        ["TripleTriadCard"] = "coleccionables",
+        ["TripleTriadRule"] = "coleccionables",
+        ["TripleTriadCompetition"] = "coleccionables",
+    });
+
+    /// <summary>Category domain of an entry, e.g. <c>items</c> or <c>misiones</c>.</summary>
+    public static string DomainOf(TranslationEntry entry)
+    {
+        var domain = Domains.Resolve(entry);
+        var sheet = entry.SourceKey?.Sheet;
+        if (string.IsNullOrWhiteSpace(sheet) || !string.Equals(domain, sheet, StringComparison.OrdinalIgnoreCase))
+        {
+            return domain;
+        }
+
+        foreach (var (prefix, prefixDomain) in PrefixDomains)
+        {
+            if (sheet.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            {
+                return prefixDomain;
+            }
+        }
+
+        return domain;
+    }
+
+    /// <summary>
+    /// True when <paramref name="selected"/> is null (all categories) or contains the entry's
+    /// domain (case-insensitive).
+    /// </summary>
+    public static bool IsSelected(TranslationEntry entry, IReadOnlySet<string>? selected)
+        => selected is null || selected.Contains(DomainOf(entry));
+
+    /// <summary>Builds a case-insensitive selection set, or null when no filter is requested.</summary>
+    public static IReadOnlySet<string>? BuildSelection(IReadOnlyCollection<string>? categories)
+        => categories is null ? null : new HashSet<string>(categories, StringComparer.OrdinalIgnoreCase);
+}

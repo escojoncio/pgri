@@ -1,0 +1,79 @@
+using XivSpanish.Translation;
+
+namespace FFXIVSpanishPatcher.Pipeline;
+
+/// <summary>How strictly the pipeline treats drift between translation and game data.</summary>
+public enum PatchCompatibilityMode
+{
+    /// <summary>Keep contamination protection strict. Default for matching or unknown versions.</summary>
+    Strict,
+
+    /// <summary>
+    /// Continue when the selected installation is a different version and readable pages still
+    /// contain useful matches. Missing sheets, pages and rows remain visible in the result.
+    /// </summary>
+    BestEffortVersionMismatch,
+}
+
+/// <summary>
+/// Everything the pipeline needs to build one <c>.pmp</c>. Immutable; the GUI builds it from the
+/// game path, the selected categories and the additional options, then hands it to
+/// <see cref="PatchPipeline.Run"/>.
+/// </summary>
+public sealed record PatchRequest
+{
+    /// <summary>FFXIV install or sqpack path. Null lets the backend auto-detect (XIVLauncher config).</summary>
+    public string? GamePath { get; init; }
+
+    /// <summary>
+    /// Category domains enabled by default in Penumbra's Multi group. Null enables all ten.
+    /// Every packageable entry is always emitted, regardless of this selection. Compared
+    /// case-insensitively.
+    /// </summary>
+    public IReadOnlyCollection<string>? Categories { get; init; }
+
+    /// <summary>Only entries with one of these statuses are packaged. Defaults to
+    /// <see cref="PackageableStatus.Default"/> (<c>approved</c> + <c>gold</c>).</summary>
+    public IReadOnlySet<string> Statuses { get; init; } = PackageableStatus.Default;
+
+    /// <summary>Output <c>.pmp</c> path.</summary>
+    public string OutputPath { get; init; } = DefaultOutputPath();
+
+    /// <summary>Staging directory for the package tree (wiped and rebuilt each run).</summary>
+    public string StagingPath { get; init; } = Path.Combine("artifacts", "pmp-staging");
+
+    /// <summary>
+    /// Optional vanilla EXD snapshot directory. When set, base bytes/layout come from disk instead
+    /// of the live client (reproducible packaging; also the seam tests use to inject a fixture).
+    /// </summary>
+    public string? BaseExdDir { get; init; }
+
+    /// <summary>Contamination guard threshold (0..1): abort if the content-match rate falls below it.</summary>
+    public double MinMatchRate { get; init; } = 0.5;
+
+    /// <summary>Package rows that fail the SeString payload-compatibility gate (loudly logged).</summary>
+    public bool ForceSeString { get; init; }
+
+    /// <summary>Compatibility policy chosen after the GUI has compared exact version strings.</summary>
+    public PatchCompatibilityMode CompatibilityMode { get; init; } = PatchCompatibilityMode.Strict;
+
+    /// <summary>Emit verbose diagnostic events intended for troubleshooting, hidden by default.</summary>
+    public bool DebugLogging { get; init; }
+
+    /// <summary>Penumbra <c>meta.json</c> fields.</summary>
+    public PackageMeta Meta { get; init; } = new();
+
+    /// <summary>Default timestamped output path under <c>artifacts/</c>, matching the mockup naming.</summary>
+    public static string DefaultOutputPath()
+        => Path.Combine("artifacts", $"FFXIVSpanish-{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.pmp");
+}
+
+/// <summary>Penumbra mod metadata written to <c>meta.json</c>.</summary>
+public sealed record PackageMeta
+{
+    public string Name { get; init; } = "FFXIV en Español";
+    public string Author { get; init; } = "256k";
+    public string Description { get; init; } = "Traducción al castellano de FFXIV mediante redirección de archivos EXD para Penumbra.";
+    public string Version { get; init; } = "0.0.0";
+    public string Website { get; init; } = string.Empty;
+}
