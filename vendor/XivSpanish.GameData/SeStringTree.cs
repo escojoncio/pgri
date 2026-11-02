@@ -257,7 +257,7 @@ public static class SeStringTree
             }
             else if ((b & 0xE0) == 0xC0)
             {
-                if (pos + 1 < end && (bytes[pos + 1] & 0xC0) == 0x80)
+                if (pos + 1 < end && (bytes[pos + 1] & 0xC0) == 0x80 && LeadAllowsSecond(b, bytes[pos + 1]))
                 {
                     literal.Add(b);
                     literal.Add(bytes[pos + 1]);
@@ -267,7 +267,7 @@ public static class SeStringTree
             }
             else if ((b & 0xF0) == 0xE0)
             {
-                if (pos + 2 < end && (bytes[pos + 1] & 0xC0) == 0x80 && (bytes[pos + 2] & 0xC0) == 0x80)
+                if (pos + 2 < end && (bytes[pos + 1] & 0xC0) == 0x80 && (bytes[pos + 2] & 0xC0) == 0x80 && LeadAllowsSecond(b, bytes[pos + 1]))
                 {
                     literal.Add(b);
                     literal.Add(bytes[pos + 1]);
@@ -279,6 +279,7 @@ public static class SeStringTree
             else if ((b & 0xF8) == 0xF0)
             {
                 if (pos + 3 < end
+                    && LeadAllowsSecond(b, bytes[pos + 1])
                     && (bytes[pos + 1] & 0xC0) == 0x80
                     && (bytes[pos + 2] & 0xC0) == 0x80
                     && (bytes[pos + 3] & 0xC0) == 0x80)
@@ -299,6 +300,23 @@ public static class SeStringTree
 
         return literal;
     }
+
+    /// <summary>
+    /// Canonical-UTF-8 guard for a lead byte and its first continuation byte. Overlong forms
+    /// (0xC0/0xC1, 0xE0 80..9F, 0xF0 80..8F), surrogates (0xED A0..BF) and code points above U+10FFFF
+    /// (0xF4 90.., 0xF5..) are NOT literal text: <c>Encoding.UTF8.GetString</c> would turn them into
+    /// U+FFFD irreversibly, so they must fall through to reversible <see cref="SeNode.RawByte"/> nodes.
+    /// </summary>
+    internal static bool LeadAllowsSecond(byte lead, byte second) => lead switch
+    {
+        0xC0 or 0xC1 => false,
+        0xE0 => second >= 0xA0,
+        0xED => second <= 0x9F,
+        0xF0 => second >= 0x90,
+        0xF4 => second <= 0x8F,
+        >= 0xF5 => false,
+        _ => true,
+    };
 
     private static void SerializeInto(IReadOnlyList<SeNode> nodes, MemoryStream stream)
     {

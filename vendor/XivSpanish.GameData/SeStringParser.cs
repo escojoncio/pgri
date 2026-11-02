@@ -128,7 +128,7 @@ public static class SeStringParser
                     else if ((b & 0xE0) == 0xC0)
                     {
                         // 2-byte sequence (0xC0-0xDF)
-                        if (i + 1 < bytes.Length && (bytes[i + 1] & 0xC0) == 0x80)
+                        if (i + 1 < bytes.Length && (bytes[i + 1] & 0xC0) == 0x80 && SeStringTree.LeadAllowsSecond(b, bytes[i + 1]))
                         {
                             literalBytes.Add(b);
                             literalBytes.Add(bytes[i + 1]);
@@ -144,6 +144,7 @@ public static class SeStringParser
                     {
                         // 3-byte sequence (0xE0-0xEF)
                         if (i + 2 < bytes.Length
+                            && SeStringTree.LeadAllowsSecond(b, bytes[i + 1])
                             && (bytes[i + 1] & 0xC0) == 0x80
                             && (bytes[i + 2] & 0xC0) == 0x80)
                         {
@@ -162,6 +163,7 @@ public static class SeStringParser
                     {
                         // 4-byte sequence (0xF0-0xF7)
                         if (i + 3 < bytes.Length
+                            && SeStringTree.LeadAllowsSecond(b, bytes[i + 1])
                             && (bytes[i + 1] & 0xC0) == 0x80
                             && (bytes[i + 2] & 0xC0) == 0x80
                             && (bytes[i + 3] & 0xC0) == 0x80)
