@@ -130,16 +130,85 @@ public sealed class SeStringExtraNewLineTests
     }
 
     [Fact]
-    public void SourceWithoutNewLine_RejectsAnyNewLine()
+    public void PlainSourceWithoutNewLine_AcceptsOneSynthesizedNewLine()
+    {
+        var vanilla = Text("Hola mundo");
+        var source = SeStringTreeTokenizer.TokenizeRawText(vanilla);
+        Assert.Equal("Hola mundo", source);
+
+        var target = "Hola<NewLine>mundo";
+        Assert.True(SeStringCompatibilityValidator.Validate(source, target).IsCompatible);
+        Assert.True(SeStringTree.TryTranslate(vanilla, source, target, out var result, out var reason), reason);
+        Assert.Equal(Join(Text("Hola"), NewLineBytes, Text("mundo")), result);
+    }
+
+    [Fact]
+    public void PlainSourceWithoutNewLine_AcceptsTwoSynthesizedNewLines()
+    {
+        var vanilla = Text("Hola mundo cruel");
+        var source = SeStringTreeTokenizer.TokenizeRawText(vanilla);
+
+        var target = "Hola<NewLine>mundo<NewLine#2>cruel";
+        Assert.True(SeStringCompatibilityValidator.Validate(source, target).IsCompatible);
+        Assert.True(SeStringTree.TryTranslate(vanilla, source, target, out var result, out var reason), reason);
+        Assert.Equal(Join(Text("Hola"), NewLineBytes, Text("mundo"), NewLineBytes, Text("cruel")), result);
+    }
+
+    [Fact]
+    public void PlainSourceWithoutNewLine_RejectsMoreThanThreeNewLines()
     {
         var vanilla = Text("Hola");
         var source = SeStringTreeTokenizer.TokenizeRawText(vanilla);
-        Assert.Equal("Hola", source);
 
-        var target = "Hola<NewLine>";
-        var report = SeStringCompatibilityValidator.Validate(source, target);
+        var three = "a<NewLine>b<NewLine#2>c<NewLine#3>d";
+        Assert.True(SeStringCompatibilityValidator.Validate(source, three).IsCompatible);
+
+        var four = "a<NewLine>b<NewLine#2>c<NewLine#3>d<NewLine#4>e";
+        Assert.False(SeStringCompatibilityValidator.Validate(source, four).IsCompatible);
+        Assert.False(SeStringTree.TryTranslate(vanilla, source, four, out _, out _));
+    }
+
+    [Fact]
+    public void PlainSourceWithoutNewLine_RejectsDuplicatedOrForeignTokens()
+    {
+        var vanilla = Text("Hola");
+        var source = SeStringTreeTokenizer.TokenizeRawText(vanilla);
+
+        Assert.False(SeStringCompatibilityValidator.Validate(source, "a<NewLine>b<NewLine>c").IsCompatible);
+        Assert.False(SeStringTree.TryTranslate(vanilla, source, "a<NewLine>b<NewLine>c", out _, out _));
+        Assert.False(SeStringCompatibilityValidator.Validate(source, "a<NewLine>b<Payload40>").IsCompatible);
+    }
+
+    [Fact]
+    public void SynthesizedNewLineInsideRun_IsRejectedForSourceWithoutNewLine()
+    {
+        var vanilla = SeStringTree.Serialize(
+        [
+            new SeNode.Literal("A"),
+            new SeNode.Run([new SeNode.Literal("x")], MarkerByte: 0x10),
+        ])[..^1];
+        var source = SeStringTreeTokenizer.TokenizeRawText(vanilla);
+        Assert.Equal("A<Run>x<RunEnd>", source);
+
+        Assert.True(SeStringCompatibilityValidator.Validate(source, "A<NewLine><Run>x<RunEnd>").IsCompatible);
+        Assert.True(SeStringTree.TryTranslate(vanilla, source, "A<NewLine><Run>x<RunEnd>", out _, out var reason), reason);
+
+        var inside = "A<Run>x<NewLine><RunEnd>";
+        var report = SeStringCompatibilityValidator.Validate(source, inside);
         Assert.False(report.IsCompatible);
         Assert.Contains(report.Violations, v => v.Kind == SeStringViolationKind.ExtraPayload);
-        Assert.False(SeStringTree.TryTranslate(vanilla, source, target, out _, out _));
+        Assert.False(SeStringTree.TryTranslate(vanilla, source, inside, out _, out _));
+    }
+
+    [Fact]
+    public void SynthesizedNewLineBeforeLastMacroEnd_IsRejectedForSourceWithoutNewLine()
+    {
+        var source = "A<Payload40>x<MacroEnd>B";
+
+        Assert.True(SeStringCompatibilityValidator.Validate(source, "A<Payload40>x<MacroEnd>B<NewLine>").IsCompatible);
+
+        var report = SeStringCompatibilityValidator.Validate(source, "A<Payload40>x<NewLine><MacroEnd>B");
+        Assert.False(report.IsCompatible);
+        Assert.Contains(report.Violations, v => v.Kind == SeStringViolationKind.ExtraPayload);
     }
 }

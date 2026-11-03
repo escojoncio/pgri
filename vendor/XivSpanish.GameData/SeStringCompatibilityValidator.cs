@@ -342,13 +342,35 @@ public static partial class SeStringCompatibilityValidator
         return digits.All(char.IsAsciiDigit) && int.TryParse(digits, out number) && number >= 2;
     }
 
+    /// <summary>Maximum extra <c>&lt;NewLine&gt;</c> tokens synthesized into a source that has none.</summary>
+    internal const int MaxSynthesizedNewLines = 3;
+
+    /// <summary>
+    /// True when <paramref name="token"/> may be synthesized as an EXTRA newline for a source with
+    /// <paramref name="sourceNewLines"/> NewLine tokens. With at least one source NewLine: numbered
+    /// beyond the source count (<c>&lt;NewLine#N&gt;</c>, N &gt; count). With none: the target's
+    /// own order numbering <c>&lt;NewLine&gt;</c>, <c>&lt;NewLine#2&gt;</c>, ... up to
+    /// <see cref="MaxSynthesizedNewLines"/>.
+    /// </summary>
+    internal static bool IsSynthesizableNewLineToken(string token, int sourceNewLines)
+    {
+        if (sourceNewLines == 0)
+        {
+            return token == "<NewLine>"
+                || (TryParseExtraNewLineToken(token, out var first) && first <= MaxSynthesizedNewLines);
+        }
+
+        return TryParseExtraNewLineToken(token, out var number) && number > sourceNewLines;
+    }
+
     // The target may carry MORE <NewLine> tokens than the source (and only NewLine): extras are the
     // NewLine tokens numbered beyond the source's NewLine count (<NewLine#k+1>, ...), each at most
     // once. They are removed from the atom list before the multiset/order/nesting checks so every
     // other token must still match the source exactly. An extra is rejected (reported as
     // ExtraPayload) when it sits inside a <Run> or may sit inside a macro bracket (a <MacroEnd>
     // follows it), because that bracket's recomputed length prefix would change. A source without
-    // any NewLine accepts no extras (nothing to take the bytes from).
+    // any NewLine accepts up to MaxSynthesizedNewLines extras numbered <NewLine>, <NewLine#2>, ...
+    // (the standard bytes 02 10 01 03 are synthesized by the tree detokenizer).
     private static List<Atom> DropExtraNewLines(List<Atom> sourceAtoms, List<Atom> targetAtoms, List<SeStringViolation> violations)
     {
         var sourceNewLines = 0;
@@ -360,11 +382,6 @@ public static partial class SeStringCompatibilityValidator
             {
                 sourceNewLines++;
             }
-        }
-
-        if (sourceNewLines == 0)
-        {
-            return targetAtoms;
         }
 
         var lastMacroEnd = -1;
@@ -394,8 +411,7 @@ public static partial class SeStringCompatibilityValidator
 
             if (baseName == NewLineBase
                 && !sourceTokens.Contains(atom.Token)
-                && TryParseExtraNewLineToken(atom.Token, out var number)
-                && number > sourceNewLines
+                && IsSynthesizableNewLineToken(atom.Token, sourceNewLines)
                 && seenExtras.Add(atom.Token))
             {
                 if (runDepth > 0 || idx < lastMacroEnd)

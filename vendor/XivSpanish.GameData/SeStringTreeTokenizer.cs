@@ -280,9 +280,10 @@ public static class SeStringTreeTokenizer
         return true;
     }
 
-    // Recognizes an EXTRA newline token at text[start..]: "<NewLine#N>" that is not in the token map,
-    // not already used, with N greater than the number of NewLine tokens in the map. Requires the
-    // map to hold a plain "<NewLine>" leaf (0x02 ...) whose bytes are returned for synthesis.
+    // Recognizes an EXTRA newline token at text[start..] that is not in the token map and not already
+    // used (see SeStringCompatibilityValidator.IsSynthesizableNewLineToken). With NewLines in the
+    // map it requires a plain "<NewLine>" leaf (0x02 ...) whose bytes are returned for synthesis;
+    // with none it returns the standard bytes 02 10 01 03.
     private static string? MatchExtraNewLine(
         string text,
         int start,
@@ -291,7 +292,7 @@ public static class SeStringTreeTokenizer
         out byte[] newLineBytes)
     {
         newLineBytes = [];
-        const string prefix = "<NewLine#";
+        const string prefix = "<NewLine";
         if (string.CompareOrdinal(text, start, prefix, 0, prefix.Length) != 0)
         {
             return null;
@@ -304,12 +305,7 @@ public static class SeStringTreeTokenizer
         }
 
         var token = text.Substring(start, close - start + 1);
-        if (byToken.ContainsKey(token)
-            || used.Contains(token)
-            || !SeStringCompatibilityValidator.TryParseExtraNewLineToken(token, out var number)
-            || !byToken.TryGetValue("<NewLine>", out var bytes)
-            || bytes.Length < 2
-            || bytes[0] != 0x02)
+        if (byToken.ContainsKey(token) || used.Contains(token))
         {
             return null;
         }
@@ -323,7 +319,21 @@ public static class SeStringTreeTokenizer
             }
         }
 
-        if (number <= sourceNewLines)
+        if (!SeStringCompatibilityValidator.IsSynthesizableNewLineToken(token, sourceNewLines))
+        {
+            return null;
+        }
+
+        if (sourceNewLines == 0)
+        {
+            // No NewLine in the source to copy: synthesize the standard payload.
+            newLineBytes = [0x02, 0x10, 0x01, 0x03];
+            return token;
+        }
+
+        if (!byToken.TryGetValue("<NewLine>", out var bytes)
+            || bytes.Length < 2
+            || bytes[0] != 0x02)
         {
             return null;
         }
