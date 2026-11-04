@@ -344,6 +344,14 @@ public static class SeStringParser
             return false;
         }
 
+        // A NewLine-suppression marker is only understood by the run-aware tree path; writing it
+        // here would leak U+E0F0 into the game text.
+        if (SeStringSuppressedNewLine.ContainsMarker(target))
+        {
+            reason = "target contains NewLine-suppression markers requiring run-aware translation";
+            return false;
+        }
+
         var sourceTokens = SeStringTokenizer.FindTokenReferences(source);
         var targetTokens = SeStringTokenizer.FindTokenReferences(target);
         if (!TokenReferencesEqual(sourceTokens, targetTokens))
@@ -458,6 +466,12 @@ public static class SeStringParser
         if (SeStringStandardMacros.HasReservedDelimiter(target))
         {
             reason = "target contains standard macros requiring run-aware translation";
+            return false;
+        }
+
+        if (SeStringSuppressedNewLine.ContainsMarker(target))
+        {
+            reason = "target contains NewLine-suppression markers requiring run-aware translation";
             return false;
         }
 

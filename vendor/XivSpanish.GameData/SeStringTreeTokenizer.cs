@@ -19,6 +19,7 @@ public static class SeStringTreeTokenizer
     private const string RunName = "Run";
     private const string RunEndName = "RunEnd";
     private const string MacroEndName = "MacroEnd";
+    private const string NewLineName = "NewLine";
 
     // Token-map byte sentinel marking a macro-open occurrence (vs. a leaf/opaque macro whose token
     // bytes begin with 0x02). Bytes are [sentinel, code, lengthMarker]. 0x00 cannot begin any real
@@ -132,6 +133,11 @@ public static class SeStringTreeTokenizer
         var literal = new StringBuilder();
         var i = 0;
 
+        // A NewLine followed by SeStringSuppressedNewLine.Marker is dropped and leaves a pending
+        // space (see that class for the exact rule). It is written lazily, right before the next
+        // literal character or non-NewLine token, so an empty marked chunk produces nothing.
+        var pendingSpace = false;
+
         void FlushLiteral()
         {
             if (literal.Length > 0)
@@ -141,11 +147,37 @@ public static class SeStringTreeTokenizer
             }
         }
 
+        // Writes the pending space unless the text already ends with one or `next` is a space.
+        // `next` is '\0' when the following element is a token. After FlushLiteral the literal
+        // buffer is empty only when the last tree node is a token, which is not a space.
+        void ReleasePendingSpace(char next)
+        {
+            if (!pendingSpace)
+            {
+                return;
+            }
+
+            pendingSpace = false;
+            if (next != ' ' && !(literal.Length > 0 && literal[literal.Length - 1] == ' '))
+            {
+                literal.Append(' ');
+            }
+        }
+
         while (i < text.Length)
         {
             var c = text[i];
+            if (c == SeStringSuppressedNewLine.Marker)
+            {
+                // Only consumed right after a NewLine token (below); anywhere else it would leak
+                // into the game text.
+                reason = $"suppression marker U+E0F0 at index {i} in target is not attached to a <NewLine>";
+                return false;
+            }
+
             if (c != TokenOpen)
             {
+                ReleasePendingSpace(c);
                 literal.Append(c);
                 i++;
                 continue;
@@ -153,6 +185,7 @@ public static class SeStringTreeTokenizer
 
             if (i + 1 < text.Length && text[i + 1] == TokenOpen)
             {
+                ReleasePendingSpace(TokenOpen);
                 literal.Append(TokenOpen);
                 i += 2;
                 continue;
@@ -178,6 +211,15 @@ public static class SeStringTreeTokenizer
                 }
 
                 used.Add(extra);
+                if (HasSuppressionMarker(text, i + extra.Length))
+                {
+                    // Suppressed extra NewLine: no node, only a pending space; the marker is consumed.
+                    pendingSpace = true;
+                    i += extra.Length + 1;
+                    continue;
+                }
+
+                pendingSpace = false;
                 FlushLiteral();
                 var parsedNewLine = SeStringTree.Parse(newLineBytes.Append((byte)0x00).ToArray());
                 if (parsedNewLine.Count == 1)
@@ -199,9 +241,32 @@ public static class SeStringTreeTokenizer
                 return false;
             }
 
+            var baseName = BaseNameOf(matched);
+            if (baseName == NewLineName)
+            {
+                if (HasSuppressionMarker(text, i + matched.Length))
+                {
+                    if (stack.Count != 0)
+                    {
+                        reason = $"suppressed '{matched}' inside a run or macro bracket in target";
+                        return false;
+                    }
+
+                    // Suppressed NewLine: the token counts as used, but no node is emitted.
+                    pendingSpace = true;
+                    i += matched.Length + 1;
+                    continue;
+                }
+
+                pendingSpace = false;
+            }
+            else
+            {
+                ReleasePendingSpace('\0');
+            }
+
             FlushLiteral();
             var bytes = byToken[matched];
-            var baseName = BaseNameOf(matched);
 
             if (baseName == RunName)
             {
@@ -341,6 +406,10 @@ public static class SeStringTreeTokenizer
         newLineBytes = bytes;
         return token;
     }
+
+    // True when text[index] is the suppression marker that follows a NewLine token.
+    private static bool HasSuppressionMarker(string text, int index)
+        => index < text.Length && text[index] == SeStringSuppressedNewLine.Marker;
 
     private enum FrameKind { Run, Macro }
 
