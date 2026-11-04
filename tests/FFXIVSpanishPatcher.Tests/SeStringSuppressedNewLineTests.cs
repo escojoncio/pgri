@@ -177,10 +177,98 @@ public sealed class SeStringSuppressedNewLineTests
         Assert.False(glued.IsCompatible);
         Assert.Contains(glued.Violations, v => v.Kind == SeStringViolationKind.StrayDelimiter);
 
-        // Nothing after the marker (trailing newline).
-        var atEnd = SeStringCompatibilityValidator.Validate(source, "<NewLine>A<NewLine#2><NewLine#3>B<NewLine#4>" + M);
-        Assert.False(atEnd.IsCompatible);
-        Assert.Contains(atEnd.Violations, v => v.Kind == SeStringViolationKind.StrayDelimiter);
+        // A trailing newline CAN be suppressed now (see TrailingSuppressedNewLine_...).
+        Assert.True(SeStringCompatibilityValidator.Validate(source, "<NewLine>A<NewLine#2><NewLine#3>B<NewLine#4>" + M).IsCompatible);
+    }
+
+    // 0x48 = ColorType (leaf macro with one expression byte: 0x02 = integer 1, 0xEC = pop color).
+    private static readonly byte[] ColorBytes = [0x02, 0x48, 0x02, 0x02, 0x03];
+    private static readonly byte[] ColorEndBytes = [0x02, 0x48, 0x02, 0xEC, 0x03];
+
+    private static (byte[] Vanilla, string Source) ColoredCell()
+    {
+        // "Pulsa<NL>" + color + "Aceptar" + colorEnd + "<NL>y sigue"
+        var vanilla = Join(Text("Pulsa"), NewLineBytes, ColorBytes, Text("Aceptar"), ColorEndBytes, NewLineBytes, Text("y sigue"));
+        return (vanilla, SeStringTreeTokenizer.TokenizeRawText(vanilla));
+    }
+
+    [Fact]
+    public void SuppressedNewLine_BeforeAColorToken_IsAccepted_AndSpaceGoesBeforeIt()
+    {
+        var (vanilla, source) = ColoredCell();
+        Assert.Equal("Pulsa<NewLine><ColorType>Aceptar<ColorType#2><NewLine#2>y sigue", source);
+
+        var target = "Pulsa<NewLine>" + M + "<ColorType>Aceptar<ColorType#2><NewLine#2>y sigue";
+        Assert.True(SeStringCompatibilityValidator.Validate(source, target).IsCompatible);
+        Assert.True(SeStringTree.TryTranslate(vanilla, source, target, out var result, out var reason), reason);
+        Assert.Equal(Join(Text("Pulsa "), ColorBytes, Text("Aceptar"), ColorEndBytes, NewLineBytes, Text("y sigue")), result);
+        Assert.False(ContainsMarkerBytes(result));
+    }
+
+    [Fact]
+    public void SuppressedNewLine_GluedAfterAColorToken_IsAccepted()
+    {
+        var (vanilla, source) = ColoredCell();
+        var target = "Pulsa<NewLine><ColorType>Aceptar<ColorType#2><NewLine#2>" + M + "y sigue";
+        Assert.True(SeStringCompatibilityValidator.Validate(source, target).IsCompatible);
+        Assert.True(SeStringTree.TryTranslate(vanilla, source, target, out var result, out var reason), reason);
+        Assert.Equal(Join(Text("Pulsa"), NewLineBytes, ColorBytes, Text("Aceptar"), ColorEndBytes, Text(" y sigue")), result);
+    }
+
+    [Fact]
+    public void ColorTextMarkedTextColor_AllNewLinesSuppressed()
+    {
+        var (vanilla, source) = ColoredCell();
+        var target = "Pulsa<NewLine>" + M + "<ColorType>Aceptar<ColorType#2><NewLine#2>" + M + "y sigue";
+        Assert.True(SeStringCompatibilityValidator.Validate(source, target).IsCompatible);
+        Assert.True(SeStringTree.TryTranslate(vanilla, source, target, out var result, out var reason), reason);
+        Assert.Equal(Join(Text("Pulsa "), ColorBytes, Text("Aceptar"), ColorEndBytes, Text(" y sigue")), result);
+    }
+
+    [Fact]
+    public void TrailingSuppressedNewLine_IsAccepted_AndThePendingSpaceIsDropped()
+    {
+        var vanilla = Join(Text("Hola"), NewLineBytes, Text("Mundo"), NewLineBytes);
+        var source = SeStringTreeTokenizer.TokenizeRawText(vanilla);
+        Assert.Equal("Hola<NewLine>Mundo<NewLine#2>", source);
+
+        var target = "Hola<NewLine>Mundo<NewLine#2>" + M;
+        Assert.True(SeStringCompatibilityValidator.Validate(source, target).IsCompatible);
+        Assert.True(SeStringTree.TryTranslate(vanilla, source, target, out var result, out var reason), reason);
+        Assert.Equal(Join(Text("Hola"), NewLineBytes, Text("Mundo")), result);
+    }
+
+    [Fact]
+    public void TrailingEmptyMarkedChunks_ChainOfMarkedNewLines_Collapse()
+    {
+        var vanilla = Join(Text("A"), NewLineBytes, Text("B"), NewLineBytes, Text("C"));
+        var source = SeStringTreeTokenizer.TokenizeRawText(vanilla);
+        var target = "A B<NewLine>" + M + "<NewLine#2>" + M;
+        Assert.True(SeStringCompatibilityValidator.Validate(source, target).IsCompatible);
+        Assert.True(SeStringTree.TryTranslate(vanilla, source, target, out var result, out var reason), reason);
+        Assert.Equal(Text("A B"), result);
+    }
+
+    [Fact]
+    public void NewLineGluedToAnotherNewLine_OrToANonStyleToken_StaysRejected()
+    {
+        byte[] other = [0x02, 0x41, 0x01, 0x03];
+        var vanilla = Join(Text("A"), other, NewLineBytes, Text("B"));
+        var source = SeStringTreeTokenizer.TokenizeRawText(vanilla);
+        var otherToken = System.Text.RegularExpressions.Regex.Match(source, "<(?!NewLine)[^>]+>").Value;
+        var report = SeStringCompatibilityValidator.Validate(source, "A" + otherToken + "<NewLine>" + M + "B");
+        Assert.False(report.IsCompatible);
+        Assert.Contains(report.Violations, v => v.Kind == SeStringViolationKind.StrayDelimiter);
+    }
+
+    [Fact]
+    public void SuppressedNewLineInsideARunAroundColor_StaysRejected()
+    {
+        var report = SeStringCompatibilityValidator.Validate(
+            "<Run>a<ColorType><NewLine>b<RunEnd>",
+            "<Run>a<ColorType><NewLine>" + M + "b<RunEnd>");
+        Assert.False(report.IsCompatible);
+        Assert.Contains(report.Violations, v => v.Kind == SeStringViolationKind.ExtraPayload);
     }
 
     [Fact]

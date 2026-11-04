@@ -19,8 +19,9 @@ namespace XivSpanish.GameData;
 ///
 /// <para>Hard newlines can never be suppressed (the validator rejects the mark): inside a
 /// <c>&lt;Run&gt;</c> or before the last <c>&lt;MacroEnd&gt;</c> (same rule as extra NewLines), at the
-/// start of the string, glued to a preceding token (another NewLine included), or with nothing after
-/// the marker.</para>
+/// start of the string, or glued to a preceding NewLine or non-style token. A NewLine glued to a
+/// colour/style token (ColorType, EdgeColorType, Color, EdgeColor, Italic, Edge) can be suppressed,
+/// and so can the last NewLine of the string (its pending space is dropped).</para>
 /// </summary>
 public static class SeStringSuppressedNewLine
 {

@@ -379,10 +379,18 @@ public static partial class SeStringCompatibilityValidator
     // character right after a <NewLine>/<NewLine#N> token, and that NewLine must be a "soft" one:
     //  - not inside a <Run> and not before the last <MacroEnd> (same rule as extra NewLines: the
     //    recomputed length prefix of the bracket would change) -> ExtraPayload;
-    //  - not at the start of the string, not glued to the end of a previous token (another NewLine
-    //    included: paragraph breaks and empty chunks) and not the last thing in the string (a trailing
-    //    NewLine) -> StrayDelimiter, as is any marker not attached to a NewLine.
+    //  - not at the start of the string and not glued to the end of a previous NON-style token
+    //    (another NewLine included: paragraph breaks and empty chunks; icons, numbers...) ->
+    //    StrayDelimiter, as is any marker not attached to a NewLine.
+    //  - a NewLine glued to a colour/style token (ColorType, EdgeColorType, Color, EdgeColor, Italic,
+    //    Edge: leaf macros that write no visible text) IS suppressible, and so is the last NewLine of
+    //    the string (the pending space is simply dropped): both are unambiguous.
     // The token itself keeps counting in the multiset/order checks, so the structure is unchanged.
+    // Colour/style leaf macros: they write no visible text and never hold a length-prefixed body, so a
+    // NewLine right after them can be dropped without ambiguity.
+    private static bool IsStyleBase(string baseName)
+        => baseName is "ColorType" or "EdgeColorType" or "Color" or "EdgeColor" or "Italic" or "Edge";
+
     private static void CheckSuppressedNewLines(string target, List<Atom> targetAtoms, List<SeStringViolation> violations)
     {
         if (!SeStringSuppressedNewLine.ContainsMarker(target))
@@ -431,14 +439,16 @@ public static partial class SeStringCompatibilityValidator
                 continue;
             }
 
-            var gluedToToken = idx > 0 && targetAtoms[idx - 1].Position + targetAtoms[idx - 1].Token.Length == atom.Position;
-            if (atom.Position == 0 || gluedToToken || end + 1 >= target.Length)
+            var gluedToHardToken = idx > 0
+                && targetAtoms[idx - 1].Position + targetAtoms[idx - 1].Token.Length == atom.Position
+                && !IsStyleBase(targetAtoms[idx - 1].BaseName);
+            if (atom.Position == 0 || gluedToHardToken)
             {
                 violations.Add(new SeStringViolation(
                     SeStringViolationKind.StrayDelimiter,
                     atom.Token,
                     atom.Position,
-                    $"{atom.Token} is marked as suppressed but is a hard newline (at the start or end of the string, or glued to another token); it cannot be suppressed"));
+                    $"{atom.Token} is marked as suppressed but is a hard newline (at the start of the string, or glued to a NewLine or another non-style token); it cannot be suppressed"));
             }
         }
 
