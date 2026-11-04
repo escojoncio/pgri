@@ -134,6 +134,7 @@ public static partial class SeStringCompatibilityValidator
 
         CheckStrayDelimiters(target, targetAtoms, violations);
         var checkedAtoms = DropExtraNewLines(sourceAtoms, targetAtoms, violations);
+        CheckSuppressedNewLines(target, targetAtoms, violations);
         CheckMultiset(sourceAtoms, checkedAtoms, violations);
         CheckRunNesting(checkedAtoms, violations);
         CheckOrder(sourceAtoms, checkedAtoms, violations);
@@ -168,6 +169,7 @@ public static partial class SeStringCompatibilityValidator
 
             CheckStrayDelimiters(withoutMacros, targetAtoms, violations);
             var checkedAtoms = DropExtraNewLines(sourceAtoms, targetAtoms, violations);
+            CheckSuppressedNewLines(withoutMacros, targetAtoms, violations);
             CheckMultiset(sourceAtoms, checkedAtoms, violations);
             CheckRunNesting(checkedAtoms, violations);
             CheckOrder(sourceAtoms, checkedAtoms, violations);
@@ -184,6 +186,16 @@ public static partial class SeStringCompatibilityValidator
                 FirstGenderDelimiter(target),
                 reason ?? "invalid standard target macro"));
             return new SeStringCompatibilityReport(violations);
+        }
+
+        if (SeStringSuppressedNewLine.ContainsMarker(target))
+        {
+            // A source without payloads has no NewLine to suppress: the marker could only leak.
+            violations.Add(new SeStringViolation(
+                SeStringViolationKind.StrayDelimiter,
+                "U+E0F0",
+                target.IndexOf(SeStringSuppressedNewLine.Marker),
+                "target carries a NewLine-suppression marker (U+E0F0) but there is no <NewLine> token for it to follow"));
         }
 
         CheckControlChars(source, target, violations);
@@ -361,6 +373,86 @@ public static partial class SeStringCompatibilityValidator
         }
 
         return TryParseExtraNewLineToken(token, out var number) && number > sourceNewLines;
+    }
+
+    // NewLine-suppression marker (U+E0F0, see SeStringSuppressedNewLine): it is valid ONLY as the
+    // character right after a <NewLine>/<NewLine#N> token, and that NewLine must be a "soft" one:
+    //  - not inside a <Run> and not before the last <MacroEnd> (same rule as extra NewLines: the
+    //    recomputed length prefix of the bracket would change) -> ExtraPayload;
+    //  - not at the start of the string, not glued to the end of a previous token (another NewLine
+    //    included: paragraph breaks and empty chunks) and not the last thing in the string (a trailing
+    //    NewLine) -> StrayDelimiter, as is any marker not attached to a NewLine.
+    // The token itself keeps counting in the multiset/order checks, so the structure is unchanged.
+    private static void CheckSuppressedNewLines(string target, List<Atom> targetAtoms, List<SeStringViolation> violations)
+    {
+        if (!SeStringSuppressedNewLine.ContainsMarker(target))
+        {
+            return;
+        }
+
+        var lastMacroEnd = -1;
+        for (var k = 0; k < targetAtoms.Count; k++)
+        {
+            if (targetAtoms[k].BaseName == MacroEndBase)
+            {
+                lastMacroEnd = k;
+            }
+        }
+
+        var attached = new HashSet<int>();
+        var runDepth = 0;
+        for (var idx = 0; idx < targetAtoms.Count; idx++)
+        {
+            var atom = targetAtoms[idx];
+            var baseName = atom.BaseName;
+            if (baseName == RunBase)
+            {
+                runDepth++;
+            }
+            else if (baseName == RunEndBase && runDepth > 0)
+            {
+                runDepth--;
+            }
+
+            var end = atom.Position + atom.Token.Length;
+            if (baseName != NewLineBase || end >= target.Length || target[end] != SeStringSuppressedNewLine.Marker)
+            {
+                continue;
+            }
+
+            attached.Add(end);
+            if (runDepth > 0 || idx < lastMacroEnd)
+            {
+                violations.Add(new SeStringViolation(
+                    SeStringViolationKind.ExtraPayload,
+                    atom.Token,
+                    atom.Position,
+                    $"{atom.Token} is marked as suppressed but sits inside a length-prefixed run or macro bracket; only newlines outside them can be suppressed"));
+                continue;
+            }
+
+            var gluedToToken = idx > 0 && targetAtoms[idx - 1].Position + targetAtoms[idx - 1].Token.Length == atom.Position;
+            if (atom.Position == 0 || gluedToToken || end + 1 >= target.Length)
+            {
+                violations.Add(new SeStringViolation(
+                    SeStringViolationKind.StrayDelimiter,
+                    atom.Token,
+                    atom.Position,
+                    $"{atom.Token} is marked as suppressed but is a hard newline (at the start or end of the string, or glued to another token); it cannot be suppressed"));
+            }
+        }
+
+        for (var p = 0; p < target.Length; p++)
+        {
+            if (target[p] == SeStringSuppressedNewLine.Marker && !attached.Contains(p))
+            {
+                violations.Add(new SeStringViolation(
+                    SeStringViolationKind.StrayDelimiter,
+                    "U+E0F0",
+                    p,
+                    "NewLine-suppression marker (U+E0F0) must immediately follow a <NewLine> token"));
+            }
+        }
     }
 
     // The target may carry MORE <NewLine> tokens than the source (and only NewLine): extras are the

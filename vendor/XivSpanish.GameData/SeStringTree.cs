@@ -102,6 +102,13 @@ public static class SeStringTree
         {
             if (tok.Tokens.Count == 0)
             {
+                if (SeStringSuppressedNewLine.ContainsMarker(target))
+                {
+                    // TryParse would write the marker as visible literal text.
+                    reason = "NewLine-suppression marker without a source NewLine in a standard-macro target";
+                    return false;
+                }
+
                 if (!SeStringStandardMacros.TryParse(target, out rebuilt, out detokenReason))
                 {
                     reason = detokenReason ?? "could not parse standard target macros";
