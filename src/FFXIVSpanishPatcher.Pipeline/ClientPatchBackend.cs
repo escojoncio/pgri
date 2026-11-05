@@ -38,11 +38,7 @@ internal sealed class ClientPatchBackend(object gameData, ExdResolver resolver, 
     {
         if (!string.IsNullOrWhiteSpace(key.ExdPath))
         {
-            // El cliente se ejecuta en inglés: redirigimos las páginas _ja a sus equivalentes _en (mismo nombre, otro sufijo de idioma).
-            var exdPath = key.ExdPath.EndsWith("_ja.exd", StringComparison.OrdinalIgnoreCase)
-                ? key.ExdPath[..^"_ja.exd".Length] + "_en.exd"
-                : key.ExdPath;
-            return ExdResolution.Resolved(exdPath);
+            return ExdResolution.Resolved(key.ExdPath);
         }
 
         if (!key.RowId.HasValue)
