@@ -11,4 +11,7 @@
     <ProjectReference Include="..\..\vendor\XivSpanish.GameData\XivSpanish.GameData.csproj" />
     <ProjectReference Include="..\..\vendor\XivSpanish.Packaging\XivSpanish.Packaging.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\data\carteles_ui_ja_a_en.tsv" LogicalName="carteles_ui_ja_a_en.tsv" />
+  </ItemGroup>
 </Project>

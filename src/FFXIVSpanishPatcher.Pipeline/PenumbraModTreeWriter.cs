@@ -64,7 +64,8 @@ internal sealed class PenumbraModTreeWriter
             .Select(category => new PenumbraModOption(
                 category.DisplayName,
                 category.Description,
-                _filesByDomain[category.Domain]))
+                _filesByDomain[category.Domain],
+                string.Equals(category.Domain, "interfaz", StringComparison.OrdinalIgnoreCase) ? UiLanguageSwaps.Load() : null))
             .ToArray();
         var root = PackageModMetaV4.From(meta, options, TranslationCategoryCatalog.BuildDefaultSettings(selectedDomains));
         WriteJsonAtomically(Path.Combine(_stagingPath, "meta.json"), root);
@@ -177,16 +178,24 @@ internal sealed class PackageModMetaV4
 
 internal class PenumbraModContainer
 {
-    public PenumbraModContainer(SortedDictionary<string, string>? files = null)
-        => Files = files is { Count: > 0 } ? files : null;
+    public PenumbraModContainer(SortedDictionary<string, string>? files = null, SortedDictionary<string, string>? fileSwaps = null)
+    {
+        Files = files is { Count: > 0 } ? files : null;
+        FileSwaps = fileSwaps is { Count: > 0 } ? fileSwaps : null;
+    }
+
+    /// <summary>Game path -> game path swaps (Penumbra v4 option); used to show the English HUD textures to a Japanese client.</summary>
+    [JsonPropertyName("FileSwaps")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public SortedDictionary<string, string>? FileSwaps { get; }
 
     [JsonPropertyName("Files")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public SortedDictionary<string, string>? Files { get; }
 }
 
-internal sealed class PenumbraModOption(string name, string description, SortedDictionary<string, string> files)
-    : PenumbraModContainer(files)
+internal sealed class PenumbraModOption(string name, string description, SortedDictionary<string, string> files, SortedDictionary<string, string>? fileSwaps = null)
+    : PenumbraModContainer(files, fileSwaps)
 {
     [JsonPropertyName("Name")] public string Name { get; } = name;
     [JsonPropertyName("Description")] public string Description { get; } = description;
