@@ -398,15 +398,6 @@ public static partial class SeStringCompatibilityValidator
             return;
         }
 
-        var lastMacroEnd = -1;
-        for (var k = 0; k < targetAtoms.Count; k++)
-        {
-            if (targetAtoms[k].BaseName == MacroEndBase)
-            {
-                lastMacroEnd = k;
-            }
-        }
-
         var attached = new HashSet<int>();
         var runDepth = 0;
         for (var idx = 0; idx < targetAtoms.Count; idx++)
@@ -429,7 +420,9 @@ public static partial class SeStringCompatibilityValidator
             }
 
             attached.Add(end);
-            if (runDepth > 0 || idx < lastMacroEnd)
+            // El limite «antes del ultimo MacroEnd» se retiro (2026-11-05): un NewLine de nivel superior no cambia ningun prefijo de longitud; la profundidad real
+            // (dentro de una macro) la rechaza el tokenizador con su pila (SeStringTreeTokenizer).
+            if (runDepth > 0)
             {
                 violations.Add(new SeStringViolation(
                     SeStringViolationKind.ExtraPayload,

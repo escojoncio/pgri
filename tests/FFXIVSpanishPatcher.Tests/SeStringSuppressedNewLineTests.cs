@@ -314,13 +314,14 @@ public sealed class SeStringSuppressedNewLineTests
     }
 
     [Fact]
-    public void SuppressedNewLineBeforeTheLastMacroEnd_IsRejected_AfterItIsAccepted()
+    public void SuppressedNewLine_TopLevelBeforeAMacro_IsAccepted_AsIsAfterIt()
     {
+        // 2026-11-05: a top-level NewLine before a later macro changes no length prefix; only Run depth (validator) and the
+        // tokenizer's bracket stack reject a NewLine that really sits inside a bracket.
         var before = SeStringCompatibilityValidator.Validate(
             "A<NewLine>B<Payload40>x<MacroEnd>C",
             "A<NewLine>" + M + "B<Payload40>x<MacroEnd>C");
-        Assert.False(before.IsCompatible);
-        Assert.Contains(before.Violations, v => v.Kind == SeStringViolationKind.ExtraPayload);
+        Assert.True(before.IsCompatible);
 
         var after = SeStringCompatibilityValidator.Validate(
             "A<Payload40>x<MacroEnd>B<NewLine>C",
