@@ -60,6 +60,7 @@ internal sealed class PenumbraModTreeWriter
     /// <summary>Writes only v4 metadata; callers can verify this tree or archive it afterwards.</summary>
     public void WriteTree(PackageMeta meta, IReadOnlyCollection<string>? selectedDomains)
     {
+        AddBlankUiTextures();
         var options = TranslationCategoryCatalog.All
             .Select(category => new PenumbraModOption(
                 category.DisplayName,
@@ -70,6 +71,40 @@ internal sealed class PenumbraModTreeWriter
         var root = PackageModMetaV4.From(meta, options, TranslationCategoryCatalog.BuildDefaultSettings(selectedDomains));
         WriteJsonAtomically(Path.Combine(_stagingPath, "meta.json"), root);
         TranslationModIdentity.Write(_stagingPath);
+    }
+
+    private bool _blankUiTexturesAdded;
+
+    /// <summary>Hides the Japanese title subtitles (language-less ui/icon textures) behind a transparent texture.</summary>
+    private void AddBlankUiTextures()
+    {
+        if (_blankUiTexturesAdded)
+        {
+            return;
+        }
+
+        _blankUiTexturesAdded = true;
+        var paths = UiLanguageSwaps.LoadHiddenTextures();
+        if (paths.Count == 0 || !TranslationCategoryCatalog.TryGet("interfaz", out var category))
+        {
+            return;
+        }
+
+        var bytes = UiLanguageSwaps.BlankTexture();
+        foreach (var gamePath in paths)
+        {
+            ValidateGamePath(gamePath);
+            var modRelative = $"files/categories/{category.Order:D2}-{category.Domain}/{gamePath}";
+            var destination = ResolveInsideTree(modRelative);
+            Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+            File.WriteAllBytes(destination, bytes);
+            if (!_declared.TryAdd(gamePath, modRelative))
+            {
+                throw new InvalidDataException($"game path declared by more than one category: {gamePath}");
+            }
+
+            _filesByDomain[category.Domain].Add(gamePath, modRelative);
+        }
     }
 
     private string ResolveInsideTree(string relativePath)

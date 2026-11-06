@@ -13,5 +13,6 @@
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="..\..\data\carteles_ui_ja_a_en.tsv" LogicalName="carteles_ui_ja_a_en.tsv" />
+    <EmbeddedResource Include="..\..\data\carteles_ui_ja_ocultar.txt" LogicalName="carteles_ui_ja_ocultar.txt" />
   </ItemGroup>
 </Project>
