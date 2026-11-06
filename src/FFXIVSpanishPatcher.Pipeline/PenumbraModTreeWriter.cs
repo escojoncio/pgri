@@ -31,7 +31,10 @@ internal sealed class PenumbraModTreeWriter
 
     public string StagingPath => _stagingPath;
 
-    public int FileCount => _declared.Count;
+    private int _exdFileCount;
+
+    /// <summary>Number of patched EXD pages (the static UI textures are not counted).</summary>
+    public int FileCount => _exdFileCount;
 
     public IReadOnlyDictionary<string, string> DeclaredFiles => _declared;
 
@@ -55,6 +58,7 @@ internal sealed class PenumbraModTreeWriter
         }
 
         _filesByDomain[category.Domain].Add(exdGamePath, modRelative);
+        _exdFileCount++;
     }
 
     /// <summary>Writes only v4 metadata; callers can verify this tree or archive it afterwards.</summary>
