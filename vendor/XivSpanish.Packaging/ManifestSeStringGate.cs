@@ -63,7 +63,8 @@ public static class ManifestSeStringGate
             if (string.IsNullOrEmpty(entry.Target)
                 || (!SeStringCompatibilityValidator.HasPayloads(entry.Source)
                     && !SeStringStandardMacros.HasReservedDelimiter(entry.Target)
-                    && !SeStringSuppressedNewLine.ContainsMarker(entry.Target)))
+                    && !SeStringSuppressedNewLine.ContainsMarker(entry.Target)
+                    && !SeStringOwnColors.ContainsOwnColor(entry.Target)))
             {
                 continue;
             }

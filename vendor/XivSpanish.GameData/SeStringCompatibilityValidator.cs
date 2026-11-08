@@ -41,6 +41,9 @@ public enum SeStringViolationKind
 
     /// <summary>An allow-listed target-authored macro has invalid syntax or was added to a payload-bearing source.</summary>
     InvalidStandardMacro,
+
+    /// <summary>A target-authored colour span (<c>&lt;UIColor:f201yy&gt;</c>..<c>&lt;UIColorEnd&gt;</c>) is nested, unclosed, out of range, or mixed with plain colour tokens or run/macro brackets.</summary>
+    InvalidOwnColor,
 }
 
 /// <summary>
@@ -133,11 +136,13 @@ public static partial class SeStringCompatibilityValidator
         var targetAtoms = ExtractAtoms(target);
 
         CheckStrayDelimiters(target, targetAtoms, violations);
-        var checkedAtoms = DropExtraNewLines(sourceAtoms, targetAtoms, violations);
+        CheckOwnColors(targetAtoms, violations);
+        var (compareSource, compareTarget) = ApplyOwnColors(sourceAtoms, targetAtoms);
+        var checkedAtoms = DropExtraNewLines(compareSource, compareTarget, violations);
         CheckSuppressedNewLines(target, targetAtoms, violations);
-        CheckMultiset(sourceAtoms, checkedAtoms, violations);
+        CheckMultiset(compareSource, checkedAtoms, violations);
         CheckRunNesting(checkedAtoms, violations);
-        CheckOrder(sourceAtoms, checkedAtoms, violations);
+        CheckOrder(compareSource, checkedAtoms, violations);
         CheckControlChars(source, target, violations);
         CheckStaleRunLength(source, target, sourceAtoms, targetAtoms, violations);
 
@@ -168,11 +173,13 @@ public static partial class SeStringCompatibilityValidator
             var targetAtoms = ExtractAtoms(withoutMacros);
 
             CheckStrayDelimiters(withoutMacros, targetAtoms, violations);
-            var checkedAtoms = DropExtraNewLines(sourceAtoms, targetAtoms, violations);
+            CheckOwnColors(targetAtoms, violations);
+            var (compareSource, compareTarget) = ApplyOwnColors(sourceAtoms, targetAtoms);
+            var checkedAtoms = DropExtraNewLines(compareSource, compareTarget, violations);
             CheckSuppressedNewLines(withoutMacros, targetAtoms, violations);
-            CheckMultiset(sourceAtoms, checkedAtoms, violations);
+            CheckMultiset(compareSource, checkedAtoms, violations);
             CheckRunNesting(checkedAtoms, violations);
-            CheckOrder(sourceAtoms, checkedAtoms, violations);
+            CheckOrder(compareSource, checkedAtoms, violations);
             CheckControlChars(source, withoutMacros, violations);
             CheckStaleRunLength(source, withoutMacros, sourceAtoms, targetAtoms, violations);
             return new SeStringCompatibilityReport(violations);
@@ -257,6 +264,12 @@ public static partial class SeStringCompatibilityValidator
             get
             {
                 var inner = Token[1..^1];
+                var colon = inner.IndexOf(':');
+                if (colon >= 0)
+                {
+                    inner = inner[..colon]; // <UIColor:f201f6> -> UIColor
+                }
+
                 var hash = inner.IndexOf('#');
                 return hash < 0 ? inner : inner[..hash];
             }
@@ -289,6 +302,12 @@ public static partial class SeStringCompatibilityValidator
             {
                 atoms.Add(new Atom(match.Value, i));
                 i += match.Length;
+            }
+            else if (SeStringOwnColors.TryMatchAt(text, i, out var ownToken, out _, out _))
+            {
+                // Target-authored colour (<UIColor:f201f6>): a token like any other for the stray-'<' scan.
+                atoms.Add(new Atom(ownToken, i));
+                i += ownToken.Length;
             }
             else
             {
@@ -389,7 +408,79 @@ public static partial class SeStringCompatibilityValidator
     // Colour/style leaf macros: they write no visible text and never hold a length-prefixed body, so a
     // NewLine right after them can be dropped without ambiguity.
     private static bool IsStyleBase(string baseName)
-        => baseName is "ColorType" or "EdgeColorType" or "Color" or "EdgeColor" or "Italic" or "Edge";
+        => baseName is "ColorType" or "EdgeColorType" or "Color" or "EdgeColor" or "Italic" or "Edge" or "UIColor" or "UIColorEnd";
+
+    // Target-authored colour spans (see SeStringOwnColors). Syntax: pairs <UIColor:f201yy>..<UIColorEnd>, no
+    // nesting, code in range, no plain ColorType/EdgeColorType in the target, no Run/MacroEnd brackets.
+    private static void CheckOwnColors(List<Atom> targetAtoms, List<SeStringViolation> violations)
+    {
+        if (!targetAtoms.Any(a => SeStringOwnColors.IsOwnColorBaseName(a.BaseName)))
+        {
+            return;
+        }
+
+        var open = false;
+        foreach (var atom in targetAtoms)
+        {
+            var baseName = atom.BaseName;
+            if (baseName == SeStringOwnColors.OpenBaseName)
+            {
+                if (open)
+                {
+                    violations.Add(new SeStringViolation(SeStringViolationKind.InvalidOwnColor, atom.Token, atom.Position,
+                        $"{atom.Token} is nested inside another own colour"));
+                }
+                else if (!SeStringOwnColors.TryMatchAt(atom.Token, 0, out _, out var isOpen, out var hex)
+                    || !SeStringOwnColors.TryGetBytes(isOpen, hex, out _))
+                {
+                    violations.Add(new SeStringViolation(SeStringViolationKind.InvalidOwnColor, atom.Token, atom.Position,
+                        $"{atom.Token}: code outside the supported range (f201 + 80..fe)"));
+                }
+
+                open = true;
+            }
+            else if (baseName == SeStringOwnColors.CloseBaseName)
+            {
+                if (!open)
+                {
+                    violations.Add(new SeStringViolation(SeStringViolationKind.InvalidOwnColor, atom.Token, atom.Position,
+                        "<UIColorEnd> without an open <UIColor:..>"));
+                }
+
+                open = false;
+            }
+            else if (SeStringOwnColors.IsReplacedBaseName(baseName))
+            {
+                violations.Add(new SeStringViolation(SeStringViolationKind.InvalidOwnColor, atom.Token, atom.Position,
+                    $"{atom.Token}: a target with own colours cannot carry the source's ColorType/EdgeColorType tokens"));
+            }
+            else if (baseName is RunBase or RunEndBase or MacroEndBase)
+            {
+                violations.Add(new SeStringViolation(SeStringViolationKind.InvalidOwnColor, atom.Token, atom.Position,
+                    $"{atom.Token}: own colours are only allowed in flat strings (no Run/MacroEnd)"));
+            }
+        }
+
+        if (open)
+        {
+            violations.Add(new SeStringViolation(SeStringViolationKind.InvalidOwnColor, null, -1,
+                "<UIColor:..> is never closed with <UIColorEnd>"));
+        }
+    }
+
+    // With own colours in the target, the comparison ignores the source's ColorType/EdgeColorType tokens and the
+    // target's own colour tokens; without them it is the identity.
+    private static (List<Atom> Source, List<Atom> Target) ApplyOwnColors(List<Atom> sourceAtoms, List<Atom> targetAtoms)
+    {
+        if (!targetAtoms.Any(a => SeStringOwnColors.IsOwnColorBaseName(a.BaseName)))
+        {
+            return (sourceAtoms, targetAtoms);
+        }
+
+        return (
+            sourceAtoms.Where(a => !SeStringOwnColors.IsReplacedBaseName(a.BaseName)).ToList(),
+            targetAtoms.Where(a => !SeStringOwnColors.IsOwnColorBaseName(a.BaseName)).ToList());
+    }
 
     private static void CheckSuppressedNewLines(string target, List<Atom> targetAtoms, List<SeStringViolation> violations)
     {

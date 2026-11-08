@@ -401,7 +401,9 @@ public static class ExdPatcher
             {
                 // Empty column: write-at-offset. A non-empty source against an empty column has
                 // nothing to match, so only an empty (or matching-empty) source may write here.
-                if (rep.Source.Length == 0 && !SeStringSuppressedNewLine.ContainsMarker(rep.Target))
+                if (rep.Source.Length == 0
+                    && !SeStringSuppressedNewLine.ContainsMarker(rep.Target)
+                    && !SeStringOwnColors.ContainsOwnColor(rep.Target))
                 {
                     newBytes = Encoding.UTF8.GetBytes(rep.Target);
                 }
@@ -560,7 +562,9 @@ public static class ExdPatcher
                 var freshOffset = (uint)newBlob.Length;
                 // A NewLine-suppression marker has no meaning without a source NewLine: never write it.
                 newBlob.Write(Encoding.UTF8.GetBytes(
-                    SeStringSuppressedNewLine.ContainsMarker(write.Target) ? string.Empty : write.Target));
+                    SeStringSuppressedNewLine.ContainsMarker(write.Target) || SeStringOwnColors.ContainsOwnColor(write.Target)
+                        ? string.Empty
+                        : write.Target));
                 newBlob.WriteByte(0);
                 BinaryPrimitives.WriteUInt32BigEndian(fixedData.AsSpan(columnOffset, 4), freshOffset);
                 appliedEmptyWrites++;

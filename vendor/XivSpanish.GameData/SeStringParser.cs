@@ -352,6 +352,13 @@ public static class SeStringParser
             return false;
         }
 
+        // Target-authored colour spans are only understood by the run-aware tree path.
+        if (SeStringOwnColors.ContainsOwnColor(target))
+        {
+            reason = "target contains own colours requiring run-aware translation";
+            return false;
+        }
+
         var sourceTokens = SeStringTokenizer.FindTokenReferences(source);
         var targetTokens = SeStringTokenizer.FindTokenReferences(target);
         if (!TokenReferencesEqual(sourceTokens, targetTokens))
@@ -472,6 +479,12 @@ public static class SeStringParser
         if (SeStringSuppressedNewLine.ContainsMarker(target))
         {
             reason = "target contains NewLine-suppression markers requiring run-aware translation";
+            return false;
+        }
+
+        if (SeStringOwnColors.ContainsOwnColor(target))
+        {
+            reason = "target contains own colours requiring run-aware translation";
             return false;
         }
 

@@ -138,6 +138,11 @@ public static class SeStringTreeTokenizer
         // literal character or non-NewLine token, so an empty marked chunk produces nothing.
         var pendingSpace = false;
 
+        // Target-authored colour spans (<UIColor:f201yy>..<UIColorEnd>, see SeStringOwnColors): synthesized as
+        // opaque macro bytes at top level only; they replace the source's ColorType/EdgeColorType tokens.
+        var hasOwnColors = SeStringOwnColors.ContainsOwnColor(text);
+        var ownColorOpen = false;
+
         void FlushLiteral()
         {
             if (literal.Length > 0)
@@ -194,6 +199,45 @@ public static class SeStringTreeTokenizer
             var matched = SeStringTokenizer.MatchTokenAt(text, i, byToken.Keys);
             if (matched is null)
             {
+                if (hasOwnColors && SeStringOwnColors.TryMatchAt(text, i, out var ownToken, out var ownIsOpen, out var ownHex))
+                {
+                    if (stack.Count != 0)
+                    {
+                        reason = $"own colour '{ownToken}' inside a run or macro bracket in target";
+                        return false;
+                    }
+
+                    foreach (var (key, keyBytes) in byToken)
+                    {
+                        if (SeStringOwnColors.IsReplacedBaseName(BaseNameOf(key)) && keyBytes.Length == 3 && keyBytes[0] == MacroOpenSentinel)
+                        {
+                            reason = "source colour macro carries a body: own colours are not allowed";
+                            return false;
+                        }
+                    }
+
+                    if (ownIsOpen == ownColorOpen)
+                    {
+                        reason = ownColorOpen
+                            ? $"own colour '{ownToken}' nested inside another own colour in target"
+                            : $"own colour '{ownToken}' closes without an open one in target";
+                        return false;
+                    }
+
+                    if (!SeStringOwnColors.TryGetBytes(ownIsOpen, ownHex, out var ownBytes))
+                    {
+                        reason = $"own colour code in '{ownToken}' is outside the supported range";
+                        return false;
+                    }
+
+                    ownColorOpen = ownIsOpen;
+                    ReleasePendingSpace('\0');
+                    FlushLiteral();
+                    current.Add(new SeNode.OpaqueMacro(ownBytes));
+                    i += ownToken.Length;
+                    continue;
+                }
+
                 // The target may carry extra <NewLine#k> tokens beyond the source's NewLine count:
                 // synthesize them from the bytes of the source's <NewLine>, only at top level or
                 // inside a bracket-free list (never inside a length-prefixed run/macro bracket).
@@ -242,6 +286,12 @@ public static class SeStringTreeTokenizer
             }
 
             var baseName = BaseNameOf(matched);
+            if (hasOwnColors && SeStringOwnColors.IsReplacedBaseName(baseName))
+            {
+                reason = $"plain '{matched}' in a target that carries own colours";
+                return false;
+            }
+
             if (baseName == NewLineName)
             {
                 if (HasSuppressionMarker(text, i + matched.Length))
@@ -333,6 +383,12 @@ public static class SeStringTreeTokenizer
         }
 
         FlushLiteral();
+
+        if (ownColorOpen)
+        {
+            reason = "own colour opened but never closed with <UIColorEnd>";
+            return false;
+        }
 
         if (stack.Count != 0)
         {
