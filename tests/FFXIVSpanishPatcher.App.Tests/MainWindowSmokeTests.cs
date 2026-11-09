@@ -87,14 +87,14 @@ public class MainWindowSmokeTests
                         viewModel,
                         new PatchResult(
                             PatchOutcome.PackagedWithMisses,
-                            "/tmp/FFXIVSpanish-preview.pmp",
+                            "/tmp/FFXIV Spanish",
                             new PatchStatistics(
                                 AppliedWrites: 523_418,
                                 RowMisses: 37,
                                 MissingSheets: 2,
                                 MissingSheetEntries: 91,
                                 PatchedPages: 821)));
-                viewModel.LastOutputName = "FFXIVSpanish-preview.pmp";
+                viewModel.LastOutputName = "/tmp/FFXIV Spanish";
                 viewModel.LastSuccess = true;
                 viewModel.Stage = PatcherUiStage.Result;
                 viewModel.StatusText = "Completado con omisiones";

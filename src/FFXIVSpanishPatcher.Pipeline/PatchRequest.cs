@@ -16,7 +16,7 @@ public enum PatchCompatibilityMode
 }
 
 /// <summary>
-/// Everything the pipeline needs to build one <c>.pmp</c>. Immutable; the GUI builds it from the
+/// Everything the pipeline needs to build one Penumbra mod folder. Immutable; the GUI builds it from the
 /// game path, the selected categories and the additional options, then hands it to
 /// <see cref="PatchPipeline.Run"/>.
 /// </summary>
@@ -36,11 +36,13 @@ public sealed record PatchRequest
     /// <see cref="PackageableStatus.Default"/> (<c>approved</c> + <c>gold</c>).</summary>
     public IReadOnlySet<string> Statuses { get; init; } = PackageableStatus.Default;
 
-    /// <summary>Output <c>.pmp</c> path.</summary>
-    public string OutputPath { get; init; } = DefaultOutputPath();
+    /// <summary>Exact name of the generated mod folder.</summary>
+    public const string ModFolderName = "FFXIV Spanish";
 
-    /// <summary>Staging directory for the package tree (wiped and rebuilt each run).</summary>
-    public string StagingPath { get; init; } = Path.Combine("artifacts", "pmp-staging");
+    /// <summary>
+    /// Output folder; the mod is written to <c>OutputPath/FFXIV Spanish</c> (replaced if it exists).
+    /// </summary>
+    public string OutputPath { get; init; } = DefaultOutputPath();
 
     /// <summary>
     /// Optional vanilla EXD snapshot directory. When set, base bytes/layout come from disk instead
@@ -63,9 +65,9 @@ public sealed record PatchRequest
     /// <summary>Penumbra <c>meta.json</c> fields.</summary>
     public PackageMeta Meta { get; init; } = new();
 
-    /// <summary>Default timestamped output path under <c>artifacts/</c>, matching the mockup naming.</summary>
+    /// <summary>Default output folder under <c>artifacts/</c>.</summary>
     public static string DefaultOutputPath()
-        => Path.Combine("artifacts", $"FFXIVSpanish-{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.pmp");
+        => Path.Combine("artifacts", "output");
 }
 
 /// <summary>Penumbra mod metadata written to <c>meta.json</c>.</summary>

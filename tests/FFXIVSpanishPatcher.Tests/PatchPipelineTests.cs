@@ -1,4 +1,3 @@
-using System.IO.Compression;
 using System.Text;
 using System.Text.Json;
 using FFXIVSpanishPatcher.Pipeline;
@@ -91,8 +90,7 @@ public sealed class PatchPipelineTests : IDisposable
         bool debugLogging = false,
         PatchCompatibilityMode compatibilityMode = PatchCompatibilityMode.Strict) => new()
         {
-            OutputPath = Path.Combine(_temp, "out.pmp"),
-            StagingPath = Path.Combine(_temp, "staging"),
+            OutputPath = Path.Combine(_temp, "out"),
             Categories = categories,
             DebugLogging = debugLogging,
             CompatibilityMode = compatibilityMode,
@@ -115,13 +113,13 @@ public sealed class PatchPipelineTests : IDisposable
         Assert.Equal(0, result.Missed);
         // row 1 (content) + row 2 (empty-offset write) + row 262 (content) + row 3256 (broadcast) = 4
         Assert.Equal(4, result.Applied);
-        Assert.True(File.Exists(result.OutputPath));
+        Assert.True(File.Exists(Path.Combine(result.OutputPath!, "meta.json")));
         Assert.Equal(3, result.Statistics.CategoryStatistics["interfaz"].CandidateEntries);
         Assert.Equal(4, result.Statistics.CategoryStatistics["interfaz"].AppliedWrites);
         Assert.Equal(1, result.Statistics.CategoryStatistics["interfaz"].PatchedPages);
 
         // The package is a valid categorized Penumbra v4 mod: one Multi group plus payload.
-        using var archive = ZipFile.OpenRead(result.OutputPath!);
+        using var archive = FolderArchive.OpenRead(result.OutputPath!);
         var names = archive.Entries.Select(e => e.FullName).ToHashSet();
         Assert.Contains("meta.json", names);
         Assert.Contains(TranslationModIdentity.MarkerFileName, names);
@@ -171,7 +169,7 @@ public sealed class PatchPipelineTests : IDisposable
         Assert.Equal(1, result.Applied);
         Assert.Equal(0, result.Skipped);
 
-        using var archive = ZipFile.OpenRead(result.OutputPath!);
+        using var archive = FolderArchive.OpenRead(result.OutputPath!);
         var patched = ReadExdEntryBytes(archive, exdPath);
         var patchedRaw = ExdRowReader.ReadRawStrings(patched, 4, [0])
             .Single(row => row.RowId == 121u)
@@ -297,7 +295,7 @@ public sealed class PatchPipelineTests : IDisposable
             cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(result.Success);
-        using var archive = ZipFile.OpenRead(result.OutputPath!);
+        using var archive = FolderArchive.OpenRead(result.OutputPath!);
         Assert.NotNull(archive.GetEntry("files/categories/09-interfaz/exd/addon_0_en.exd"));
         using var metadata = JsonDocument.Parse(ReadEntryBytes(archive, "meta.json"));
         var group = metadata.RootElement.GetProperty("Groups")[0];
@@ -315,7 +313,7 @@ public sealed class PatchPipelineTests : IDisposable
 
         Assert.True(result.Success);
         Assert.Equal(4, result.Applied);
-        using var archive = ZipFile.OpenRead(result.OutputPath!);
+        using var archive = FolderArchive.OpenRead(result.OutputPath!);
         using var metadata = JsonDocument.Parse(ReadEntryBytes(archive, "meta.json"));
         Assert.Equal(1 << 9, metadata.RootElement.GetProperty("Groups")[0].GetProperty("DefaultSettings").GetInt32());
     }
@@ -336,16 +334,16 @@ public sealed class PatchPipelineTests : IDisposable
         };
         var pipeline = new PatchPipeline(new ListTranslationSource(entries), new FakePatchBackendFactory(source));
         var all = pipeline.Run(
-            Request() with { OutputPath = Path.Combine(_temp, "all.pmp") },
+            Request() with { OutputPath = Path.Combine(_temp, "all") },
             cancellationToken: TestContext.Current.CancellationToken);
         var itemsOnly = pipeline.Run(
-            Request(categories: ["items"]) with { OutputPath = Path.Combine(_temp, "items.pmp") },
+            Request(categories: ["items"]) with { OutputPath = Path.Combine(_temp, "items") },
             cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(all.Success);
         Assert.True(itemsOnly.Success);
-        using var allArchive = ZipFile.OpenRead(all.OutputPath!);
-        using var itemsArchive = ZipFile.OpenRead(itemsOnly.OutputPath!);
+        using var allArchive = FolderArchive.OpenRead(all.OutputPath!);
+        using var itemsArchive = FolderArchive.OpenRead(itemsOnly.OutputPath!);
         var allPayload = allArchive.Entries.Where(entry => entry.FullName.EndsWith(".exd", StringComparison.Ordinal)).Select(entry => entry.FullName).Order().ToArray();
         var itemsPayload = itemsArchive.Entries.Where(entry => entry.FullName.EndsWith(".exd", StringComparison.Ordinal)).Select(entry => entry.FullName).Order().ToArray();
         Assert.Equal(allPayload, itemsPayload);
@@ -370,7 +368,7 @@ public sealed class PatchPipelineTests : IDisposable
         Assert.Equal(PatchOutcome.Ok, result.Outcome);
         Assert.Equal(2, result.Applied);
 
-        using var archive = ZipFile.OpenRead(result.OutputPath!);
+        using var archive = FolderArchive.OpenRead(result.OutputPath!);
         var patched = ReadExdEntryBytes(archive, ItemExdPath);
         var fields = new[] { "Singular", "Plural", "Name" };
         var values = ExdRowReader.ReadRawStrings(patched, 12, [0, 4, 8])
@@ -443,7 +441,7 @@ public sealed class PatchPipelineTests : IDisposable
         Assert.Equal(1, result.Statistics.MissingSheets);
         Assert.Equal(1, result.Statistics.MissingSheetEntries);
         Assert.Equal(4, result.Applied);
-        Assert.True(File.Exists(result.OutputPath));
+        Assert.True(File.Exists(Path.Combine(result.OutputPath!, "meta.json")));
     }
 
     [Fact]
@@ -507,7 +505,7 @@ public sealed class PatchPipelineTests : IDisposable
         Assert.Equal(PatchOutcome.Contaminated, result.Outcome);
         Assert.Equal(1, result.Applied);
         Assert.Equal(60, result.Missed);
-        Assert.False(File.Exists(Path.Combine(_temp, "out.pmp")));
+        Assert.False(Directory.Exists(ModDir));
     }
 
     [Fact]
@@ -526,7 +524,7 @@ public sealed class PatchPipelineTests : IDisposable
         Assert.Equal(PatchOutcome.PackagedWithMisses, result.Outcome);
         Assert.Equal(1, result.Applied);
         Assert.Equal(60, result.Missed);
-        Assert.True(File.Exists(result.OutputPath));
+        Assert.True(File.Exists(Path.Combine(result.OutputPath!, "meta.json")));
     }
 
     [Fact]
@@ -543,15 +541,17 @@ public sealed class PatchPipelineTests : IDisposable
         Assert.Equal(PatchOutcome.NothingToPackage, result.Outcome);
         Assert.Equal(0, result.Applied);
         Assert.Equal(1, result.Missed);
-        Assert.False(File.Exists(Path.Combine(_temp, "out.pmp")));
+        Assert.False(Directory.Exists(ModDir));
     }
 
     [Fact]
     public void Run_WhenIntegrityFails_PreservesPreviousPackageAndCleansTemporaryFiles()
     {
-        var output = Path.Combine(_temp, "out.pmp");
+        var output = ModDir;
+        Directory.CreateDirectory(output);
+        var previousFile = Path.Combine(output, "previous.txt");
         var previous = Encoding.UTF8.GetBytes("previous verified package");
-        File.WriteAllBytes(output, previous);
+        File.WriteAllBytes(previousFile, previous);
         var verifier = new FailingVerifier();
         var pipeline = new PatchPipeline(
             new ListTranslationSource(ApprovedManifest()),
@@ -563,18 +563,18 @@ public sealed class PatchPipelineTests : IDisposable
         Assert.Equal(PatchOutcome.ValidationFailed, result.Outcome);
         Assert.False(result.Success);
         Assert.True(verifier.WasCalled);
-        Assert.Equal(previous, File.ReadAllBytes(output));
-        Assert.Empty(Directory.EnumerateFiles(_temp, ".*.tmp", SearchOption.TopDirectoryOnly));
-        var staging = Path.Combine(_temp, "staging");
-        Assert.False(Directory.Exists(staging) && Directory.EnumerateFileSystemEntries(staging).Any());
+        Assert.Equal(previous, File.ReadAllBytes(previousFile));
+        Assert.Empty(Directory.EnumerateFileSystemEntries(Path.Combine(_temp, "out"), ".*", SearchOption.TopDirectoryOnly));
     }
 
     [Fact]
     public void Run_WhenIntegrityPasses_AtomicallyReplacesPreviousPackage()
     {
-        var output = Path.Combine(_temp, "out.pmp");
+        var output = ModDir;
+        Directory.CreateDirectory(output);
+        var previousFile = Path.Combine(output, "previous.txt");
         var previous = Encoding.UTF8.GetBytes("previous verified package");
-        File.WriteAllBytes(output, previous);
+        File.WriteAllBytes(previousFile, previous);
         var pipeline = new PatchPipeline(
             new ListTranslationSource(ApprovedManifest()),
             new FakePatchBackendFactory(BuildSource()));
@@ -582,18 +582,20 @@ public sealed class PatchPipelineTests : IDisposable
         var result = pipeline.Run(Request(), cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(result.Success);
-        Assert.NotEqual(previous, File.ReadAllBytes(output));
-        using var archive = ZipFile.OpenRead(output);
+        Assert.False(File.Exists(previousFile));
+        using var archive = FolderArchive.OpenRead(output);
         Assert.NotNull(archive.GetEntry("meta.json"));
-        Assert.Empty(Directory.EnumerateFiles(_temp, ".*.tmp", SearchOption.TopDirectoryOnly));
+        Assert.Empty(Directory.EnumerateFileSystemEntries(Path.Combine(_temp, "out"), ".*", SearchOption.TopDirectoryOnly));
     }
 
     [Fact]
     public void Run_WhenVerifierThrows_ReportsValidationFailureAndPreservesPreviousPackage()
     {
-        var output = Path.Combine(_temp, "out.pmp");
+        var output = ModDir;
+        Directory.CreateDirectory(output);
+        var previousFile = Path.Combine(output, "previous.txt");
         var previous = Encoding.UTF8.GetBytes("previous verified package");
-        File.WriteAllBytes(output, previous);
+        File.WriteAllBytes(previousFile, previous);
         var events = new List<PipelineEvent>();
         var pipeline = new PatchPipeline(
             new ListTranslationSource(ApprovedManifest()),
@@ -606,7 +608,7 @@ public sealed class PatchPipelineTests : IDisposable
             TestContext.Current.CancellationToken);
 
         Assert.Equal(PatchOutcome.ValidationFailed, result.Outcome);
-        Assert.Equal(previous, File.ReadAllBytes(output));
+        Assert.Equal(previous, File.ReadAllBytes(previousFile));
         Assert.Contains(events, item =>
             item.Component == PipelineComponent.Verifier
             && item.Level == PipelineLevel.Error
@@ -629,21 +631,77 @@ public sealed class PatchPipelineTests : IDisposable
         return entries;
     }
 
-    private static string ReadEntryText(ZipArchive archive, string entryName)
+    private static string ReadEntryText(FolderArchive archive, string entryName)
         => Encoding.UTF8.GetString(ReadEntryBytes(archive, entryName));
 
-    private static byte[] ReadEntryBytes(ZipArchive archive, string entryName)
+    private static byte[] ReadEntryBytes(FolderArchive archive, string entryName)
+        => File.ReadAllBytes(archive.GetEntry(entryName)!.FullPath);
+
+    private string ModDir => Path.Combine(_temp, "out", PatchRequest.ModFolderName);
+
+    [Fact]
+    public void Run_CreatesFolderWithExactName_AndNoPmp()
     {
-        using var stream = archive.GetEntry(entryName)!.Open();
-        using var memory = new MemoryStream();
-        stream.CopyTo(memory);
-        return memory.ToArray();
+        var pipeline = new PatchPipeline(new ListTranslationSource(ApprovedManifest()), new FakePatchBackendFactory(BuildSource()));
+
+        var result = pipeline.Run(Request(), cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.True(result.Success);
+        Assert.Equal("FFXIV Spanish", Path.GetFileName(result.OutputPath));
+        Assert.Equal(Path.GetFullPath(ModDir), result.OutputPath);
+        Assert.True(Directory.Exists(ModDir));
+        Assert.True(File.Exists(Path.Combine(ModDir, "meta.json")));
+        Assert.True(File.Exists(Path.Combine(ModDir, "files", "categories", "09-interfaz", "exd", "addon_0_en.exd")));
+        Assert.Empty(Directory.EnumerateFiles(Path.Combine(_temp, "out"), "*.pmp", SearchOption.AllDirectories));
     }
 
-    private static byte[] ReadExdEntryBytes(ZipArchive archive, string exdGamePath)
+    [Fact]
+    public void Run_RunTwice_ReplacesFolderLeavingNoLeftovers()
+    {
+        var pipeline = new PatchPipeline(new ListTranslationSource(ApprovedManifest()), new FakePatchBackendFactory(BuildSource()));
+
+        Assert.True(pipeline.Run(Request(), cancellationToken: TestContext.Current.CancellationToken).Success);
+        File.WriteAllText(Path.Combine(ModDir, "stale.txt"), "x");
+        Assert.True(pipeline.Run(Request(), cancellationToken: TestContext.Current.CancellationToken).Success);
+
+        Assert.False(File.Exists(Path.Combine(ModDir, "stale.txt")));
+        Assert.True(File.Exists(Path.Combine(ModDir, "meta.json")));
+        Assert.Equal([ModDir], Directory.EnumerateFileSystemEntries(Path.Combine(_temp, "out")).ToArray());
+    }
+
+    private static byte[] ReadExdEntryBytes(FolderArchive archive, string exdGamePath)
         => ReadEntryBytes(
             archive,
             archive.Entries.Single(entry => entry.FullName.EndsWith('/' + exdGamePath, StringComparison.Ordinal)).FullName);
+
+    private sealed class FolderEntry(string fullName, string fullPath)
+    {
+        public string FullName { get; } = fullName;
+        public string FullPath { get; } = fullPath;
+    }
+
+    /// <summary>Read-only view of a mod folder with the entry API the tests used for the old archive.</summary>
+    private sealed class FolderArchive : IDisposable
+    {
+        private readonly Dictionary<string, FolderEntry> _entries;
+
+        private FolderArchive(string root)
+            => _entries = Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories)
+                .ToDictionary(
+                    file => Path.GetRelativePath(root, file).Replace(Path.DirectorySeparatorChar, '/'),
+                    file => new FolderEntry(Path.GetRelativePath(root, file).Replace(Path.DirectorySeparatorChar, '/'), file),
+                    StringComparer.Ordinal);
+
+        public static FolderArchive OpenRead(string root) => new(root);
+
+        public IEnumerable<FolderEntry> Entries => _entries.Values;
+
+        public FolderEntry? GetEntry(string name) => _entries.GetValueOrDefault(name);
+
+        public void Dispose()
+        {
+        }
+    }
 
     private sealed class ThrowingBackendFactory : IPatchBackendFactory
     {
@@ -656,7 +714,7 @@ public sealed class PatchPipelineTests : IDisposable
         public bool WasCalled { get; private set; }
 
         public IReadOnlyList<string> Verify(
-            string pmpPath,
+            string modFolderPath,
             IReadOnlyDictionary<string, string> declaredFiles)
         {
             WasCalled = true;
@@ -667,7 +725,7 @@ public sealed class PatchPipelineTests : IDisposable
     private sealed class ThrowingVerifier : IIntegrityVerifier
     {
         public IReadOnlyList<string> Verify(
-            string pmpPath,
+            string modFolderPath,
             IReadOnlyDictionary<string, string> declaredFiles)
             => throw new InvalidOperationException("verifier exception injected by test");
     }

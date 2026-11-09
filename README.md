@@ -1,6 +1,6 @@
 # FFXIV Spanish Patcher
 
-Parcheador de Final Fantasy XIV que genera un mod `.pmp` para Penumbra a partir de un
+Parcheador de Final Fantasy XIV que genera una carpeta de mod «FFXIV Spanish» para Penumbra (cópiala a la carpeta de mods de Penumbra) a partir de un
 `translations.dat` propio del usuario.
 
 - Este repositorio contiene solo el código del parcheador. No incluye traducciones ni textos

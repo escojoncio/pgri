@@ -476,7 +476,7 @@
                   <StackPanel Spacing="2">
                     <TextBlock Text="Categorías activadas en primera importación de Penumbra"
                                Foreground="{StaticResource Text}" FontSize="12"/>
-                    <TextBlock Text="El paquete siempre incluye traducción completa."
+                    <TextBlock Text="El mod siempre incluye traducción completa."
                                Foreground="{StaticResource Dim}" FontSize="10.5"/>
                   </StackPanel>
                   <Button Grid.Column="1" Classes="text" Content="Todas"
@@ -554,7 +554,7 @@
                   <TextBlock Text="Traducc." Foreground="{StaticResource Dim}" FontSize="9.5"/>
                   <TextBlock Text="Extracc." Foreground="{StaticResource Dim}" FontSize="9.5"/>
                   <TextBlock Text="Parche" Foreground="{StaticResource Accent}" FontSize="9.5"/>
-                  <TextBlock Text="Paquete" Foreground="{StaticResource Dim}" FontSize="9.5"/>
+                  <TextBlock Text="Carpeta" Foreground="{StaticResource Dim}" FontSize="9.5"/>
                   <TextBlock Text="Integr." Foreground="{StaticResource Dim}" FontSize="9.5"/>
                 </UniformGrid>
               </StackPanel>

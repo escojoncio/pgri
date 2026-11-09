@@ -1,4 +1,3 @@
-using System.IO.Compression;
 using System.Text.Json;
 using FFXIVSpanishPatcher.Pipeline;
 using Xunit;
@@ -55,18 +54,25 @@ public sealed class ModTreeVerifierTests : IDisposable
     }
 
     [Fact]
-    public void VerifyArchive_RejectsLegacyManifest()
+    public void IntegrityVerifier_RejectsLegacyManifest()
     {
-        var archivePath = Path.Combine(_root, "legacy.pmp");
-        using (var archive = ZipFile.Open(archivePath, ZipArchiveMode.Create))
-        {
-            using var writer = new StreamWriter(archive.CreateEntry("meta.json").Open());
-            writer.Write("""{"FileVersion":3,"Name":"Prueba"}""");
-        }
+        File.WriteAllText(Path.Combine(_root, "meta.json"), """{"FileVersion":3,"Name":"Prueba"}""");
 
-        var problems = new IntegrityVerifier().Verify(archivePath, new Dictionary<string, string>());
+        var problems = new IntegrityVerifier().Verify(_root, new Dictionary<string, string>());
 
         Assert.Contains(problems, problem => problem.Contains("FileVersion must be 4", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void IntegrityVerifier_FailsWhenDeclaredFileIsMissing()
+    {
+        WriteMetadata(defaultSettings: 1);
+        var declared = new Dictionary<string, string> { ["exd/a.exd"] = "files/categories/09-interfaz/exd/a.exd" };
+
+        var problems = new IntegrityVerifier().Verify(_root, declared);
+
+        Assert.NotEmpty(problems);
+        Assert.Contains(problems, problem => problem.Contains("a.exd", StringComparison.Ordinal));
     }
 
     private void WriteMetadata(int defaultSettings)

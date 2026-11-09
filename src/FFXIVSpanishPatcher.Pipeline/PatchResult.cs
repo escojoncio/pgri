@@ -6,7 +6,7 @@ public enum PatchOutcome
     /// <summary>Package built, every replacement applied.</summary>
     Ok,
 
-    /// <summary>Package built but some replacements were missed (still a usable .pmp).</summary>
+    /// <summary>Package built but some replacements were missed (still a usable mod folder).</summary>
     PackagedWithMisses,
 
     /// <summary>No packageable entries exist. Nothing was written.</summary>

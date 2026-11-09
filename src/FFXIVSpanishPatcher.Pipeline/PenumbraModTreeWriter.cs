@@ -1,4 +1,3 @@
-using System.IO.Compression;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -61,7 +60,7 @@ internal sealed class PenumbraModTreeWriter
         _exdFileCount++;
     }
 
-    /// <summary>Writes only v4 metadata; callers can verify this tree or archive it afterwards.</summary>
+    /// <summary>Writes only v4 metadata; callers verify this tree and publish it as the mod folder.</summary>
     public void WriteTree(PackageMeta meta, IReadOnlyCollection<string>? selectedDomains)
     {
         AddBlankUiTextures();
@@ -152,34 +151,6 @@ internal sealed class PenumbraModTreeWriter
                 File.Delete(temporary);
             }
         }
-    }
-}
-
-/// <summary>Archives a previously verified mod tree without changing its manifests or payload.</summary>
-internal static class PmpArchiveWriter
-{
-    public static string Create(string treePath, string outputPath)
-    {
-        var directory = Path.GetDirectoryName(outputPath);
-        if (!string.IsNullOrWhiteSpace(directory))
-        {
-            Directory.CreateDirectory(directory);
-        }
-
-        if (File.Exists(outputPath))
-        {
-            File.Delete(outputPath);
-        }
-
-        using var archive = ZipFile.Open(outputPath, ZipArchiveMode.Create);
-        foreach (var file in Directory.EnumerateFiles(treePath, "*", SearchOption.AllDirectories)
-                     .OrderBy(path => path, StringComparer.Ordinal))
-        {
-            var entryName = Path.GetRelativePath(treePath, file).Replace(Path.DirectorySeparatorChar, '/');
-            archive.CreateEntryFromFile(file, entryName, CompressionLevel.Optimal);
-        }
-
-        return outputPath;
     }
 }
 

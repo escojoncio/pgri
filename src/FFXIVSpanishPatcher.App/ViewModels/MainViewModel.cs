@@ -161,8 +161,8 @@ public partial class MainViewModel : ObservableObject
         _ => "No se pudo crear el mod",
     };
     public string ResultSubtitle => _lastResult?.Success == true
-        ? LastOutputName ?? string.Empty
-        : "No se ha publicado un paquete nuevo. Consulta la consola.";
+        ? $"Carpeta «{PatchRequest.ModFolderName}»: {LastOutputName}. Cópiala a la carpeta de mods de Penumbra."
+        : "No se ha creado una carpeta de mod nueva. Consulta la consola.";
     public string ResultApplied => (_lastResult?.Statistics.AppliedWrites ?? 0).ToString("N0");
     public string ResultPages => (_lastResult?.Statistics.PatchedPages ?? 0).ToString("N0");
     public string ResultOmitted => (_lastResult?.Statistics.SkippedEntries ?? 0).ToString("N0");
@@ -180,7 +180,7 @@ public partial class MainViewModel : ObservableObject
         "FINAL FANTASY XIV, FFXIV, SQUARE ENIX y todos los nombres, marcas, logotipos, textos y demás " +
         "propiedad intelectual relacionados pertenecen a sus respectivos propietarios.\n\n" +
         "Esta aplicación no incluye ni redistribuye archivos del juego: trabaja únicamente sobre los " +
-        "archivos de tu instalación local y genera un paquete separado para Penumbra.\n\n" +
+        "archivos de tu instalación local y genera una carpeta de mod separada para Penumbra.\n\n" +
         "No elude la propiedad del juego, suscripciones, autenticación ni restricciones de licencia. " +
         "Eres responsable de cumplir los términos y políticas aplicables.\n\n" +
         "Las traducciones pertenecen a sus autores. La licencia MIT aplica solo al código fuente. " +
@@ -437,14 +437,12 @@ public partial class MainViewModel : ObservableObject
 
         IReadOnlyCollection<string>? categories = selected.Length == enabled.Count ? null : selected;
         Directory.CreateDirectory(OutputFolder);
-        var outputName = $"FFXIVSpanish-{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.pmp";
         var request = new PatchRequest
         {
             GamePath = GamePath,
             Categories = categories,
             CompatibilityMode = compatibilityMode,
-            OutputPath = Path.Combine(OutputFolder, outputName),
-            StagingPath = Path.Combine(Path.GetTempPath(), "ffxivsp-patcher-staging"),
+            OutputPath = OutputFolder,
             DebugLogging = _debugLogging,
             Meta = BuildPackageMeta(enabled),
         };
@@ -464,7 +462,7 @@ public partial class MainViewModel : ObservableObject
         LastSuccess = _lastResult.Success;
         if (_lastResult.Success)
         {
-            LastOutputName = outputName;
+            LastOutputName = _lastResult.OutputPath;
             ProgressPercent = 100;
             ProgressText = "Completado";
         }

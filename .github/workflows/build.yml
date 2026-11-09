@@ -35,10 +35,21 @@ jobs:
           dotnet publish src/FFXIVSpanishPatcher.App/FFXIVSpanishPatcher.App.csproj
           -c Release -r win-x64 --self-contained
           -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:IncludeAllContentForSelfExtract=true
           -o publish/win-x64
+
+      # Only the single .exe goes into the artifact (translations.dat stays external).
+      - name: Collect single exe
+        shell: bash
+        run: |
+          echo "== publish dir =="; ls -la publish/win-x64
+          mkdir -p dist
+          cp publish/win-x64/FFXIVSpanishPatcher.exe dist/
+          echo "== artifact content =="; ls -la dist
+          test "$(ls dist | wc -l)" = "1"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ffxiv-patcher-win-x64
-          path: publish/win-x64/
+          path: dist/

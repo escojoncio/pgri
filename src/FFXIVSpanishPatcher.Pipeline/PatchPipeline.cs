@@ -251,15 +251,15 @@ public sealed class PatchPipeline
                 entries.Where(e => !unsafeSeStringEntries.Contains(e)).ToList(),
                 request.Statuses);
 
-            // 6. Patch each page into an isolated per-run staging tree.
-            var runStaging = Path.Combine(request.StagingPath, Guid.NewGuid().ToString("N"));
+            // 6. Patch each page straight into a temporary sibling directory of the final mod folder.
+            var finalFolder = ModFolderPath(request.OutputPath);
             var temporaryOutput = string.Empty;
             var missedAbsentSource = 0;
             var gameReadErrors = 0;
             try
             {
-                temporaryOutput = SiblingTemporaryPath(request.OutputPath);
-                var writer = new PenumbraModTreeWriter(runStaging);
+                temporaryOutput = SiblingTemporaryPath(finalFolder);
+                var writer = new PenumbraModTreeWriter(temporaryOutput);
                 foreach (var (exdPath, page) in pages)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
@@ -552,15 +552,14 @@ public sealed class PatchPipeline
                     }
 
                     Report(PipelineComponent.Pipeline,
-                        "La integridad del árbol v4 falló. El paquete anterior, si existía, se conserva.",
+                        "La integridad del árbol v4 falló. La carpeta anterior, si existía, se conserva.",
                         PipelineLevel.Error);
                     return PatchResult.Failure(PatchOutcome.ValidationFailed, Statistics(writer.FileCount));
                 }
 
-                Report(PipelineComponent.Packager, "Generando .pmp temporal...");
-                var output = PmpArchiveWriter.Create(writer.StagingPath, temporaryOutput);
                 Report(PipelineComponent.Packager,
-                    "Comprimiendo y empaquetando archivos", PipelineLevel.Ok, writer.FileCount);
+                    "Carpeta del mod escrita", PipelineLevel.Ok, writer.FileCount);
+                var output = writer.StagingPath;
 
                 IReadOnlyList<string> problems;
                 try
@@ -573,7 +572,7 @@ public sealed class PatchPipeline
                 }
                 catch (Exception exception)
                 {
-                    problems = [$"No se pudo verificar el paquete: {exception.Message}"];
+                    problems = [$"No se pudo verificar la carpeta del mod: {exception.Message}"];
                 }
 
                 if (problems.Count > 0)
@@ -584,14 +583,14 @@ public sealed class PatchPipeline
                     }
 
                     Report(PipelineComponent.Pipeline,
-                        "La integridad falló. El paquete anterior, si existía, se conserva.",
+                        "La integridad falló. La carpeta anterior, si existía, se conserva.",
                         PipelineLevel.Error);
                     return PatchResult.Failure(PatchOutcome.ValidationFailed, Statistics(writer.FileCount));
                 }
 
                 Report(PipelineComponent.Verifier, "Integridad verificada", PipelineLevel.Ok);
-                PromoteVerifiedOutput(output, request.OutputPath);
-                Report(PipelineComponent.Packager, "Paquete publicado en su destino", PipelineLevel.Ok);
+                PromoteVerifiedOutput(output, finalFolder);
+                Report(PipelineComponent.Packager, $"Carpeta «{PatchRequest.ModFolderName}» publicada en {finalFolder}", PipelineLevel.Ok);
 
                 var statistics = Statistics(writer.FileCount);
                 var outcome = statistics.HasOmissions ? PatchOutcome.PackagedWithMisses : PatchOutcome.Ok;
@@ -600,24 +599,22 @@ public sealed class PatchPipeline
                 Report(PipelineComponent.Pipeline,
                     outcome == PatchOutcome.Ok
                         ? "Proceso completado correctamente."
-                        : "Proceso completado con omisiones; el paquete verificado es utilizable.",
+                        : "Proceso completado con omisiones; la carpeta verificada es utilizable.",
                     outcome == PatchOutcome.Ok ? PipelineLevel.Ok : PipelineLevel.Warning);
-                return new PatchResult(outcome, request.OutputPath, statistics);
+                return new PatchResult(outcome, finalFolder, statistics);
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
             {
                 Report(PipelineComponent.Packager,
-                    $"No se pudo escribir el paquete: {exception.Message}", PipelineLevel.Error);
+                    $"No se pudo escribir la carpeta del mod: {exception.Message}", PipelineLevel.Error);
                 return PatchResult.Failure(PatchOutcome.OutputError, Statistics());
             }
             finally
             {
                 if (temporaryOutput.Length > 0)
                 {
-                    DeleteFileBestEffort(temporaryOutput);
+                    DeleteDirectoryBestEffort(temporaryOutput);
                 }
-
-                DeleteDirectoryBestEffort(runStaging);
             }
         }
     }
@@ -691,27 +688,52 @@ public sealed class PatchPipeline
     private static void Increment(Dictionary<string, int> counts, string key)
         => counts[key] = counts.GetValueOrDefault(key) + 1;
 
-    private static string SiblingTemporaryPath(string outputPath)
+    /// <summary>Final mod folder: <c>FFXIV Spanish</c> inside the chosen output folder.</summary>
+    private static string ModFolderPath(string outputFolder)
+        => Path.Combine(Path.GetFullPath(outputFolder), PatchRequest.ModFolderName);
+
+    private static string SiblingTemporaryPath(string finalFolder)
     {
-        var fullOutput = Path.GetFullPath(outputPath);
-        var directory = Path.GetDirectoryName(fullOutput)
-            ?? throw new IOException($"No se puede determinar el directorio de salida de {outputPath}.");
+        var directory = Path.GetDirectoryName(finalFolder)
+            ?? throw new IOException($"No se puede determinar el directorio de salida de {finalFolder}.");
         Directory.CreateDirectory(directory);
-        return Path.Combine(
-            directory,
-            $".{Path.GetFileName(outputPath)}.{Guid.NewGuid():N}.tmp");
+        return Path.Combine(directory, $".{Path.GetFileName(finalFolder)}.{Guid.NewGuid():N}.tmp");
     }
 
-    private static void PromoteVerifiedOutput(string temporaryPath, string outputPath)
+    /// <summary>
+    /// Replaces the final folder with the verified temporary one: the old folder is renamed aside,
+    /// the new one moved in, and the old one deleted; on failure the old folder is restored.
+    /// </summary>
+    private static void PromoteVerifiedOutput(string temporaryFolder, string finalFolder)
     {
-        var fullOutput = Path.GetFullPath(outputPath);
-        if (File.Exists(fullOutput))
+        string? backup = null;
+        if (Directory.Exists(finalFolder))
         {
-            File.Replace(temporaryPath, fullOutput, destinationBackupFileName: null, ignoreMetadataErrors: true);
+            backup = finalFolder + "." + Guid.NewGuid().ToString("N") + ".old";
+            Directory.Move(finalFolder, backup);
         }
-        else
+        else if (File.Exists(finalFolder))
         {
-            File.Move(temporaryPath, fullOutput);
+            throw new IOException($"Existe un archivo con el nombre de la carpeta del mod: {finalFolder}");
+        }
+
+        try
+        {
+            Directory.Move(temporaryFolder, finalFolder);
+        }
+        catch
+        {
+            if (backup is not null && !Directory.Exists(finalFolder))
+            {
+                Directory.Move(backup, finalFolder);
+            }
+
+            throw;
+        }
+
+        if (backup is not null)
+        {
+            DeleteDirectoryBestEffort(backup);
         }
     }
 
