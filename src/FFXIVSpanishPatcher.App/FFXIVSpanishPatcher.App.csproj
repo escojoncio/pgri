@@ -41,7 +41,6 @@
     <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.4" />
     <PackageReference Include="Avalonia.AvaloniaEdit" Version="12.0.0" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
-    <PackageReference Include="Markdig" Version="1.5.0" />
     <!-- Override Avalonia's Tmds.DBus.Protocol with the latest compatible release. Linux-only. -->
     <PackageReference Include="Tmds.DBus.Protocol" Version="0.95.1" />
   </ItemGroup>
@@ -67,11 +66,6 @@
   <!-- App assets (window/taskbar icon) bundled as Avalonia resources. -->
   <ItemGroup>
     <AvaloniaResource Include="Assets\**" />
-    <AvaloniaResource Include="..\..\docs\assets\arr-icon.png" Link="Assets\arr-icon.png" />
-    <AvaloniaResource Include="..\..\docs\assets\hw-icon.png" Link="Assets\hw-icon.png" />
-    <AvaloniaResource Include="..\..\docs\assets\stb-icon.png" Link="Assets\stb-icon.png" />
-    <AvaloniaResource Include="..\..\docs\assets\shb-icon.png" Link="Assets\shb-icon.png" />
-    <AvaloniaResource Include="..\..\docs\assets\logo-git.png" Link="Assets\logo-git.png" />
   </ItemGroup>
 
   <!-- translations.dat is NOT embedded nor versioned: the user supplies their own blob next to the executable. -->
@@ -79,19 +73,5 @@
     <EmbeddedResource Include="..\..\data\recommended-game-version.txt">
       <LogicalName>FFXIVSpanishPatcher.App.recommended-game-version.txt</LogicalName>
     </EmbeddedResource>
-    <EmbeddedResource Include="..\..\data\translation-milestones.md">
-      <LogicalName>FFXIVSpanishPatcher.App.translation-milestones.md</LogicalName>
-    </EmbeddedResource>
   </ItemGroup>
-
-  <Target Name="ValidateTranslationMilestones" BeforeTargets="BeforeBuild">
-    <Error Condition="!Exists('$(MSBuildProjectDirectory)/../../data/translation-milestones.md')"
-           Text="Falta data/translation-milestones.md." />
-    <ReadLinesFromFile File="$(MSBuildProjectDirectory)/../../data/translation-milestones.md"
-                       Condition="Exists('$(MSBuildProjectDirectory)/../../data/translation-milestones.md')">
-      <Output TaskParameter="Lines" ItemName="_TranslationMilestoneLines" />
-    </ReadLinesFromFile>
-    <Error Condition="'@(_TranslationMilestoneLines)' == ''"
-           Text="data/translation-milestones.md está vacío." />
-  </Target>
 </Project>

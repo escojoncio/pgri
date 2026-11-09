@@ -2,11 +2,18 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="FFXIVSpanishPatcher.App.App"
              RequestedThemeVariant="Dark">
+  <Application.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceInclude Source="avares://FFXIVSpanishPatcher/Styles/ExpansionIcons.axaml"/>
+      </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+  </Application.Resources>
   <Application.Styles>
     <FluentTheme>
       <FluentTheme.Palettes>
-        <ColorPaletteResources x:Key="Dark" Accent="#2563EB" />
-        <ColorPaletteResources x:Key="Light" Accent="#2563EB" />
+        <ColorPaletteResources x:Key="Dark" Accent="#FF8A3D" RegionColor="#121214" />
+        <ColorPaletteResources x:Key="Light" Accent="#FF8A3D" />
       </FluentTheme.Palettes>
     </FluentTheme>
     <StyleInclude Source="avares://AvaloniaEdit/Themes/Fluent/AvaloniaEdit.xaml" />

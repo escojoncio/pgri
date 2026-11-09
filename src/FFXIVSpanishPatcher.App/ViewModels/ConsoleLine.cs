@@ -7,17 +7,17 @@ namespace FFXIVSpanishPatcher.App.ViewModels;
 /// component-tagged string colored by severity, matching the mockup's console.</summary>
 public sealed class ConsoleLine
 {
-    private static readonly IBrush MutedBrush = new SolidColorBrush(Color.Parse("#71849F"));
-    private static readonly IBrush PipelineBrush = new SolidColorBrush(Color.Parse("#69D8FF"));
-    private static readonly IBrush ExtractorBrush = new SolidColorBrush(Color.Parse("#A78BFA"));
-    private static readonly IBrush PatcherBrush = new SolidColorBrush(Color.Parse("#60A5FA"));
-    private static readonly IBrush PackagerBrush = new SolidColorBrush(Color.Parse("#E9BD68"));
-    private static readonly IBrush VerifierBrush = new SolidColorBrush(Color.Parse("#56D69B"));
+    private static readonly IBrush MutedBrush = new SolidColorBrush(Color.Parse("#77737F"));
+    private static readonly IBrush PipelineBrush = new SolidColorBrush(Color.Parse("#FF8A3D"));
+    private static readonly IBrush ExtractorBrush = new SolidColorBrush(Color.Parse("#C4A3FF"));
+    private static readonly IBrush PatcherBrush = new SolidColorBrush(Color.Parse("#7DD3FC"));
+    private static readonly IBrush PackagerBrush = new SolidColorBrush(Color.Parse("#FFC857"));
+    private static readonly IBrush VerifierBrush = new SolidColorBrush(Color.Parse("#4ADE9A"));
     private static readonly IBrush DebugBrush = new SolidColorBrush(Color.Parse("#7D8695"));
-    private static readonly IBrush InfoBrush = new SolidColorBrush(Color.Parse("#B7C6D9"));
-    private static readonly IBrush OkBrush = new SolidColorBrush(Color.Parse("#56D69B"));
-    private static readonly IBrush WarningBrush = new SolidColorBrush(Color.Parse("#F2C96D"));
-    private static readonly IBrush ErrorBrush = new SolidColorBrush(Color.Parse("#FF7B82"));
+    private static readonly IBrush InfoBrush = new SolidColorBrush(Color.Parse("#C9C5CF"));
+    private static readonly IBrush OkBrush = new SolidColorBrush(Color.Parse("#4ADE9A"));
+    private static readonly IBrush WarningBrush = new SolidColorBrush(Color.Parse("#FFC857"));
+    private static readonly IBrush ErrorBrush = new SolidColorBrush(Color.Parse("#FF6B6B"));
 
     public ConsoleLine(PipelineEvent pipelineEvent)
     {

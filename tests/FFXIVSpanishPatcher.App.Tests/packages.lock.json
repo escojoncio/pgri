@@ -244,11 +244,6 @@
           "Lumina": "7.6.0"
         }
       },
-      "Markdig": {
-        "type": "Transitive",
-        "resolved": "1.5.0",
-        "contentHash": "oEm6N4PYFPUZiJ5e89993AE6hfC8EWRGD5M8nyoSJbwD4GgW818mjlQCk++SdTV4godaN50Ybcmm4j2Dp76oIQ=="
-      },
       "MicroCom.Runtime": {
         "type": "Transitive",
         "resolved": "0.11.6",
@@ -438,7 +433,6 @@
           "Avalonia.Themes.Fluent": "[12.1.4, )",
           "CommunityToolkit.Mvvm": "[8.4.2, )",
           "FFXIVSpanishPatcher.Pipeline": "[0.0.0, )",
-          "Markdig": "[1.5.0, )",
           "Tmds.DBus.Protocol": "[0.95.1, )"
         }
       },

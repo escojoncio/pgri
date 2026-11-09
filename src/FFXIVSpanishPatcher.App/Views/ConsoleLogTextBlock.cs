@@ -46,7 +46,7 @@ public sealed class ConsoleLogTextBlock : TextEditor
         VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
         Options.AllowScrollBelowDocument = false;
         Document.UndoStack.SizeLimit = 0;
-        TextArea.SelectionBrush = new SolidColorBrush(Color.Parse("#2563EB"));
+        TextArea.SelectionBrush = new SolidColorBrush(Color.Parse("#B85A1E"));
         TextArea.TextView.LineTransformers.Add(new ConsoleLineColorizer(_renderedLines));
     }
 

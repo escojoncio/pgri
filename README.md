@@ -21,4 +21,4 @@ dotnet test -c Release --no-build
 
 Coloca tu `translations.dat` junto al ejecutable. Sin él, la aplicación muestra un error en la consola.
 
-Licencia: ver `LICENSE.md` y `NOTICE.md`. Fuente Noto Serif bajo OFL (`src/FFXIVSpanishPatcher.App/Assets/Fonts/OFL.txt`).
+Licencia: ver `LICENSE.md` y `NOTICE.md`. Fuente JetBrains Mono bajo OFL (`src/FFXIVSpanishPatcher.App/Assets/Fonts/OFL.txt`).

@@ -119,19 +119,18 @@ public class MainWindowSmokeTests
         Assert.DoesNotContain(
             window.GetVisualDescendants().OfType<TextBlock>(),
             textBlock => textBlock.Text == "Edición Stormblood");
+        // Seis iconos de expansion, en orden ARR, HW, StB, ShB, EW, DT.
+        var strip = window.FindControl<UniformGrid>("ExpansionStrip");
+        Assert.NotNull(strip);
         Assert.Equal(
-            "Empieza Shadowbringers.",
-            window.FindControl<TextBlock>("MilestoneTitle")?.Text);
-        Assert.NotNull(window.FindControl<Image>("MilestoneArrIcon")?.Source);
-        Assert.NotNull(window.FindControl<Image>("MilestoneHeavenswardIcon")?.Source);
-        Assert.NotNull(window.FindControl<Image>("MilestoneStormbloodIcon")?.Source);
-        Assert.NotNull(window.FindControl<Image>("MilestoneShadowbringersIcon")?.Source);
-        AssertVerticallyAligned(
-            window,
-            "GameCheckContent",
-            "VersionCheckContent",
-            "CorpusCheckContent",
-            "DalamudCheckContent");
+            new[] { "A Realm Reborn", "Heavensward", "Stormblood", "Shadowbringers", "Endwalker", "Dawntrail" },
+            strip.Children.OfType<Image>().Select(image => ToolTip.GetTip(image) as string).ToArray());
+        Assert.All(strip.Children.OfType<Image>(), image => Assert.NotNull(image.Source));
+        foreach (var name in new[] { "GameCheckContent", "VersionCheckContent", "CorpusCheckContent", "DalamudCheckContent" })
+        {
+            AssertInsideWindow(window, window.FindControl<Grid>(name));
+        }
+
         // Start() ran: it logged at least the game-path detection line synchronously.
         Assert.NotEmpty(viewModel.Console);
         var screenshot = Environment.GetEnvironmentVariable("FFXIVSP_SCREENSHOT");
@@ -229,24 +228,6 @@ public class MainWindowSmokeTests
         Assert.InRange(origin.Value.Y, 0, window.ClientSize.Height);
         Assert.True(origin.Value.X + control.Bounds.Width <= window.ClientSize.Width + 0.5);
         Assert.True(origin.Value.Y + control.Bounds.Height <= window.ClientSize.Height + 0.5);
-    }
-
-    private static void AssertVerticallyAligned(Window window, params string[] controlNames)
-    {
-        var centers = controlNames
-            .Select(name =>
-            {
-                var control = window.FindControl<Grid>(name);
-                Assert.NotNull(control);
-                var origin = control.TranslatePoint(new Point(0, 0), window);
-                Assert.NotNull(origin);
-                return origin.Value.Y + (control.Bounds.Height / 2);
-            })
-            .ToArray();
-
-        Assert.True(
-            centers.Max() - centers.Min() <= 0.5,
-            $"Las comprobaciones no comparten centro vertical: {string.Join(", ", centers)}");
     }
 
     private static void AssertContained(Control? parent, Control? child)

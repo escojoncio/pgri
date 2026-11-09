@@ -1,0 +1,166 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!-- Generado por tools/gen-assets/gen_assets.py. No editar a mano. -->
+  <DrawingImage x:Key="ExpMeteorito">
+    <DrawingGroup>
+      <GeometryDrawing Brush="Transparent" Geometry="M0,0 L64,0 L64,64 L0,64 Z"/>
+      <GeometryDrawing Geometry="M10,2 H54 Q62,2 62,10 V54 Q62,62 54,62 H10 Q2,62 2,54 V10 Q2,2 10,2 Z" Brush="#F2C27B">
+        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M6,8 Q26,12 38,28 L30,40 Q20,26 6,8 Z" Brush="#E8552B">
+        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M12,12 Q28,17 36,30 L32,36 Q24,26 12,12 Z" Brush="#FFC857">
+        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.2" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M34,26 Q44,18 52,26 Q58,34 52,46 Q44,56 34,50 Q26,44 28,34 Q29,29 34,26 Z" Brush="#7A6A5E">
+        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M45,30 Q53,35 50,45 Q46,52 38,50 Q47,43 45,30 Z" Brush="#54463D">
+        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.2" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M35,36 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0 Z" Brush="#54463D">
+        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.2" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M44,42 a2,2 0 1,0 4,0 a2,2 0 1,0 -4,0 Z" Brush="#54463D">
+        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.0" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+    </DrawingGroup>
+  </DrawingImage>
+  <DrawingImage x:Key="ExpDragonBlanco">
+    <DrawingGroup>
+      <GeometryDrawing Brush="Transparent" Geometry="M0,0 L64,0 L64,64 L0,64 Z"/>
+      <GeometryDrawing Geometry="M10,2 H54 Q62,2 62,10 V54 Q62,62 54,62 H10 Q2,62 2,54 V10 Q2,2 10,2 Z" Brush="#A9CDEB">
+        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M26,26 L19,9 L33,22 Z" Brush="#D3DCE7">
+        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M34,24 L39,9 L41,26 Z" Brush="#D3DCE7">
+        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M11,47 Q13,34 24,28 Q32,23 40,25 Q46,28 50,30 L59,30 L53,38 L57,43 L47,44 Q41,53 28,53 Q16,55 11,47 Z" Brush="#F7F9FB">
+        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M20,46 Q30,52 42,46 Q34,49 24,44 Z" Brush="#C5D0DE">
+        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.0" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M38,34 L45,32.5 L43,37.5 Z" Brush="#2F6FD0">
+        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.2" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M30,44 Q40,46.5 47,44">
+        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.5" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M48,38 L50,42.5 L52.5,38 Z" Brush="#FFFFFF">
+        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.0" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M52,32.5 a1.3,1.3 0 1,0 2.6,0 a1.3,1.3 0 1,0 -2.6,0 Z" Brush="#14110F">
+        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="0.5" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+    </DrawingGroup>
+  </DrawingImage>
+  <DrawingImage x:Key="ExpKatana">
+    <DrawingGroup>
+      <GeometryDrawing Brush="Transparent" Geometry="M0,0 L64,0 L64,64 L0,64 Z"/>
+      <GeometryDrawing Geometry="M10,2 H54 Q62,2 62,10 V54 Q62,62 54,62 H10 Q2,62 2,54 V10 Q2,2 10,2 Z" Brush="#6E8096">
+        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M19,41 L57,7 L27,47 Z" Brush="#E9EEF3">
+        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M22,42 L55,9">
+        <GeometryDrawing.Pen><Pen Brush="#9AA8B6" Thickness="1.2" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M41,24 L47,16 L48,20 L44,27 Z" Brush="#B3121F">
+        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.0" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M22.2,49.4 L17.8,44.6 L5.8,55.6 L10.2,60.4 Z" Brush="#2B2F4A">
+        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M14,47 L18,52 M10,51 L14,56">
+        <GeometryDrawing.Pen><Pen Brush="#8C93C8" Thickness="1.0" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M16,45 a6,6 0 1,0 12,0 a6,6 0 1,0 -12,0 Z" Brush="#D1A94B">
+        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M34,51 Q30,57 34,60 Q38,57 34,51 Z" Brush="#B3121F">
+        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.2" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M45,50 Q42.5,54 45,56 Q47.5,54 45,50 Z" Brush="#B3121F">
+        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.0" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+    </DrawingGroup>
+  </DrawingImage>
+  <DrawingImage x:Key="ExpLuzYSombra">
+    <DrawingGroup>
+      <GeometryDrawing Brush="Transparent" Geometry="M0,0 L64,0 L64,64 L0,64 Z"/>
+      <GeometryDrawing Geometry="M10,2 H54 Q62,2 62,10 V54 Q62,62 54,62 H10 Q2,62 2,54 V10 Q2,2 10,2 Z" Brush="#F6E7B2">
+        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M10,2 H30 L26,14 L36,22 L28,32 L38,42 L30,52 L34,62 H10 Q2,62 2,54 V10 Q2,2 10,2 Z" Brush="#2B2350">
+        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M32,10 L35.5,27 L52,20 L39,31 L54,40 L37,38 L32,56 L28.5,38 L11,43 L25,32 L13,19 L29,27 Z" Brush="#FFFFFF">
+        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.6" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M26,32 a6,6 0 1,0 12,0 a6,6 0 1,0 -12,0 Z" Brush="#8B7AE6">
+        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.4" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+    </DrawingGroup>
+  </DrawingImage>
+  <DrawingImage x:Key="ExpPlumaAzul">
+    <DrawingGroup>
+      <GeometryDrawing Brush="Transparent" Geometry="M0,0 L64,0 L64,64 L0,64 Z"/>
+      <GeometryDrawing Geometry="M10,2 H54 Q62,2 62,10 V54 Q62,62 54,62 H10 Q2,62 2,54 V10 Q2,2 10,2 Z" Brush="#CFE5F6">
+        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M11,54 Q7,30 24,16 Q40,3 57,5 Q59,22 46,37 Q32,51 11,54 Z" Brush="#2F7BE0">
+        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M11,54 Q30,34 57,5 Q59,22 46,37 Q32,51 11,54 Z" Brush="#1F58B5">
+        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.2" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M8,57 Q30,34 55,8">
+        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="2.2" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M24,42 L17,35 M31,34 L23,26 M38,26 L31,18 M33,43 L40,45 M42,33 L49,34">
+        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.3" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+    </DrawingGroup>
+  </DrawingImage>
+  <DrawingImage x:Key="ExpRuinaPiedra">
+    <DrawingGroup>
+      <GeometryDrawing Brush="Transparent" Geometry="M0,0 L64,0 L64,64 L0,64 Z"/>
+      <GeometryDrawing Geometry="M10,2 H54 Q62,2 62,10 V54 Q62,62 54,62 H10 Q2,62 2,54 V10 Q2,2 10,2 Z" Brush="#BBD7B2">
+        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M3,52 Q12,48 24,52 T46,50 T61,52 V54 Q61,61 54,61 H10 Q3,61 3,54 Z" Brush="#7E9E62">
+        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.4" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M10,52 V20 H24 V52 Z" Brush="#DAD4C6">
+        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M20,20 H24 V52 H20 Z" Brush="#B9B1A1">
+        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.0" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M8,15 H26 V20 H8 Z" Brush="#EAE5D9">
+        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M14,22 V50">
+        <GeometryDrawing.Pen><Pen Brush="#A79F8F" Thickness="1.0" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M38,52 V33 L42,28 L46,34 L50,30 L53,34 V52 Z" Brush="#DAD4C6">
+        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M49,34 L53,34 V52 H49 Z" Brush="#B9B1A1">
+        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.0" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M27,52 L29,46 L38,46 L40,52 Z" Brush="#BDB5A4">
+        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.4" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M22,31 Q26,26 29,30 Q25,35 22,31 Z" Brush="#4E7A3A">
+        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.0" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+    </DrawingGroup>
+  </DrawingImage>
+</ResourceDictionary>

@@ -223,9 +223,6 @@ public partial class MainViewModel : ObservableObject
     private bool isAdvancedOpen;
 
     [ObservableProperty]
-    private bool isMilestoneOpen;
-
-    [ObservableProperty]
     private string? lastOutputName;
 
     [ObservableProperty]
@@ -580,12 +577,6 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private async Task CopyLogAsync()
         => await _shell.CopyToClipboardAsync(string.Join(Environment.NewLine, Console.Select(line => line.Text)));
-
-    [RelayCommand]
-    private void ShowMilestones() => IsMilestoneOpen = true;
-
-    [RelayCommand]
-    private void CloseMilestones() => IsMilestoneOpen = false;
 
     [RelayCommand]
     private async Task ReviewDalamudAsync()

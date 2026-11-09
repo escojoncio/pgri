@@ -13,12 +13,6 @@ public partial class MainWindow : Window, IShellServices
     public MainWindow()
     {
         InitializeComponent();
-        var host = this.FindControl<ContentControl>("MilestoneContentHost");
-        if (host is not null)
-        {
-            var document = new TranslationMilestoneService().LoadOrFallback();
-            host.Content = MarkdownAvaloniaRenderer.Render(document);
-        }
     }
 
     private void SelectConsoleAll_OnClick(object? sender, RoutedEventArgs e)

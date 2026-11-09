@@ -36,16 +36,15 @@ This project may interoperate with third-party tools or libraries. Those tools a
 
 Mention of third-party projects does not imply endorsement by their authors or maintainers.
 
-The application uses Markdig to parse the maintainer-authored translation milestone Markdown.
-Markdig is distributed under the BSD 2-Clause License. AvaloniaEdit provides the virtualized,
+AvaloniaEdit provides the virtualized,
 selectable log surface and is distributed under the MIT License. Avalonia, CommunityToolkit.Mvvm,
 Lumina, Lumina.Excel, Tmds.DBus.Protocol, xUnit and other development/runtime dependencies remain
 subject to their respective licenses and copyright notices as distributed by their authors.
 ZstdSharp.Port provides the managed Zstandard codec and is distributed under the MIT License.
 
-The interface embeds Noto Serif for consistent editorial headings across Windows, Linux and macOS.
-Noto Serif is copyright The Noto Project Authors and is distributed under the SIL Open Font License
-1.1. A copy of that license is included at `src/FFXIVSpanishPatcher.App/Assets/Fonts/OFL.txt`.
+The interface embeds JetBrains Mono for labels, figures and the console across Windows, Linux and macOS.
+JetBrains Mono is copyright The JetBrains Mono Project Authors and is distributed under the SIL Open Font
+License 1.1. A copy of that license is included at `src/FFXIVSpanishPatcher.App/Assets/Fonts/OFL.txt`.
 
 ## Third-Party Notices
 
@@ -56,7 +55,6 @@ publishing.
 
 | Component | License | Copyright |
 | --- | --- | --- |
-| Markdig | BSD-2-Clause (full text below) | Alexandre Mutel |
 | Avalonia, Avalonia.Desktop, Avalonia.Themes.Fluent | MIT | see NuGet package |
 | Avalonia.Fonts.Inter (Inter font) | see NuGet package (the Inter font is normally SIL OFL 1.1) | see NuGet package |
 | AvaloniaEdit (Avalonia.AvaloniaEdit) | MIT | see NuGet package |
@@ -64,29 +62,7 @@ publishing.
 | Lumina, Lumina.Excel | MIT | see NuGet package |
 | ZstdSharp.Port | MIT | see NuGet package |
 | Tmds.DBus.Protocol | MIT | see NuGet package |
-| Noto Serif (font) | The Noto Project Authors; upstream SIL OFL 1.1. The file `src/FFXIVSpanishPatcher.App/Assets/Fonts/OFL.txt` currently contains Apache-2.0 text: confirm the correct license for the bundled font files | The Noto Project Authors |
-
-### Markdig (BSD-2-Clause)
-
-Copyright (c) Alexandre Mutel. All rights reserved.
-
-Redistribution and use in source and binary forms, with or without modification, are permitted
-provided that the following conditions are met:
-
-1. Redistributions of source code must retain the above copyright notice, this list of conditions and
-   the following disclaimer.
-2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions
-   and the following disclaimer in the documentation and/or other materials provided with the
-   distribution.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
-IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
-FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
-USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+| JetBrains Mono (font) | SIL OFL 1.1 (`src/FFXIVSpanishPatcher.App/Assets/Fonts/OFL.txt`) | The JetBrains Mono Project Authors |
 
 ## Derived Work
 
