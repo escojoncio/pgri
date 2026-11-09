@@ -201,14 +201,50 @@ public sealed class SeStringExtraNewLineTests
     }
 
     [Fact]
-    public void SynthesizedNewLineBeforeLastMacroEnd_IsRejectedForSourceWithoutNewLine()
+    public void SynthesizedNewLineBeforeLastMacroEnd_ValidatorNoLongerLimitsByMacroEnd_ButStillRejectsInsideARun()
     {
+        // 2026-11-09: the validator no longer rejects an extra just because a <MacroEnd> follows it (it cannot tell
+        // macro openers from leaf macros); only Run depth is checked here. The tree detokenizer rejects a real
+        // in-bracket extra (see the byte-level tests below).
         var source = "A<Payload40>x<MacroEnd>B";
 
         Assert.True(SeStringCompatibilityValidator.Validate(source, "A<Payload40>x<MacroEnd>B<NewLine>").IsCompatible);
+        Assert.True(SeStringCompatibilityValidator.Validate(source, "A<NewLine><Payload40>x<MacroEnd>B").IsCompatible);
+        Assert.True(SeStringCompatibilityValidator.Validate(source, "A<Payload40>x<MacroEnd><NewLine>B").IsCompatible);
 
-        var report = SeStringCompatibilityValidator.Validate(source, "A<Payload40>x<NewLine><MacroEnd>B");
-        Assert.False(report.IsCompatible);
-        Assert.Contains(report.Violations, v => v.Kind == SeStringViolationKind.ExtraPayload);
+        var inRun = "A<Run>x<NewLine><RunEnd>";
+        Assert.False(SeStringCompatibilityValidator.Validate("A<Run>x<RunEnd>", inRun).IsCompatible);
+    }
+
+    private static (byte[] Vanilla, string Source) MacroCell()
+    {
+        var vanilla = SeStringTree.Serialize(
+        [
+            new SeNode.Literal("A"),
+            new SeNode.Macro(Code: 0x40, Children: [new SeNode.Literal("x")], LengthMarker: 0x01),
+            new SeNode.Literal("B"),
+        ])[..^1];
+        return (vanilla, SeStringTreeTokenizer.TokenizeRawText(vanilla));
+    }
+
+    [Fact]
+    public void ExtraNewLineBeforeAMacro_IsWrittenAtTopLevel()
+    {
+        var (vanilla, source) = MacroCell();
+        Assert.Contains("x<MacroEnd>", source, StringComparison.Ordinal);
+
+        var target = "A<NewLine>" + source[1..];
+        Assert.True(SeStringCompatibilityValidator.Validate(source, target).IsCompatible);
+        Assert.True(SeStringTree.TryTranslate(vanilla, source, target, out var result, out var reason), reason);
+        Assert.Equal(Join(Text("A"), NewLineBytes, vanilla[1..]), result);
+    }
+
+    [Fact]
+    public void ExtraNewLineInsideAMacroBracket_IsStillNeverWritten()
+    {
+        var (vanilla, source) = MacroCell();
+
+        var inside = source.Replace("x<MacroEnd>", "x<NewLine><MacroEnd>", StringComparison.Ordinal);
+        Assert.False(SeStringTree.TryTranslate(vanilla, source, inside, out _, out _));
     }
 }

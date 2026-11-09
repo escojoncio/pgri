@@ -396,8 +396,8 @@ public static partial class SeStringCompatibilityValidator
 
     // NewLine-suppression marker (U+E0F0, see SeStringSuppressedNewLine): it is valid ONLY as the
     // character right after a <NewLine>/<NewLine#N> token, and that NewLine must be a "soft" one:
-    //  - not inside a <Run> and not before the last <MacroEnd> (same rule as extra NewLines: the
-    //    recomputed length prefix of the bracket would change) -> ExtraPayload;
+    //  - not inside a <Run> (the recomputed length prefix would change) -> ExtraPayload; real macro-bracket depth
+    //    is judged by the tree detokenizer's stack (same rule as extra NewLines, relaxed 2026-11-09);
     //  - not at the start of the string and not glued to the end of a previous NON-style token
     //    (another NewLine included: paragraph breaks and empty chunks; icons, numbers...) ->
     //    StrayDelimiter, as is any marker not attached to a NewLine.
@@ -553,8 +553,11 @@ public static partial class SeStringCompatibilityValidator
     // NewLine tokens numbered beyond the source's NewLine count (<NewLine#k+1>, ...), each at most
     // once. They are removed from the atom list before the multiset/order/nesting checks so every
     // other token must still match the source exactly. An extra is rejected (reported as
-    // ExtraPayload) when it sits inside a <Run> or may sit inside a macro bracket (a <MacroEnd>
-    // follows it), because that bracket's recomputed length prefix would change. A source without
+    // ExtraPayload) when it sits inside a <Run>, because that run's recomputed length prefix would change.
+    // 2026-11-09: the old "before the last <MacroEnd>" limit was retired (as already done for the suppression marker):
+    // a top-level extra between or before macros changes no length prefix, and the validator cannot tell openers from
+    // leaf macros by name; the real macro-bracket depth is enforced by the tree detokenizer's stack (SeStringTreeTokenizer:
+    // "extra '<NewLine#N>' inside a run or macro bracket"), so an extra that really sits inside a macro is still never written. A source without
     // any NewLine accepts up to MaxSynthesizedNewLines extras numbered <NewLine>, <NewLine#2>, ...
     // (the standard bytes 02 10 01 03 are synthesized by the tree detokenizer).
     private static List<Atom> DropExtraNewLines(List<Atom> sourceAtoms, List<Atom> targetAtoms, List<SeStringViolation> violations)
@@ -567,15 +570,6 @@ public static partial class SeStringCompatibilityValidator
             if (atom.BaseName == NewLineBase)
             {
                 sourceNewLines++;
-            }
-        }
-
-        var lastMacroEnd = -1;
-        for (var k = 0; k < targetAtoms.Count; k++)
-        {
-            if (targetAtoms[k].BaseName == MacroEndBase)
-            {
-                lastMacroEnd = k;
             }
         }
 
@@ -600,13 +594,13 @@ public static partial class SeStringCompatibilityValidator
                 && IsSynthesizableNewLineToken(atom.Token, sourceNewLines)
                 && seenExtras.Add(atom.Token))
             {
-                if (runDepth > 0 || idx < lastMacroEnd)
+                if (runDepth > 0)
                 {
                     violations.Add(new SeStringViolation(
                         SeStringViolationKind.ExtraPayload,
                         atom.Token,
                         atom.Position,
-                        $"extra {atom.Token} in target sits inside a length-prefixed run or macro bracket; extra newlines are only allowed outside them"));
+                        $"extra {atom.Token} in target sits inside a length-prefixed run; extra newlines are only allowed outside runs and macro brackets"));
                 }
 
                 continue;

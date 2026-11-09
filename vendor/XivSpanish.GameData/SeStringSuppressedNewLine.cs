@@ -18,7 +18,7 @@ namespace XivSpanish.GameData;
 /// NewLine (marked or not) or the end of the string, so an empty marked chunk means "nothing".</para>
 ///
 /// <para>Hard newlines can never be suppressed (the validator rejects the mark): inside a
-/// <c>&lt;Run&gt;</c> or before the last <c>&lt;MacroEnd&gt;</c> (same rule as extra NewLines), at the
+/// <c>&lt;Run&gt;</c> or inside a macro bracket (the tree detokenizer's stack; same rule as extra NewLines), at the
 /// start of the string, or glued to a preceding NewLine or non-style token. A NewLine glued to a
 /// colour/style token (ColorType, EdgeColorType, Color, EdgeColor, Italic, Edge) can be suppressed,
 /// and so can the last NewLine of the string (its pending space is dropped).</para>
