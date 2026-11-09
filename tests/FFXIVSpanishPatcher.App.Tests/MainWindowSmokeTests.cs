@@ -199,8 +199,8 @@ public class MainWindowSmokeTests
         }
         var window = new MainWindow
         {
-            Width = 1415,
-            Height = 945,
+            Width = 1180,
+            Height = 740,
             DataContext = viewModel,
         };
 
@@ -209,9 +209,9 @@ public class MainWindowSmokeTests
         var frame = window.CaptureRenderedFrame();
 
         Assert.NotNull(frame);
-        Assert.True(frame.PixelSize.Width >= 1415 * scale);
-        Assert.True(frame.PixelSize.Height >= 945 * scale);
-        AssertInsideWindow(window, window.FindControl<Border>("SetupPanel"));
+        Assert.True(frame.PixelSize.Width >= 1180 * scale);
+        Assert.True(frame.PixelSize.Height >= 740 * scale);
+        AssertInsideWindow(window, window.FindControl<Border>("SidebarPanel"));
         AssertInsideWindow(window, window.FindControl<Border>("ConsolePanel"));
         AssertInsideWindow(window, window.FindControl<Button>("PrimaryAction"));
         AssertContained(
