@@ -28,11 +28,11 @@ public enum GameVersionCompatibility
 /// <summary>Main application state. UI remains a thin projection over pipeline and environment services.</summary>
 public partial class MainViewModel : ObservableObject
 {
-    private const string ExternalTranslationsFileName = "translations.dat";
     private const string RecommendedGameVersionResourceName = "FFXIVSpanishPatcher.App.recommended-game-version.txt";
 
     private readonly IShellServices _shell;
-    private readonly ITranslationSource _translations;
+    private readonly TranslationsLocator _locator;
+    private ITranslationSource _translations;
     private readonly string? _recommendedGameVersion;
     private readonly AppBuildInfo _buildInfo;
     private readonly IUpdateCheckService _updateCheckService;
@@ -49,11 +49,13 @@ public partial class MainViewModel : ObservableObject
     public MainViewModel(IShellServices shell, bool debugLogging = false)
         : this(
             shell,
-            CreateDefaultTranslationSource(),
+            CreateDefaultTranslationSource(DefaultLocator),
             LoadRecommendedGameVersion(typeof(MainViewModel).Assembly, RecommendedGameVersionResourceName),
             debugLogging: debugLogging)
     {
     }
+
+    private static readonly TranslationsLocator DefaultLocator = TranslationsLocator.CreateDefault();
 
     public MainViewModel(
         IShellServices shell,
@@ -77,6 +79,7 @@ public partial class MainViewModel : ObservableObject
         DalamudPenumbraService? dalamudService = null)
     {
         _shell = shell;
+        _locator = DefaultLocator;
         _translations = translations;
         _recommendedGameVersion = string.IsNullOrWhiteSpace(recommendedGameVersion)
             ? null
@@ -189,6 +192,9 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(GenerateModCommand))]
     private string? gamePath;
+
+    [ObservableProperty]
+    private bool translationsMissing;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(GenerateModCommand))]
@@ -361,6 +367,7 @@ public partial class MainViewModel : ObservableObject
                     Categories.Add(new CategoryViewModel(info, counts.GetValueOrDefault(info.Domain)));
                 }
 
+                TranslationsMissing = false;
                 TranslationsReady = true;
                 OnPropertyChanged(nameof(CorpusCheckSubtitle));
                 Console.Add(Info($"Traducciones cargadas: {entries.Count:N0} entradas."));
@@ -371,6 +378,7 @@ public partial class MainViewModel : ObservableObject
             Dispatcher.UIThread.Post(() =>
             {
                 Console.Add(Error($"No se pudieron cargar las traducciones: {exception.Message}"));
+                TranslationsMissing = exception is FileNotFoundException;
                 Stage = PatcherUiStage.Result;
                 LastSuccess = false;
                 StatusText = "Error";
@@ -519,6 +527,25 @@ public partial class MainViewModel : ObservableObject
             Version = version,
             Description = description,
         };
+    }
+
+    [RelayCommand]
+    private async Task SelectTranslationsFileAsync()
+    {
+        var picked = await _shell.PickTranslationsFileAsync();
+        if (string.IsNullOrWhiteSpace(picked) || !File.Exists(picked))
+        {
+            return;
+        }
+
+        _locator.Remember(picked);
+        _translations = EmbeddedTranslationSource.FromFile(picked);
+        Console.Add(Info($"Fichero de traducciones seleccionado: {picked}"));
+        Stage = PatcherUiStage.Preparation;
+        LastSuccess = null;
+        StatusText = "Preparado";
+        NotifyResultProperties();
+        _ = Task.Run(LoadTranslations);
     }
 
     [RelayCommand]
@@ -776,21 +803,17 @@ public partial class MainViewModel : ObservableObject
             ? "Selecciona la carpeta de instalación de FFXIV antes de generar el mod."
             : $"La ruta seleccionada no contiene datos válidos de FFXIV: {path}";
 
-    private static ITranslationSource CreateDefaultTranslationSource()
-    {
-        var path = Path.Combine(AppContext.BaseDirectory, ExternalTranslationsFileName);
-        return new EmbeddedTranslationSource(() =>
+    private static ITranslationSource CreateDefaultTranslationSource(TranslationsLocator locator)
+        => new EmbeddedTranslationSource(() =>
         {
-            if (!File.Exists(path))
+            var path = locator.Resolve();
+            if (path is null)
             {
-                throw new FileNotFoundException(
-                    $"Falta el fichero de traducciones '{ExternalTranslationsFileName}'. "
-                    + $"Colócalo junto al ejecutable: {path}");
+                throw new FileNotFoundException(locator.NotFoundMessage());
             }
 
             return File.OpenRead(path);
         });
-    }
 
     private static string? LoadRecommendedGameVersion(Assembly assembly, string resourceName)
     {

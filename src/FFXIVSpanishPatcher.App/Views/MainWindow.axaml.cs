@@ -31,6 +31,22 @@ public partial class MainWindow : Window, IShellServices
         return folders.Count > 0 ? folders[0].TryGetLocalPath() : null;
     }
 
+    public async Task<string?> PickTranslationsFileAsync()
+    {
+        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Selecciona translations.dat",
+            AllowMultiple = false,
+            FileTypeFilter =
+            [
+                new FilePickerFileType("translations.dat") { Patterns = ["*.dat"] },
+                FilePickerFileTypes.All,
+            ],
+        });
+
+        return files.Count > 0 ? files[0].TryGetLocalPath() : null;
+    }
+
     public async Task CopyToClipboardAsync(string text)
     {
         if (Clipboard is { } clipboard)

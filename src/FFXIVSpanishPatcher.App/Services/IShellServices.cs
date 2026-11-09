@@ -10,6 +10,9 @@ public interface IShellServices
     /// <summary>Shows a folder picker for the FFXIV install; returns null if cancelled.</summary>
     Task<string?> PickGameFolderAsync();
 
+    /// <summary>Shows a file picker for translations.dat; returns null if cancelled.</summary>
+    Task<string?> PickTranslationsFileAsync() => Task.FromResult<string?>(null);
+
     /// <summary>Copies text to the system clipboard.</summary>
     Task CopyToClipboardAsync(string text);
 

@@ -409,6 +409,10 @@
         </StackPanel>
         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
           <Button Classes="secondary"
+                  Content="Seleccionar translations.dat…"
+                  IsVisible="{Binding TranslationsMissing}"
+                  Command="{Binding SelectTranslationsFileCommand}"/>
+          <Button Classes="secondary"
                   Content="Abrir carpeta de salida"
                   Command="{Binding OpenOutputFolderCommand}"/>
           <Button x:Name="PrimaryAction"
