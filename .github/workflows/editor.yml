@@ -1,0 +1,27 @@
+name: editor
+on:
+  push:
+    paths: ['editor/**', '.github/workflows/editor.yml']
+  workflow_dispatch:
+jobs:
+  exe-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r editor/requirements-dev.txt
+      - name: Tests (los que necesitan tools/py o el juego se saltan)
+        run: python -m pytest editor/tests -q
+      - name: PyInstaller
+        working-directory: editor
+        run: >
+          pyinstaller --noconfirm --onefile --windowed --name GridaniaEditor
+          --paths . --add-data "gridania_editor/ui;gridania_editor/ui"
+          --collect-all webview --hidden-import gridania_editor.stdlib_para_scripts
+          run_editor.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: GridaniaEditor-win64
+          path: editor/dist/GridaniaEditor.exe

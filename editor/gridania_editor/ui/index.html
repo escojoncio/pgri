@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><title>Editor de traducciones Gridania</title>
+<style>
+*{box-sizing:border-box} body{margin:0;font:14px system-ui,Segoe UI,sans-serif;background:#1e1f24;color:#e6e6e6;display:flex;flex-direction:column;height:100vh}
+header{display:flex;gap:6px;align-items:center;padding:6px 10px;background:#2a2c33;flex-wrap:wrap}
+button{background:#3b6ea5;color:#fff;border:0;padding:6px 10px;border-radius:4px;cursor:pointer} button:hover{background:#4a82c0} button.sec{background:#555} button:disabled{opacity:.5}
+input,select,textarea{background:#15161a;color:#e6e6e6;border:1px solid #444;border-radius:4px;padding:4px}
+.chip{padding:3px 9px;border-radius:10px;color:#111;cursor:pointer;font-weight:600;border:2px solid transparent;user-select:none}
+.chip.off{opacity:.35} .rojo{background:#ff9d9d}.naranja{background:#ffc27a}.verde{background:#a6e6a6}.blanco{background:#f2f2f2}
+main{flex:1;display:flex;min-height:0} #izq,#busq{width:36%;display:flex;flex-direction:column;border-right:1px solid #444} #der{flex:1;overflow:auto;padding:10px}
+#filtros{display:flex;gap:6px;padding:6px;flex-wrap:wrap;align-items:center} #tabla{flex:1;overflow:auto}
+table{border-collapse:collapse;width:100%} td{padding:3px 6px;border-bottom:1px solid #2d2f36;color:#111;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px;cursor:pointer}
+tr.sel td{outline:2px solid #fff;outline-offset:-2px}
+.lbl{font-size:12px;color:#9aa;margin:8px 0 2px} pre{margin:0;white-space:pre-wrap;background:#15161a;border:1px solid #333;padding:6px;border-radius:4px;max-height:140px;overflow:auto}
+textarea#es{width:100%;height:150px;font:14px Consolas,monospace}
+.vent{display:inline-block;vertical-align:top;margin:4px 8px 4px 0;border:2px solid #7a6a3a;background:#101a2a;border-radius:6px;padding:6px 10px;font:14px Consolas,monospace;min-width:260px}
+.vent div{white-space:pre;min-height:1.2em} .c{color:#ffd24d} .vent small{color:#889}
+.err{color:#ff7b7b} .avi{color:#ffd24d} li{margin:2px 0}
+#tareas{position:fixed;right:10px;bottom:10px;width:520px;max-height:40vh;background:#101114;border:1px solid #555;border-radius:6px;display:none;flex-direction:column}
+#log{overflow:auto;padding:6px;font:12px Consolas,monospace;white-space:pre-wrap;flex:1}
+dialog{background:#2a2c33;color:#e6e6e6;border:1px solid #666;border-radius:8px} dialog label{display:block;margin:6px 0 2px;font-size:12px;color:#9aa} dialog input{width:420px}
+.pager{padding:4px 8px;display:flex;gap:8px;align-items:center}
+#busq{display:none;flex-direction:column;border-right:1px solid #444;overflow:auto;padding:6px} #busq label{margin-right:8px;white-space:nowrap}
+mark{background:#ffd24d;color:#111} .res{border-bottom:1px solid #333;padding:3px;cursor:pointer;font-size:12px} .res:hover{background:#2d3140} .res .campo{color:#9aa}
+#tres{display:grid;grid-template-columns:1fr 1fr 1.3fr;gap:10px} .col h4{margin:0 0 4px;color:#9ad} .ctx{font-size:12px;color:#bbb;border:1px dashed #444;padding:4px;margin:4px 0;cursor:pointer;white-space:pre-wrap;max-height:90px;overflow:auto}
+.vent{min-width:0} .hab{color:#9fd;font-weight:600}
+</style></head><body>
+<header>
+ <b>Editor Gridania</b>
+ <span id="chips"></span>
+ <span style="flex:1"></span>
+ <button id="bSync" title="Descarga traduccion, glosarios y textos ja/fr del repo">Actualizar desde GitHub</button>
+ <button id="bExt" class="sec" title="Extrae ja/fr de la carpeta sqpack/ffxiv indicada en Ajustes">Extraer del juego</button>
+ <button id="bGen" title="suavizado + construir_dat + puerta + validacion">Generar translations.dat</button>
+ <button id="bExp" class="sec">Exportar cambios</button>
+ <button id="bBusq" class="sec">Buscar global</button>
+ <button id="bCfg" class="sec">Ajustes</button>
+ <button id="bTar" class="sec">Tareas</button>
+ <button id="bSalir" class="sec">Salir</button>
+</header>
+<main>
+ <section id="izq">
+  <div id="filtros">
+   <input id="fHoja" list="hojas" placeholder="Hoja (ej. quest/000/...)" size="26"><datalist id="hojas"></datalist>
+   <input id="fQ" placeholder="Buscar en JP / ES" size="22">
+   <label><input type="checkbox" id="fEd"> solo editadas</label>
+  </div>
+  <div id="tabla"><table><tbody id="filas"></tbody></table></div>
+  <div class="pager"><button class="sec" id="pPrev">&lt;</button><span id="pInfo"></span><button class="sec" id="pNext">&gt;</button></div>
+ </section>
+ <section id="busq">
+  <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+   <input id="bqT" placeholder="Texto o expresion a buscar" size="30">
+   <select id="bqModo"><option value="subcadena">subcadena</option><option value="exacto">texto exacto (campo completo)</option><option value="palabra">palabra completa</option><option value="regex">regex</option></select>
+   <label><input type="checkbox" id="bqJa" checked>JP</label><label><input type="checkbox" id="bqFr" checked>FR</label><label><input type="checkbox" id="bqEs" checked>ES</label>
+   <label><input type="checkbox" id="bqMay">Distinguir mayusculas</label><label><input type="checkbox" id="bqTil">Distinguir tildes</label>
+   <input id="bqHoja" placeholder="Hoja (opcional)" size="16">
+   <select id="bqEst"><option value="">todos los estados</option><option>rojo</option><option>naranja</option><option>verde</option><option>blanco</option></select>
+   <button id="bqIr">Buscar</button><button class="sec" id="bqExp">Exportar lista</button>
+  </div>
+  <div id="bqInfo" style="margin:6px 0"></div><div id="bqHojas" style="font-size:12px;color:#9aa;max-height:70px;overflow:auto"></div>
+  <div style="margin:6px 0;display:flex;gap:6px;align-items:center;flex-wrap:wrap"><b>Reemplazar en ES:</b><input id="bqRep" placeholder="reemplazo (regex: \\1)" size="22">
+   <button class="sec" id="bqPrev">Vista previa</button><button id="bqApl">Aplicar a seleccionados</button><label><input type="checkbox" id="bqTodos">todos los resultados</label><label><input type="checkbox" id="bqSelTodo">marcar los de esta pagina</label></div>
+  <div id="bqRepRes" style="font-size:12px"></div>
+  <div id="bqRes"></div>
+  <div class="pager"><button class="sec" id="bqPrevP">&lt;</button><span id="bqPag"></span><button class="sec" id="bqNextP">&gt;</button></div>
+ </section>
+ <section id="der"><div id="vacio">Elige una celda de la tabla.</div><div id="ed" style="display:none">
+  <div><b id="titulo"></b> <span id="meta" style="color:#9aa"></span> <span id="hablante" class="hab"></span></div>
+  <div class="lbl">Fila anterior (clic para abrir)</div><div class="ctx" id="ctxPrev"></div>
+  <div id="tres">
+   <div class="col"><h4>Japones</h4><pre id="ja"></pre><div id="vja"></div><div id="bloquePrevio" style="display:none"><div class="lbl">Japones anterior (repo importado)</div><pre id="jaPrevio"></pre></div></div>
+   <div class="col"><h4>Frances</h4><pre id="fr"></pre><div id="vfr"></div></div>
+   <div class="col"><h4>Espanol (editable)</h4>
+    <textarea id="es" spellcheck="false"></textarea>
+    <div style="margin:6px 0;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+     <button id="bGuardar">Guardar (Ctrl+S)</button><button id="bReflujo" class="sec">Usar texto con reflujo</button>
+     <label><input type="checkbox" id="cReflujo" checked> reflujo</label>
+     <label>Jugador <select id="genero"><option value="masc">masculino</option><option value="fem">femenino</option></select></label><span id="msg"></span></div>
+    <div class="lbl">Vista previa «como en el juego» <span id="cajaInfo"></span></div><div id="vista"></div>
+    <div class="lbl">Avisos</div><ul id="avisos"></ul></div>
+  </div>
+  <div class="lbl">Fila siguiente (clic para abrir)</div><div class="ctx" id="ctxSig"></div>
+ </div></section>
+</main>
+<div id="tareas"><div style="display:flex;padding:4px 8px;background:#2a2c33"><b id="tNombre" style="flex:1">Tarea</b><button class="sec" id="tCerrar">x</button></div><div id="log"></div></div>
+<dialog id="dCfg"><h3>Ajustes</h3>
+ <label>Repositorio (propietario/nombre)</label><input id="cRepo"><label>Rama</label><input id="cRama">
+ <label>Token personal de GitHub (se guarda solo en este PC)</label><input id="cToken" type="password" autocomplete="off">
+ <label>Carpeta sqpack/ffxiv del juego</label><input id="cJuego"><label>Carpeta de destino del translations.dat</label><input id="cDat">
+ <label>Puerta: minimo de entradas</label><input id="cMin"><label>Puerta: maximo de rechazos</label><input id="cMax">
+ <p style="display:flex;gap:8px"><button id="cGuardar">Guardar</button><button class="sec" id="cBorrar">Borrar token guardado</button><button class="sec" id="cCerrar">Cerrar</button></p>
+</dialog>
+<script>
+const K='__CLAVE__';
+const $=id=>document.getElementById(id);
+async function api(ruta,cuerpo){const o={headers:{'X-K':K}};if(cuerpo!==undefined){o.method='POST';o.headers['Content-Type']='application/json';o.body=JSON.stringify(cuerpo)}
+ const r=await fetch(ruta,o);const j=await r.json();if(!r.ok)throw new Error(j.error||r.status);return j}
+const ESTADOS=['rojo','naranja','verde','blanco'];let activos=new Set(['rojo','naranja']);let off=0,total=0,LIM=100,selId=null,timer=null,tareaDesde=0,sondeo=null;
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function chips(c){$('chips').innerHTML=ESTADOS.map(e=>`<span class="chip ${e} ${activos.has(e)?'':'off'}" data-e="${e}">${e} ${(c[e]||0).toLocaleString('es')}</span>`).join(' ');
+ document.querySelectorAll('.chip').forEach(x=>x.onclick=()=>{const e=x.dataset.e;activos.has(e)?activos.delete(e):activos.add(e);off=0;cargar()})}
+async function cargar(){const p=new URLSearchParams({estados:[...activos].join(','),offset:off,limite:LIM,hoja:$('fHoja').value,q:$('fQ').value,editadas:$('fEd').checked?'1':'0'});
+ const d=await api('/api/celdas?'+p);total=d.total;chips(d.contadores);
+ $('filas').innerHTML=d.filas.map(f=>`<tr data-id="${f.id}" class="${f.id===selId?'sel':''}"><td class="${f.estado}">${esc(f.hoja)}</td><td class="${f.estado}">${f.row}${f.sub!=null?'.'+f.sub:''}:${f.col}${f.editada?' *':''}</td><td class="${f.estado}">${esc(f.ja||'')}</td><td class="${f.estado}">${esc(f.es||'')}</td></tr>`).join('');
+ document.querySelectorAll('#filas tr').forEach(t=>t.onclick=()=>abrir(+t.dataset.id));
+ $('pInfo').textContent=`${total?off+1:0}-${Math.min(off+LIM,total)} de ${total.toLocaleString('es')}`}
+async function hojas(){const d=await api('/api/hojas');$('hojas').innerHTML=d.hojas.map(h=>`<option value="${esc(h.hoja)}">`).join('')}
+function ventanas(v,el,info){el=el||'vista';if(!v){$(el).innerHTML='';return}
+ if(info!==false)$('cajaInfo').textContent=`(caja ${v.caja.tipo}, ${v.caja.seguro}/${v.caja.duro} car., ${v.nlineas} lineas, ${v.nventanas} ventanas)`;
+ $(el).innerHTML=v.ventanas.map((w,i)=>`<div class="vent"><small>ventana ${i+1}/${v.nventanas}</small>`+w.map(l=>`<div>${esc(l).replace(/\x01/g,'<span class="c">').replace(/\x02/g,'</span>').replace(/\x03/g,'\u25A3')}</div>`).join('')+'</div>').join('')}
+let ultimoTexto='';
+function pintar(r){ventanas(r.vista);ultimoTexto=r.texto;if(r.vista_ja!==undefined){ventanas(r.vista_ja,'vja',false);ventanas(r.vista_fr,'vfr',false)}
+ const li=[...r.errores.map(e=>`<li class="err">ERROR ${esc(e[0])}: ${esc(e[1])}</li>`),...r.avisos.map(e=>`<li class="avi">${esc(e[0])}: ${esc(e[1])}</li>`)];
+ $('avisos').innerHTML=li.join('')||'<li>sin avisos</li>';$('bGuardar').disabled=r.errores.length>0}
+async function abrir(id){selId=id;const d=await api('/api/celda?id='+id);$('vacio').style.display='none';$('ed').style.display='block';
+ $('titulo').textContent=`${d.hoja}  fila ${d.row}${d.sub!=null?'.'+d.sub:''} col ${d.col}`;$('meta').textContent=`${d.estado} | ${d.tipo} | origen ${d.origen||'-'} | h ${d.h}${d.h_es&&d.h_es!==d.h?' (traduccion con h '+d.h_es+')':''}${d.reflujo?'':' | sin reflujo automatico'}`;
+ $('ja').textContent=d.ja;$('fr').textContent=d.fr||'(sin frances)';ventanas(d.vista_ja,'vja',false);ventanas(d.vista_fr,'vfr',false);
+ const h=d.hablante;$('hablante').textContent=h?'Hablante: '+Object.entries(h).map(([k,v])=>k+': '+v).join(' | '):'';ctx(d.contexto);$('bloquePrevio').style.display=d.ja_previo?'block':'none';$('jaPrevio').textContent=d.ja_previo;
+ $('es').value=d.es_texto;$('msg').textContent=d.sin_traduccion?'Sin traduccion: plantilla con la estructura del original.':'';
+ document.querySelectorAll('#filas tr').forEach(t=>t.classList.toggle('sel',+t.dataset.id===id));
+ if(d.evaluacion)pintar(d.evaluacion);else{$('vista').innerHTML='';$('avisos').innerHTML='';$('bGuardar').disabled=false;previa()}}
+function ctx(c){for(const [k,el] of [['anterior','ctxPrev'],['siguiente','ctxSig']]){const x=c[k];const e=$(el);if(!x){e.textContent='(ninguna)';e.onclick=null;continue}
+ e.textContent=`[${x.estado}] fila ${x.row}:${x.col}\nJP: ${x.ja||''}\nFR: ${x.fr||''}\nES: ${x.es||''}`;e.onclick=()=>abrir(x.id)}}
+async function previa(){if(selId==null)return;try{const r=await api('/api/preview',{id:selId,texto:$('es').value,genero:$('genero').value,reflujo:$('cReflujo').checked});pintar(r)}catch(e){$('avisos').innerHTML=`<li class="err">${esc(e.message)}</li>`}}
+$('es').oninput=()=>{clearTimeout(timer);timer=setTimeout(previa,300)};$('genero').onchange=previa;$('cReflujo').onchange=previa;
+$('bReflujo').onclick=()=>{if(ultimoTexto){$('es').value=ultimoTexto;previa()}};
+async function guardar(){if(selId==null)return;try{const r=await api('/api/guardar',{id:selId,texto:$('es').value});pintar(r.evaluacion);
+ if(r.guardado){$('es').value=r.evaluacion.texto;$('msg').textContent='Guardado (origen sesion).';cargar()}else $('msg').textContent='No se guarda: hay errores.'}catch(e){$('msg').textContent=e.message}}
+$('bGuardar').onclick=guardar;document.addEventListener('keydown',e=>{if(e.ctrlKey&&e.key==='s'){e.preventDefault();guardar()}});
+['fHoja','fQ'].forEach(i=>$(i).onchange=()=>{off=0;cargar()});$('fEd').onchange=()=>{off=0;cargar()};
+$('pPrev').onclick=()=>{off=Math.max(0,off-LIM);cargar()};$('pNext').onclick=()=>{if(off+LIM<total){off+=LIM;cargar()}};
+// busqueda global
+let bqOff=0,bqTot=0;const BQL=100;
+function bqCuerpo(extra){const campos=[['bqJa','ja'],['bqFr','fr'],['bqEs','es']].filter(x=>$(x[0]).checked).map(x=>x[1]);
+ return Object.assign({texto:$('bqT').value,campos,modo:$('bqModo').value,mayus:$('bqMay').checked,tildes:$('bqTil').checked,hoja:$('bqHoja').value||null,estados:$('bqEst').value?[$('bqEst').value]:null},extra||{})}
+function marca(f){return esc(f.t.slice(0,f.ini))+'<mark>'+esc(f.t.slice(f.ini,f.fin))+'</mark>'+esc(f.t.slice(f.fin))}
+async function bqBuscar(){try{const r=await api('/api/buscar',bqCuerpo({offset:bqOff,limite:BQL}));bqTot=r.total;
+ $('bqInfo').textContent=`${r.total.toLocaleString('es')} celdas. Por estado: `+Object.entries(r.por_estado).map(([k,v])=>k+' '+v).join(', ');
+ $('bqHojas').textContent='Por hoja: '+Object.entries(r.por_hoja).slice(0,60).map(([k,v])=>k+' ('+v+')').join(', ');
+ $('bqRes').innerHTML=r.resultados.map(x=>`<div class="res" data-id="${x.id}"><input type="checkbox" class="sel" data-id="${x.id}"> <span class="chip ${x.estado}" style="padding:0 6px">${x.estado}</span> ${esc(x.hoja)} ${x.row}${x.sub!=null?'.'+x.sub:''}:${x.col}`+Object.entries(x.campos).map(([c,f])=>`<div><span class="campo">${c.toUpperCase()}</span> ${marca(f)}</div>`).join('')+'</div>').join('');
+ document.querySelectorAll('#bqRes .res').forEach(d=>d.onclick=e=>{if(e.target.className!=='sel')abrir(+d.dataset.id)});
+ $('bqPag').textContent=`${bqTot?bqOff+1:0}-${Math.min(bqOff+BQL,bqTot)} de ${bqTot}`}catch(e){$('bqInfo').textContent=e.message}}
+function bqSel(){return [...document.querySelectorAll('#bqRes .sel:checked')].map(x=>+x.dataset.id)}
+async function bqReemplazo(aplicar){try{const ids=$('bqTodos').checked?null:bqSel();if(ids&&!ids.length){$('bqRepRes').textContent='Marca resultados o activa «todos».';return}
+ if(aplicar&&!confirm('Aplicar el reemplazo (solo ES, con las mismas validaciones que al guardar)?'))return;
+ const r=await api('/api/reemplazar',bqCuerpo({reemplazo:$('bqRep').value,ids,aplicar}));
+ $('bqRepRes').innerHTML=`<b>${r.aplicado?'APLICADO':'Vista previa'}: ${r.n_cambios} celdas cambian, ${r.n_rechazadas} rechazadas por las validaciones, ${r.sin_cambio} sin cambio.</b><br>`+
+  r.cambios.slice(0,40).map(c=>`<div class="res" data-id="${c.id}">${esc(c.hoja)} ${c.row}:${c.col}<br><span class="err">- ${esc(c.antes)}</span><br><span style="color:#8f8">+ ${esc(c.despues)}</span></div>`).join('')+
+  r.rechazadas.slice(0,20).map(c=>`<div class="res" data-id="${c.id}">RECHAZADA ${esc(c.hoja)} ${c.row}:${c.col}: ${esc(c.errores.map(e=>e.join(' ')).join('; '))}</div>`).join('');
+ document.querySelectorAll('#bqRepRes .res').forEach(d=>d.onclick=()=>abrir(+d.dataset.id));if(aplicar){bqBuscar();cargar()}}catch(e){$('bqRepRes').textContent=e.message}}
+$('bBusq').onclick=()=>{const v=$('busq').style.display==='flex';$('busq').style.display=v?'none':'flex';$('izq').style.display=v?'flex':'none'};
+$('bqIr').onclick=()=>{bqOff=0;bqBuscar()};$('bqT').onkeydown=e=>{if(e.key==='Enter'){bqOff=0;bqBuscar()}};
+$('bqPrevP').onclick=()=>{bqOff=Math.max(0,bqOff-BQL);bqBuscar()};$('bqNextP').onclick=()=>{if(bqOff+BQL<bqTot){bqOff+=BQL;bqBuscar()}};
+$('bqExp').onclick=async()=>{try{const r=await api('/api/buscar_exportar',bqCuerpo());alert(`Exportadas ${r.celdas} celdas a:\n${r.ruta}`)}catch(e){alert(e.message)}};
+$('bqPrev').onclick=()=>bqReemplazo(false);$('bqApl').onclick=()=>bqReemplazo(true);
+$('bqSelTodo').onchange=e=>document.querySelectorAll('#bqRes .sel').forEach(x=>x.checked=e.target.checked);
+// tareas
+function tareaLog(){api('/api/tarea?desde='+tareaDesde).then(t=>{$('tNombre').textContent=`${t.nombre||'Tarea'}: ${t.estado} (${t.segundos}s)`;if(t.log.length){$('log').textContent+=t.log.join('\n')+'\n';$('log').scrollTop=1e9}tareaDesde=t.siguiente;
+ if(t.estado==='ejecutando'){sondeo=setTimeout(tareaLog,1000)}else{sondeo=null;if(t.resultado&&t.nombre==='generar')$('log').textContent+='RESULTADO '+JSON.stringify(t.resultado,null,1)+'\n';if(t.error)$('log').textContent+='ERROR: '+t.error+'\n';cargar();hojas()}})}
+async function lanzar(ruta,cuerpo){try{$('tareas').style.display='flex';$('log').textContent='';tareaDesde=0;await api(ruta,cuerpo||{});if(!sondeo)tareaLog()}catch(e){$('log').textContent=e.message}}
+$('bSync').onclick=()=>lanzar('/api/sync');$('bExt').onclick=()=>lanzar('/api/extraer');$('bGen').onclick=()=>lanzar('/api/generar');
+$('bTar').onclick=()=>{$('tareas').style.display='flex';tareaDesde=0;$('log').textContent='';tareaLog()};$('tCerrar').onclick=()=>$('tareas').style.display='none';
+$('bExp').onclick=async()=>{try{const r=await api('/api/exportar',{});alert(`Exportadas ${r.filas} filas de ${r.hojas} hojas a:\n${r.carpeta}`)}catch(e){alert(e.message)}};
+$('bSalir').onclick=async()=>{await api('/api/salir',{});document.body.innerHTML='<p style="padding:20px">Editor cerrado. Puedes cerrar esta pestana.</p>'};
+// ajustes
+$('bCfg').onclick=async()=>{const e=await api('/api/estado');const c=e.config;$('cRepo').value=c.repo;$('cRama').value=c.rama;$('cToken').value='';$('cToken').placeholder=c.token_guardado?'(guardado; deja vacio para conservarlo)':'ghp_...';
+ $('cJuego').value=c.ruta_juego;$('cDat').value=c.carpeta_dat;$('cMin').value=c.min_entradas;$('cMax').value=c.max_rechazos;$('dCfg').showModal()};
+$('cCerrar').onclick=()=>$('dCfg').close();
+$('cGuardar').onclick=async()=>{await api('/api/config',{repo:$('cRepo').value,rama:$('cRama').value,token:$('cToken').value,ruta_juego:$('cJuego').value,carpeta_dat:$('cDat').value,min_entradas:$('cMin').value,max_rechazos:$('cMax').value});$('dCfg').close()};
+$('cBorrar').onclick=async()=>{await api('/api/borrar_token',{});$('cToken').placeholder='ghp_...'};
+(async()=>{const e=await api('/api/estado');if(!e.repo_ok){$('vacio').textContent='Primero abre Ajustes (repo y token) y pulsa «Actualizar desde GitHub».'}await cargar();hojas();if(e.tarea.estado==='ejecutando'){$('tareas').style.display='flex';tareaLog()}})();
+</script></body></html>
