@@ -126,7 +126,7 @@ public class MainWindowSmokeTests
         Assert.Equal(
             new[] { "A Realm Reborn", "Heavensward", "Stormblood", "Shadowbringers", "Endwalker", "Dawntrail" },
             strip.Children.OfType<Image>().Select(image => ToolTip.GetTip(image) as string).ToArray());
-        Assert.All(strip.Children.OfType<Image>(), image => Assert.NotNull(image.Source));
+        Assert.All(strip.Children.OfType<Image>(), image => Assert.IsType<Avalonia.Media.Imaging.Bitmap>(image.Source));
         foreach (var name in new[] { "GameCheckContent", "VersionCheckContent", "CorpusCheckContent", "DalamudCheckContent" })
         {
             AssertInsideWindow(window, window.FindControl<Grid>(name));

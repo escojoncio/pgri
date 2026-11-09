@@ -15,9 +15,6 @@
 
   <Window.Resources>
     <ResourceDictionary>
-    <ResourceDictionary.MergedDictionaries>
-      <ResourceInclude Source="avares://FFXIVSpanishPatcher/Styles/ExpansionIcons.axaml"/>
-    </ResourceDictionary.MergedDictionaries>
     <FontFamily x:Key="Mono">avares://FFXIVSpanishPatcher/Assets/Fonts#JetBrains Mono</FontFamily>
 
     <SolidColorBrush x:Key="AppBackground" Color="#0F0F12"/>
@@ -336,18 +333,18 @@
         <!-- Expansiones (orden fijo: ARR, HW, StB, ShB, EW, DT) -->
         <StackPanel Grid.Row="6" Spacing="7">
           <TextBlock Classes="label" Text="EXPANSIONES"/>
-          <UniformGrid Columns="6" x:Name="ExpansionStrip">
-            <Image Source="{StaticResource ExpMeteorito}" Width="38" Height="38"
+          <UniformGrid Columns="6" x:Name="ExpansionStrip" RenderOptions.BitmapInterpolationMode="HighQuality">
+            <Image Source="avares://FFXIVSpanishPatcher/Assets/Icons/exp1-meteorito.png" Width="38" Height="38"
                    ToolTip.Tip="A Realm Reborn"/>
-            <Image Source="{StaticResource ExpDragonBlanco}" Width="38" Height="38"
+            <Image Source="avares://FFXIVSpanishPatcher/Assets/Icons/exp2-dragon-blanco.png" Width="38" Height="38"
                    ToolTip.Tip="Heavensward"/>
-            <Image Source="{StaticResource ExpKatana}" Width="38" Height="38"
+            <Image Source="avares://FFXIVSpanishPatcher/Assets/Icons/exp3-katana.png" Width="38" Height="38"
                    ToolTip.Tip="Stormblood"/>
-            <Image Source="{StaticResource ExpLuzYSombra}" Width="38" Height="38"
+            <Image Source="avares://FFXIVSpanishPatcher/Assets/Icons/exp4-luz-y-sombra.png" Width="38" Height="38"
                    ToolTip.Tip="Shadowbringers"/>
-            <Image Source="{StaticResource ExpPlumaAzul}" Width="38" Height="38"
+            <Image Source="avares://FFXIVSpanishPatcher/Assets/Icons/exp5-pluma-azul.png" Width="38" Height="38"
                    ToolTip.Tip="Endwalker"/>
-            <Image Source="{StaticResource ExpRuinaPiedra}" Width="38" Height="38"
+            <Image Source="avares://FFXIVSpanishPatcher/Assets/Icons/exp6-ruina-piedra.png" Width="38" Height="38"
                    ToolTip.Tip="Dawntrail"/>
           </UniformGrid>
         </StackPanel>
