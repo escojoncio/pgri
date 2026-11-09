@@ -116,7 +116,7 @@ public class MainWindowSmokeTests
         Assert.NotNull(window.FindControl<ConsoleLogTextBlock>("ConsoleText"));
         Assert.Contains(
             window.GetVisualDescendants().OfType<TextBlock>(),
-            textBlock => textBlock.Text == "Edición Shadowbringers");
+            textBlock => textBlock.Text == "Edición Japonesa");
         Assert.DoesNotContain(
             window.GetVisualDescendants().OfType<TextBlock>(),
             textBlock => textBlock.Text == "Edición Stormblood");

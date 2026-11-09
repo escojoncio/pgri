@@ -186,7 +186,7 @@
               <TextBlock Classes="mono" Text="{Binding AppVersionLabel}"
                          Foreground="{StaticResource Text}" FontSize="10.5" FontWeight="SemiBold"/>
             </Border>
-            <TextBlock Text="Edición Shadowbringers"
+            <TextBlock Text="Edición Japonesa"
                        Foreground="{StaticResource Muted}"
                        FontSize="12"
                        VerticalAlignment="Center"/>

@@ -4,162 +4,383 @@
   <DrawingImage x:Key="ExpMeteorito">
     <DrawingGroup>
       <GeometryDrawing Brush="Transparent" Geometry="M0,0 L64,0 L64,64 L0,64 Z"/>
-      <GeometryDrawing Geometry="M10,2 H54 Q62,2 62,10 V54 Q62,62 54,62 H10 Q2,62 2,54 V10 Q2,2 10,2 Z" Brush="#F2C27B">
-        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      <GeometryDrawing Geometry="M3,32 A29,29 0 1,1 61,32 A29,29 0 1,1 3,32 Z">
+        <GeometryDrawing.Brush><RadialGradientBrush Center="42%,36%" GradientOrigin="42%,36%" RadiusX="72%" RadiusY="72%"><GradientStop Offset="0" Color="#4B4C9A"/><GradientStop Offset="1" Color="#17183F"/></RadialGradientBrush></GeometryDrawing.Brush>
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="1.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
       </GeometryDrawing>
-      <GeometryDrawing Geometry="M6,8 Q26,12 38,28 L30,40 Q20,26 6,8 Z" Brush="#E8552B">
-        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      <GeometryDrawing Geometry="M5.3,32 A26.7,26.7 0 1,1 58.7,32 A26.7,26.7 0 1,1 5.3,32 Z">
+        <GeometryDrawing.Pen><Pen Brush="#29FFFFFF" Thickness="0.9" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
       </GeometryDrawing>
-      <GeometryDrawing Geometry="M12,12 Q28,17 36,30 L32,36 Q24,26 12,12 Z" Brush="#FFC857">
-        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.2" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      <GeometryDrawing Geometry="M15,38.28 Q15.27,40.73 17.72,41 Q15.27,41.27 15,43.72 Q14.73,41.27 12.28,41 Q14.73,40.73 15,38.28 Z" Brush="#D9FFF4D6"/>
+      <GeometryDrawing Geometry="M21,48.13 Q21.18,49.82 22.87,50 Q21.18,50.18 21,51.87 Q20.82,50.18 19.13,50 Q20.82,49.82 21,48.13 Z" Brush="#D9FFF4D6"/>
+      <GeometryDrawing Geometry="M46,10.62 Q46.23,12.77 48.38,13 Q46.23,13.23 46,15.38 Q45.77,13.23 43.62,13 Q45.77,12.77 46,10.62 Z" Brush="#D9FFF4D6"/>
+      <GeometryDrawing Geometry="M52,20.3 Q52.17,21.83 53.7,22 Q52.17,22.17 52,23.7 Q51.83,22.17 50.3,22 Q51.83,21.83 52,20.3 Z" Brush="#D9FFF4D6"/>
+      <GeometryDrawing Geometry="M40,52.47 Q40.15,53.85 41.53,54 Q40.15,54.15 40,55.53 Q39.85,54.15 38.47,54 Q39.85,53.85 40,52.47 Z" Brush="#D9FFF4D6"/>
+      <GeometryDrawing Geometry="M11,28.47 Q11.15,29.85 12.53,30 Q11.15,30.15 11,31.53 Q10.85,30.15 9.47,30 Q10.85,29.85 11,28.47 Z" Brush="#D9FFF4D6"/>
+      <GeometryDrawing Geometry="M13,13 C21,16 30,19 44,27 C47,33 44,40 38,42 C27,33 18,22 9,9 Z">
+        <GeometryDrawing.Brush><LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%"><GradientStop Offset="0" Color="#00E8432A"/><GradientStop Offset="0.35" Color="#E8552B"/><GradientStop Offset="1" Color="#C2311F"/></LinearGradientBrush></GeometryDrawing.Brush>
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="1.4" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
       </GeometryDrawing>
-      <GeometryDrawing Geometry="M34,26 Q44,18 52,26 Q58,34 52,46 Q44,56 34,50 Q26,44 28,34 Q29,29 34,26 Z" Brush="#7A6A5E">
-        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      <GeometryDrawing Geometry="M13,12 C23,17 31,22 42,29 C44,33 42,37 38,39 C29,31 21,22 13,12 Z">
+        <GeometryDrawing.Brush><LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%"><GradientStop Offset="0" Color="#00FF9A3C"/><GradientStop Offset="0.45" Color="#FF9A3C"/><GradientStop Offset="1" Color="#FFB347"/></LinearGradientBrush></GeometryDrawing.Brush>
       </GeometryDrawing>
-      <GeometryDrawing Geometry="M45,30 Q53,35 50,45 Q46,52 38,50 Q47,43 45,30 Z" Brush="#54463D">
-        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.2" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      <GeometryDrawing Geometry="M19,17 C27,22 33,26 40,31 C41,34 40,36 38,37 C32,31 26,24 19,17 Z">
+        <GeometryDrawing.Brush><LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%"><GradientStop Offset="0" Color="#00FFF3C4"/><GradientStop Offset="0.5" Color="#FFE9A0"/><GradientStop Offset="1" Color="#FFF8E0"/></LinearGradientBrush></GeometryDrawing.Brush>
       </GeometryDrawing>
-      <GeometryDrawing Geometry="M35,36 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0 Z" Brush="#54463D">
-        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.2" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      <GeometryDrawing Geometry="M37,30 C40,25.5 47,24.5 51,28 C55.5,31.5 56,38 53,43 C50,48 43,50 38.5,47 C34,44.5 33,38.5 34.5,34.5 C35,33 36,31.5 37,30 Z">
+        <GeometryDrawing.Brush><LinearGradientBrush StartPoint="15%,10%" EndPoint="85%,95%"><GradientStop Offset="0" Color="#B39A86"/><GradientStop Offset="0.55" Color="#7D6555"/><GradientStop Offset="1" Color="#4A3A33"/></LinearGradientBrush></GeometryDrawing.Brush>
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="1.5" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
       </GeometryDrawing>
-      <GeometryDrawing Geometry="M44,42 a2,2 0 1,0 4,0 a2,2 0 1,0 -4,0 Z" Brush="#54463D">
-        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.0" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      <GeometryDrawing Geometry="M44,46.5 C49,46 52.5,42 53,37 C54,42 50.5,48 44,46.5 Z" Brush="#8C2E2420"/>
+      <GeometryDrawing Geometry="M39.5,30 C42,27.5 46,26.8 48.5,28.2 C45,28.5 42,30 40.5,32.5 Z" Brush="#BFF4E3D0"/>
+      <GeometryDrawing Geometry="M43.9,34.5 A2.6,2.1 0 1,1 49.1,34.5 A2.6,2.1 0 1,1 43.9,34.5 Z">
+        <GeometryDrawing.Brush><LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%"><GradientStop Offset="0" Color="#4E3D35"/><GradientStop Offset="1" Color="#8C7464"/></LinearGradientBrush></GeometryDrawing.Brush>
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="1" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M39.6,41.5 A1.9,1.6 0 1,1 43.4,41.5 A1.9,1.6 0 1,1 39.6,41.5 Z">
+        <GeometryDrawing.Brush><LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%"><GradientStop Offset="0" Color="#4E3D35"/><GradientStop Offset="1" Color="#8C7464"/></LinearGradientBrush></GeometryDrawing.Brush>
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="1" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M48.9,41.2 A1.3,1.1 0 1,1 51.5,41.2 A1.3,1.1 0 1,1 48.9,41.2 Z">
+        <GeometryDrawing.Brush><LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%"><GradientStop Offset="0" Color="#4E3D35"/><GradientStop Offset="1" Color="#8C7464"/></LinearGradientBrush></GeometryDrawing.Brush>
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="0.9" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M29.2,38.5 A1.3,1.3 0 1,1 31.8,38.5 A1.3,1.3 0 1,1 29.2,38.5 Z" Brush="#FFB347">
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="0.9" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M25.1,31 A0.9,0.9 0 1,1 26.9,31 A0.9,0.9 0 1,1 25.1,31 Z" Brush="#FFD27A">
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="0.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M3,32 A29,29 0 1,1 61,32 A29,29 0 1,1 3,32 Z">
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="1.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
       </GeometryDrawing>
     </DrawingGroup>
   </DrawingImage>
   <DrawingImage x:Key="ExpDragonBlanco">
     <DrawingGroup>
       <GeometryDrawing Brush="Transparent" Geometry="M0,0 L64,0 L64,64 L0,64 Z"/>
-      <GeometryDrawing Geometry="M10,2 H54 Q62,2 62,10 V54 Q62,62 54,62 H10 Q2,62 2,54 V10 Q2,2 10,2 Z" Brush="#A9CDEB">
-        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      <GeometryDrawing Geometry="M3,32 A29,29 0 1,1 61,32 A29,29 0 1,1 3,32 Z">
+        <GeometryDrawing.Brush><RadialGradientBrush Center="42%,36%" GradientOrigin="42%,36%" RadiusX="72%" RadiusY="72%"><GradientStop Offset="0" Color="#7DB2E3"/><GradientStop Offset="1" Color="#1B3A68"/></RadialGradientBrush></GeometryDrawing.Brush>
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="1.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
       </GeometryDrawing>
-      <GeometryDrawing Geometry="M26,26 L19,9 L33,22 Z" Brush="#D3DCE7">
-        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      <GeometryDrawing Geometry="M5.3,32 A26.7,26.7 0 1,1 58.7,32 A26.7,26.7 0 1,1 5.3,32 Z">
+        <GeometryDrawing.Pen><Pen Brush="#38FFFFFF" Thickness="0.9" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
       </GeometryDrawing>
-      <GeometryDrawing Geometry="M34,24 L39,9 L41,26 Z" Brush="#D3DCE7">
-        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      <GeometryDrawing Geometry="M31,33 C28,25 25.5,17 24,9.5 C21,11.8 15.5,13.6 10.2,15 C11.6,16.6 12,19 11.2,21 C12.5,21.5 13.5,23.5 13.5,26 C15.5,26.5 17,28 17.5,30.5 C20.5,30.5 23.5,32.5 25.5,36 Z">
+        <GeometryDrawing.Brush><LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%"><GradientStop Offset="0" Color="#E6EEF8"/><GradientStop Offset="1" Color="#9DB3CF"/></LinearGradientBrush></GeometryDrawing.Brush>
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="1.5" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
       </GeometryDrawing>
-      <GeometryDrawing Geometry="M11,47 Q13,34 24,28 Q32,23 40,25 Q46,28 50,30 L59,30 L53,38 L57,43 L47,44 Q41,53 28,53 Q16,55 11,47 Z" Brush="#F7F9FB">
-        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      <GeometryDrawing Geometry="M24,10 L11.2,21 M24,10 L13.5,26 M24,10 L17.5,30.5">
+        <GeometryDrawing.Pen><Pen Brush="#7F98B9" Thickness="0.9" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
       </GeometryDrawing>
-      <GeometryDrawing Geometry="M20,46 Q30,52 42,46 Q34,49 24,44 Z" Brush="#C5D0DE">
-        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.0" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      <GeometryDrawing Geometry="M31,33 C28,25 25.5,17 24,9.5 C26,10 27.5,11.5 28,13.5 C29.5,20 31.5,26 34,31 Z">
+        <GeometryDrawing.Brush><LinearGradientBrush StartPoint="20%,0%" EndPoint="80%,100%"><GradientStop Offset="0" Color="#FFFFFF"/><GradientStop Offset="0.55" Color="#EEF3F9"/><GradientStop Offset="1" Color="#C3D2E4"/></LinearGradientBrush></GeometryDrawing.Brush>
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="1.2" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
       </GeometryDrawing>
-      <GeometryDrawing Geometry="M38,34 L45,32.5 L43,37.5 Z" Brush="#2F6FD0">
-        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.2" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      <GeometryDrawing Geometry="M24,9.5 C23.5,7.5 24.5,6 26,5.2 C25.6,6.8 25.8,8 26.6,9.2 Z" Brush="#E9DFC6">
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="0.9" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
       </GeometryDrawing>
-      <GeometryDrawing Geometry="M30,44 Q40,46.5 47,44">
-        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.5" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      <GeometryDrawing Geometry="M13.36,54.22 C17,47 21.5,40.5 26.5,35 C30,31 31.5,26 33,22 C35,18 39,16 43,17 C46,18 47.5,21.5 46,25 C43.5,29 38.6,32.5 37.6,38.5 C36.8,44 39.2,50.5 44.71,58.07 A29,29 0 0,1 13.36,54.22 Z">
+        <GeometryDrawing.Brush><LinearGradientBrush StartPoint="20%,0%" EndPoint="80%,100%"><GradientStop Offset="0" Color="#FFFFFF"/><GradientStop Offset="0.55" Color="#EEF3F9"/><GradientStop Offset="1" Color="#C3D2E4"/></LinearGradientBrush></GeometryDrawing.Brush>
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="1.5" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
       </GeometryDrawing>
-      <GeometryDrawing Geometry="M48,38 L50,42.5 L52.5,38 Z" Brush="#FFFFFF">
-        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.0" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      <GeometryDrawing Geometry="M32.47,23.72 L28.55,25.56 L31.93,27.28 Z" Brush="#D9E3EF">
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="1" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
       </GeometryDrawing>
-      <GeometryDrawing Geometry="M52,32.5 a1.3,1.3 0 1,0 2.6,0 a1.3,1.3 0 1,0 -2.6,0 Z" Brush="#14110F">
-        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="0.5" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      <GeometryDrawing Geometry="M29.42,29.41 L26.08,32.16 L29.78,32.99 Z" Brush="#D9E3EF">
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="1" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M24.66,34.76 L22.36,38.42 L26.14,38.04 Z" Brush="#D9E3EF">
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="1" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M20.17,40.13 L18.59,44.16 L22.23,43.07 Z" Brush="#D9E3EF">
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="1" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M37.6,38.5 C38.6,32.5 43.5,29 46,25 C46,30 41.5,33.6 40,38.6 C39,44 40.8,50 44.2,56.6 C40,51.6 37,45 37.6,38.5 Z" Brush="#CCAFC0D6"/>
+      <GeometryDrawing Geometry="M28.5,51 C31,49.2 34,49.2 36.6,51 M27.5,45 C29.8,43.3 32.7,43.3 35.1,45 M28.6,39.3 C30.6,37.8 33,37.8 35,39.3">
+        <GeometryDrawing.Pen><Pen Brush="#93A8C3" Thickness="0.9" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M38.5,18.5 C35,14.5 30.5,11.5 25.5,10.8 C30,13 33,15.8 35.6,20.3 Z">
+        <GeometryDrawing.Brush><LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%"><GradientStop Offset="0" Color="#FBF2DC"/><GradientStop Offset="1" Color="#BFA67A"/></LinearGradientBrush></GeometryDrawing.Brush>
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="1.2" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M42,16.8 C40.5,12 37.5,8.5 33,6.5 C36.4,9.6 38.4,13 39,17.6 Z">
+        <GeometryDrawing.Brush><LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%"><GradientStop Offset="0" Color="#FBF2DC"/><GradientStop Offset="1" Color="#BFA67A"/></LinearGradientBrush></GeometryDrawing.Brush>
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="1.2" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M47,25.5 L57.5,24.2 L56.5,28.3 Z" Brush="#7A1A2E">
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="1" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M36.8,20.5 C38.5,16.5 43,14.6 47.5,15.6 C50.5,16.3 53,18 55.5,19.6 L58.6,21.4 C59.6,22 59.4,23.8 58.2,24.2 L48.5,25.8 L56.8,27.6 C57.6,27.9 57.4,28.8 56.6,29 C53,30 49,30.4 46,29.8 C42.3,29.2 39.3,27.7 37.6,25.4 C36.6,24 36.3,22.2 36.8,20.5 Z">
+        <GeometryDrawing.Brush><LinearGradientBrush StartPoint="20%,0%" EndPoint="80%,100%"><GradientStop Offset="0" Color="#FFFFFF"/><GradientStop Offset="0.55" Color="#EEF3F9"/><GradientStop Offset="1" Color="#C3D2E4"/></LinearGradientBrush></GeometryDrawing.Brush>
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="1.5" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M46,29.8 C49,30.4 53,30 56.6,29 C53,28.6 50,28.4 47.5,27.6 Z" Brush="#E6AFC0D6"/>
+      <GeometryDrawing Geometry="M53.6,24.7 L54.5,26.6 L55.4,24.5 Z" Brush="#FFFFFF">
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="0.7" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M43.6,20.6 C45.2,19.3 47.6,19.4 48.8,20.8 C47.2,21.9 45.2,21.9 43.6,20.6 Z" Brush="#3A9BFF">
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="0.9" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M45.85,20.6 A0.45,0.75 0 1,1 46.75,20.6 A0.45,0.75 0 1,1 45.85,20.6 Z" Brush="#08214A"/>
+      <GeometryDrawing Geometry="M42.6,19 C44.6,17.6 47.6,17.4 50,18.8">
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="1.1" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M56,21.9 A0.6,0.42 0 1,1 57.2,21.9 A0.6,0.42 0 1,1 56,21.9 Z" Brush="#16121A"/>
+      <GeometryDrawing Geometry="M38,23.5 C35.6,23.8 34.4,25.6 34.4,27.8 C36,27 37.3,27 38.6,27.5 Z" Brush="#DCE5F0">
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="1" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M3,32 A29,29 0 1,1 61,32 A29,29 0 1,1 3,32 Z">
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="1.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
       </GeometryDrawing>
     </DrawingGroup>
   </DrawingImage>
   <DrawingImage x:Key="ExpKatana">
     <DrawingGroup>
       <GeometryDrawing Brush="Transparent" Geometry="M0,0 L64,0 L64,64 L0,64 Z"/>
-      <GeometryDrawing Geometry="M10,2 H54 Q62,2 62,10 V54 Q62,62 54,62 H10 Q2,62 2,54 V10 Q2,2 10,2 Z" Brush="#6E8096">
-        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      <GeometryDrawing Geometry="M3,32 A29,29 0 1,1 61,32 A29,29 0 1,1 3,32 Z">
+        <GeometryDrawing.Brush><RadialGradientBrush Center="42%,36%" GradientOrigin="42%,36%" RadiusX="72%" RadiusY="72%"><GradientStop Offset="0" Color="#4D5470"/><GradientStop Offset="1" Color="#14162A"/></RadialGradientBrush></GeometryDrawing.Brush>
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="1.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
       </GeometryDrawing>
-      <GeometryDrawing Geometry="M19,41 L57,7 L27,47 Z" Brush="#E9EEF3">
-        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      <GeometryDrawing Geometry="M5.3,32 A26.7,26.7 0 1,1 58.7,32 A26.7,26.7 0 1,1 5.3,32 Z">
+        <GeometryDrawing.Pen><Pen Brush="#24FFFFFF" Thickness="0.9" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
       </GeometryDrawing>
-      <GeometryDrawing Geometry="M22,42 L55,9">
-        <GeometryDrawing.Pen><Pen Brush="#9AA8B6" Thickness="1.2" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      <GeometryDrawing Geometry="M10.5,21.5 A11,11 0 1,1 32.5,21.5 A11,11 0 1,1 10.5,21.5 Z">
+        <GeometryDrawing.Brush><RadialGradientBrush Center="50%,50%" GradientOrigin="50%,50%" RadiusX="50%" RadiusY="50%"><GradientStop Offset="0" Color="#59FFF6DA"/><GradientStop Offset="1" Color="#00FFF6DA"/></RadialGradientBrush></GeometryDrawing.Brush>
       </GeometryDrawing>
-      <GeometryDrawing Geometry="M41,24 L47,16 L48,20 L44,27 Z" Brush="#B3121F">
-        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.0" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      <GeometryDrawing Geometry="M13.5,21.5 A8,8 0 1,1 29.5,21.5 A8,8 0 1,1 13.5,21.5 Z">
+        <GeometryDrawing.Brush><RadialGradientBrush Center="40%,38%" GradientOrigin="40%,38%" RadiusX="65%" RadiusY="65%"><GradientStop Offset="0" Color="#FFFBEA"/><GradientStop Offset="1" Color="#E9D9A8"/></RadialGradientBrush></GeometryDrawing.Brush>
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="1.2" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
       </GeometryDrawing>
-      <GeometryDrawing Geometry="M22.2,49.4 L17.8,44.6 L5.8,55.6 L10.2,60.4 Z" Brush="#2B2F4A">
-        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      <GeometryDrawing Geometry="M16.6,19.6 C17.4,17.6 19,16.8 20.6,17.4 C19,18 18,19.2 17.8,20.8 Z" Brush="#B2FFFFFF"/>
+      <GeometryDrawing Geometry="M26.13,42.26 L26.96,41.49 L27.8,40.71 L28.63,39.93 L29.46,39.15 L30.29,38.36 L31.11,37.57 L31.93,36.77 L32.75,35.97 L33.57,35.17 L34.38,34.37 L35.19,33.56 L36,32.75 L36.8,31.93 L37.6,31.12 L38.4,30.29 L39.19,29.47 L39.99,28.64 L40.78,27.81 L41.56,26.97 L42.35,26.14 L43.13,25.29 L43.9,24.45 L44.68,23.6 L45.45,22.75 L46.22,21.89 L46.98,21.03 L47.75,20.17 L48.51,19.31 L49.26,18.44 L50.02,17.57 L48.99,12.19 L46.38,14.43 L45.64,15.29 L44.89,16.15 L44.15,17 L43.4,17.85 L42.64,18.69 L41.89,19.53 L41.13,20.37 L40.36,21.21 L39.6,22.04 L38.83,22.86 L38.06,23.69 L37.29,24.51 L36.51,25.33 L35.73,26.14 L34.95,26.96 L34.17,27.76 L33.38,28.57 L32.59,29.37 L31.79,30.17 L31,30.96 L30.2,31.76 L29.4,32.55 L28.59,33.33 L27.78,34.11 L26.97,34.89 L26.16,35.67 L25.34,36.44 L24.52,37.21 L23.7,37.97 L22.87,38.74 Z">
+        <GeometryDrawing.Brush><LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%"><GradientStop Offset="0" Color="#FFFFFF"/><GradientStop Offset="0.5" Color="#E6ECF3"/><GradientStop Offset="1" Color="#A9B7C8"/></LinearGradientBrush></GeometryDrawing.Brush>
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="1.5" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
       </GeometryDrawing>
-      <GeometryDrawing Geometry="M14,47 L18,52 M10,51 L14,56">
-        <GeometryDrawing.Pen><Pen Brush="#8C93C8" Thickness="1.0" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      <GeometryDrawing Geometry="M25.72,40.12 L26.55,39.34 L27.37,38.57 L28.2,37.79 L29.02,37.01 L29.83,36.23 L30.65,35.44 L31.46,34.65 L32.27,33.85 L33.07,33.05 L33.88,32.25 L34.68,31.45 L35.47,30.64 L36.27,29.83 L37.06,29.01 L37.85,28.19 L38.63,27.37 L39.42,26.55 L40.2,25.72 L40.97,24.89 L41.75,24.05 L42.52,23.21 L43.29,22.37 L44.05,21.53 L44.82,20.68 L45.58,19.82 L46.33,18.97">
+        <GeometryDrawing.Pen><Pen Brush="#7A8BA2" Thickness="0.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
       </GeometryDrawing>
-      <GeometryDrawing Geometry="M16,45 a6,6 0 1,0 12,0 a6,6 0 1,0 -12,0 Z" Brush="#D1A94B">
-        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      <GeometryDrawing Geometry="M36,30.93 C36.4,34.69 35.5,35.38 35.6,36.73 C35.6,38.13 38,38.13 38,36.73 C38.1,35.38 37.3,34.69 37.7,30.73 Z">
+        <GeometryDrawing.Brush><LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%"><GradientStop Offset="0" Color="#E3242B"/><GradientStop Offset="1" Color="#9A0E16"/></LinearGradientBrush></GeometryDrawing.Brush>
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="0.9" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
       </GeometryDrawing>
-      <GeometryDrawing Geometry="M34,51 Q30,57 34,60 Q38,57 34,51 Z" Brush="#B3121F">
-        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.2" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      <GeometryDrawing Geometry="M39.98,26.81 C40.38,29.49 39.48,29.91 39.58,30.81 C39.58,32.21 41.98,32.21 41.98,30.81 C42.08,29.91 41.28,29.49 41.68,26.61 Z">
+        <GeometryDrawing.Brush><LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%"><GradientStop Offset="0" Color="#E3242B"/><GradientStop Offset="1" Color="#9A0E16"/></LinearGradientBrush></GeometryDrawing.Brush>
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="0.9" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
       </GeometryDrawing>
-      <GeometryDrawing Geometry="M45,50 Q42.5,54 45,56 Q47.5,54 45,50 Z" Brush="#B3121F">
-        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.0" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      <GeometryDrawing Geometry="M33.57,35.17 L34.38,34.37 L35.19,33.56 L36,32.75 L36.8,31.93 L37.6,31.12 L38.4,30.29 L39.19,29.47 L39.99,28.64 L40.78,27.81 L41.56,26.97 L42.35,26.14 L41.95,25.74 L40.82,26.23 L39.79,26.82 L38.83,27.48 L37.93,28.2 L37.08,28.97 L36.28,29.79 L35.53,30.67 L34.84,31.59 L34.2,32.57 L33.63,33.62 L33.18,34.78 Z">
+        <GeometryDrawing.Brush><LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%"><GradientStop Offset="0" Color="#E3242B"/><GradientStop Offset="1" Color="#9A0E16"/></LinearGradientBrush></GeometryDrawing.Brush>
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="1" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M36.8,40.53 C35.5,41.73 35.7,43.13 36.8,43.33 C37.9,43.13 38.1,41.73 36.8,40.53 Z" Brush="#D81E28">
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="0.9" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M22.6,39.6 L24.6,38 L27,41.2 L25,42.8 Z">
+        <GeometryDrawing.Brush><LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%"><GradientStop Offset="0" Color="#F8D98A"/><GradientStop Offset="1" Color="#B8892F"/></LinearGradientBrush></GeometryDrawing.Brush>
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="1" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M18.6,39.2 C20.6,36.8 24.6,37.6 26.8,40.6 C28.8,43.4 28.3,46.8 25.8,48 C23.2,49.2 19.6,47.6 18,44.6 C17,42.6 17.4,40.6 18.6,39.2 Z">
+        <GeometryDrawing.Brush><LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%"><GradientStop Offset="0" Color="#E6BE62"/><GradientStop Offset="0.5" Color="#A9782A"/><GradientStop Offset="1" Color="#5E4214"/></LinearGradientBrush></GeometryDrawing.Brush>
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="1.5" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M20.4,40.6 C21.8,39.4 24.2,39.9 25.5,41.8 C26.8,43.6 26.6,45.6 25.2,46.3 C23.6,47 21.4,46 20.3,44.2 C19.6,43 19.6,41.6 20.4,40.6 Z" Brush="#2B2A33">
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="0.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M20.12,45.12 L14.32,50.92 L17.28,53.88 L23.08,48.08 Z">
+        <GeometryDrawing.Brush><LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%"><GradientStop Offset="0" Color="#3C3F70"/><GradientStop Offset="1" Color="#1B1C3A"/></LinearGradientBrush></GeometryDrawing.Brush>
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="1.5" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M19.07,46.63 L20.87,47.33 L21.57,49.13 L19.77,48.43 Z" Brush="#D4D7F0">
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="0.6" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M16.87,48.83 L18.67,49.53 L19.37,51.33 L17.57,50.63 Z" Brush="#D4D7F0">
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="0.6" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M13.3,52.8 A2.1,2.1 0 1,1 17.5,52.8 A2.1,2.1 0 1,1 13.3,52.8 Z">
+        <GeometryDrawing.Brush><LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%"><GradientStop Offset="0" Color="#E6BE62"/><GradientStop Offset="1" Color="#6E4E17"/></LinearGradientBrush></GeometryDrawing.Brush>
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="1" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M3,32 A29,29 0 1,1 61,32 A29,29 0 1,1 3,32 Z">
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="1.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
       </GeometryDrawing>
     </DrawingGroup>
   </DrawingImage>
   <DrawingImage x:Key="ExpLuzYSombra">
     <DrawingGroup>
       <GeometryDrawing Brush="Transparent" Geometry="M0,0 L64,0 L64,64 L0,64 Z"/>
-      <GeometryDrawing Geometry="M10,2 H54 Q62,2 62,10 V54 Q62,62 54,62 H10 Q2,62 2,54 V10 Q2,2 10,2 Z" Brush="#F6E7B2">
-        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      <GeometryDrawing Geometry="M3,32 A29,29 0 1,1 61,32 A29,29 0 1,1 3,32 Z">
+        <GeometryDrawing.Brush><RadialGradientBrush Center="42%,36%" GradientOrigin="42%,36%" RadiusX="72%" RadiusY="72%"><GradientStop Offset="0" Color="#FFF4CF"/><GradientStop Offset="1" Color="#E0A63A"/></RadialGradientBrush></GeometryDrawing.Brush>
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="1.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
       </GeometryDrawing>
-      <GeometryDrawing Geometry="M10,2 H30 L26,14 L36,22 L28,32 L38,42 L30,52 L34,62 H10 Q2,62 2,54 V10 Q2,2 10,2 Z" Brush="#2B2350">
-        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      <GeometryDrawing Geometry="M5.3,32 A26.7,26.7 0 1,1 58.7,32 A26.7,26.7 0 1,1 5.3,32 Z">
+        <GeometryDrawing.Pen><Pen Brush="#73FFFFFF" Thickness="0.9" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
       </GeometryDrawing>
-      <GeometryDrawing Geometry="M32,10 L35.5,27 L52,20 L39,31 L54,40 L37,38 L32,56 L28.5,38 L11,43 L25,32 L13,19 L29,27 Z" Brush="#FFFFFF">
-        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.6" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      <GeometryDrawing Geometry="M35.03,3.16 C27,12 36,17 31,24 C27,29.5 36.5,34.5 31.5,41 C28,46 34,52 28.97,60.84 A29,29 0 0,1 35.03,3.16 Z">
+        <GeometryDrawing.Brush><RadialGradientBrush Center="35%,50%" GradientOrigin="35%,50%" RadiusX="85%" RadiusY="85%"><GradientStop Offset="0" Color="#5A3DA6"/><GradientStop Offset="1" Color="#190E33"/></RadialGradientBrush></GeometryDrawing.Brush>
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="1.4" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
       </GeometryDrawing>
-      <GeometryDrawing Geometry="M26,32 a6,6 0 1,0 12,0 a6,6 0 1,0 -12,0 Z" Brush="#8B7AE6">
-        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.4" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      <GeometryDrawing Geometry="M30,22 C34,19 39,18 42,20.5 C39,20 36.5,21.5 35.8,24 C35,22.6 32.6,22 30,22 Z" Brush="#3A2675">
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="1.1" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M31.5,42 C35,44.5 39.5,45.5 42.5,43.5 C40,46.5 35.5,47.5 32,46.5 Z" Brush="#3A2675">
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="1.1" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M9,31 C12.5,24 19,22 23.5,24.5 C18.5,25 14.5,27.5 11.5,32.5 Z" Brush="#80A08CF5"/>
+      <GeometryDrawing Geometry="M11,44 C14.5,40.5 19.5,40 23,42.5 C19,42.8 15.5,44.5 13,47.5 Z" Brush="#66A08CF5"/>
+      <GeometryDrawing Geometry="M16,32 A16,16 0 1,1 48,32 A16,16 0 1,1 16,32 Z">
+        <GeometryDrawing.Brush><RadialGradientBrush Center="50%,50%" GradientOrigin="50%,50%" RadiusX="50%" RadiusY="50%"><GradientStop Offset="0" Color="#F2FFFFFF"/><GradientStop Offset="0.45" Color="#99FFF3C0"/><GradientStop Offset="1" Color="#00FFE08A"/></RadialGradientBrush></GeometryDrawing.Brush>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M32,22.5 Q33.83,30.17 41.5,32 Q33.83,33.83 32,41.5 Q30.17,33.83 22.5,32 Q30.17,30.17 32,22.5 Z">
+        <GeometryDrawing.Brush><LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%"><GradientStop Offset="0" Color="#FFF7D6"/><GradientStop Offset="1" Color="#FFC44D"/></LinearGradientBrush></GeometryDrawing.Brush>
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="1.1" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M32,16.5 Q34.06,29.94 47.5,32 Q34.06,34.06 32,47.5 Q29.94,34.06 16.5,32 Q29.94,29.94 32,16.5 Z">
+        <GeometryDrawing.Brush><RadialGradientBrush Center="50%,50%" GradientOrigin="50%,50%" RadiusX="50%" RadiusY="50%"><GradientStop Offset="0" Color="#FFFFFF"/><GradientStop Offset="0.6" Color="#FFF6D2"/><GradientStop Offset="1" Color="#FFD46B"/></RadialGradientBrush></GeometryDrawing.Brush>
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="1.4" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M29.4,32 A2.6,2.6 0 1,1 34.6,32 A2.6,2.6 0 1,1 29.4,32 Z" Brush="#FFFFFF"/>
+      <GeometryDrawing Geometry="M15,19.48 L16.8,22 L15,24.52 L13.2,22 Z" Brush="#FFE9A6">
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="0.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M13,36.04 L14.4,38 L13,39.96 L11.6,38 Z" Brush="#FFE9A6">
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="0.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M20,47.32 L21.2,49 L20,50.68 L18.8,49 Z" Brush="#FFE9A6">
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="0.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M48,18.76 L49.6,21 L48,23.24 L46.4,21 Z" Brush="#3A2675">
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="0.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M51,37.48 L52.8,40 L51,42.52 L49.2,40 Z" Brush="#3A2675">
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="0.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M44,48.32 L45.2,50 L44,51.68 L42.8,50 Z" Brush="#3A2675">
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="0.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M3,32 A29,29 0 1,1 61,32 A29,29 0 1,1 3,32 Z">
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="1.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
       </GeometryDrawing>
     </DrawingGroup>
   </DrawingImage>
   <DrawingImage x:Key="ExpPlumaAzul">
     <DrawingGroup>
       <GeometryDrawing Brush="Transparent" Geometry="M0,0 L64,0 L64,64 L0,64 Z"/>
-      <GeometryDrawing Geometry="M10,2 H54 Q62,2 62,10 V54 Q62,62 54,62 H10 Q2,62 2,54 V10 Q2,2 10,2 Z" Brush="#CFE5F6">
-        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      <GeometryDrawing Geometry="M3,32 A29,29 0 1,1 61,32 A29,29 0 1,1 3,32 Z">
+        <GeometryDrawing.Brush><RadialGradientBrush Center="42%,36%" GradientOrigin="42%,36%" RadiusX="72%" RadiusY="72%"><GradientStop Offset="0" Color="#F2C46B"/><GradientStop Offset="1" Color="#8A4C17"/></RadialGradientBrush></GeometryDrawing.Brush>
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="1.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
       </GeometryDrawing>
-      <GeometryDrawing Geometry="M11,54 Q7,30 24,16 Q40,3 57,5 Q59,22 46,37 Q32,51 11,54 Z" Brush="#2F7BE0">
-        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      <GeometryDrawing Geometry="M5.3,32 A26.7,26.7 0 1,1 58.7,32 A26.7,26.7 0 1,1 5.3,32 Z">
+        <GeometryDrawing.Pen><Pen Brush="#4CFFFFFF" Thickness="0.9" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
       </GeometryDrawing>
-      <GeometryDrawing Geometry="M11,54 Q30,34 57,5 Q59,22 46,37 Q32,51 11,54 Z" Brush="#1F58B5">
-        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.2" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      <GeometryDrawing Geometry="M16.4,18.21 Q16.65,20.55 18.99,20.8 Q16.65,21.05 16.4,23.39 Q16.15,21.05 13.81,20.8 Q16.15,20.55 16.4,18.21 Z" Brush="#E6FFF7DF"/>
+      <GeometryDrawing Geometry="M48.8,45.53 Q49.02,47.57 51.07,47.8 Q49.02,48.02 48.8,50.07 Q48.58,48.02 46.53,47.8 Q48.58,47.57 48.8,45.53 Z" Brush="#E6FFF7DF"/>
+      <GeometryDrawing Geometry="M46.1,14.68 Q46.26,16.14 47.72,16.3 Q46.26,16.46 46.1,17.92 Q45.94,16.46 44.48,16.3 Q45.94,16.14 46.1,14.68 Z" Brush="#E6FFF7DF"/>
+      <GeometryDrawing Geometry="M20.9,47.98 Q21.06,49.44 22.52,49.6 Q21.06,49.76 20.9,51.22 Q20.74,49.76 19.28,49.6 Q20.74,49.44 20.9,47.98 Z" Brush="#E6FFF7DF"/>
+      <GeometryDrawing Geometry="M17.3,49.6 C16.4,40.6 20,30.7 27.2,23.5 C33.5,17.2 41.6,13.6 49.7,12.7 C46.1,15.4 43.4,18.1 42.05,20.35 C43.4,20.35 44.75,20.44 45.65,20.8 C41.6,26.2 37.1,31.6 31.7,36.1 C28.1,39.25 22.7,44.2 17.3,49.6 Z">
+        <GeometryDrawing.Brush><LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%"><GradientStop Offset="0" Color="#9FD4FF"/><GradientStop Offset="0.5" Color="#3F8EF0"/><GradientStop Offset="1" Color="#1F5FCC"/></LinearGradientBrush></GeometryDrawing.Brush>
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="1.5" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
       </GeometryDrawing>
-      <GeometryDrawing Geometry="M8,57 Q30,34 55,8">
-        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="2.2" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      <GeometryDrawing Geometry="M17.3,49.6 C22.7,44.2 28.1,39.25 31.7,36.1 C37.1,31.6 41.6,26.2 45.65,20.8 C47.9,18.55 49.25,15.4 49.7,12.7 C51.5,17.2 51.95,23.5 48.8,29.8 C47.45,32.5 45.2,34.75 42.5,36.1 C43.85,36.55 45.2,36.64 46.1,36.55 C41.6,41.5 35.3,45.1 28.1,47.35 C24.5,48.52 20.9,49.24 17.3,49.6 Z">
+        <GeometryDrawing.Brush><LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%"><GradientStop Offset="0" Color="#3E7FE0"/><GradientStop Offset="0.6" Color="#1D4FB0"/><GradientStop Offset="1" Color="#16337A"/></LinearGradientBrush></GeometryDrawing.Brush>
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="1.5" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
       </GeometryDrawing>
-      <GeometryDrawing Geometry="M24,42 L17,35 M31,34 L23,26 M38,26 L31,18 M33,43 L40,45 M42,33 L49,34">
-        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.3" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      <GeometryDrawing Geometry="M23.6,42.4 C22.7,37.9 24.05,33.4 26.75,29.8 M28.1,37.9 C27.65,33.4 29.45,28.45 32.6,24.85 M33.5,32.95 C33.5,28.9 35.3,24.4 38.9,20.8">
+        <GeometryDrawing.Pen><Pen Brush="#D9D8EEFF" Thickness="0.9" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M26.3,45.55 C30.8,45.1 35.3,43.3 38.9,40.6 M31.7,41.05 C36.2,40.6 39.8,38.35 42.95,35.2 M37.1,35.65 C41.15,34.75 44.3,32.5 46.55,29.35">
+        <GeometryDrawing.Pen><Pen Brush="#B20F2E6E" Thickness="0.9" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M15.32,52.12 C17.3,50.05 20,46.9 24.5,42.4 C31.7,35.2 39.8,28 49.7,12.7">
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="2.4" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M15.86,51.58 C17.75,49.6 20,46.9 24.5,42.4 C31.7,35.2 39.8,28 49.16,13.6">
+        <GeometryDrawing.Pen><Pen Brush="#FFF3D6" Thickness="0.9" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M3,32 A29,29 0 1,1 61,32 A29,29 0 1,1 3,32 Z">
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="1.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
       </GeometryDrawing>
     </DrawingGroup>
   </DrawingImage>
   <DrawingImage x:Key="ExpRuinaPiedra">
     <DrawingGroup>
       <GeometryDrawing Brush="Transparent" Geometry="M0,0 L64,0 L64,64 L0,64 Z"/>
-      <GeometryDrawing Geometry="M10,2 H54 Q62,2 62,10 V54 Q62,62 54,62 H10 Q2,62 2,54 V10 Q2,2 10,2 Z" Brush="#BBD7B2">
-        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      <GeometryDrawing Geometry="M3,32 A29,29 0 1,1 61,32 A29,29 0 1,1 3,32 Z">
+        <GeometryDrawing.Brush><RadialGradientBrush Center="42%,36%" GradientOrigin="42%,36%" RadiusX="72%" RadiusY="72%"><GradientStop Offset="0" Color="#F6B26B"/><GradientStop Offset="1" Color="#9E3F3A"/></RadialGradientBrush></GeometryDrawing.Brush>
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="1.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
       </GeometryDrawing>
-      <GeometryDrawing Geometry="M3,52 Q12,48 24,52 T46,50 T61,52 V54 Q61,61 54,61 H10 Q3,61 3,54 Z" Brush="#7E9E62">
-        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.4" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      <GeometryDrawing Geometry="M5.3,32 A26.7,26.7 0 1,1 58.7,32 A26.7,26.7 0 1,1 5.3,32 Z">
+        <GeometryDrawing.Pen><Pen Brush="#40FFFFFF" Thickness="0.9" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
       </GeometryDrawing>
-      <GeometryDrawing Geometry="M10,52 V20 H24 V52 Z" Brush="#DAD4C6">
-        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      <GeometryDrawing Geometry="M22.5,30 A9.5,9.5 0 1,1 41.5,30 A9.5,9.5 0 1,1 22.5,30 Z">
+        <GeometryDrawing.Brush><RadialGradientBrush Center="45%,40%" GradientOrigin="45%,40%" RadiusX="60%" RadiusY="60%"><GradientStop Offset="0" Color="#FFF6D0"/><GradientStop Offset="1" Color="#FFC65A"/></RadialGradientBrush></GeometryDrawing.Brush>
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="1" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
       </GeometryDrawing>
-      <GeometryDrawing Geometry="M20,20 H24 V52 H20 Z" Brush="#B9B1A1">
-        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.0" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      <GeometryDrawing Geometry="M3.28,36.04 C8,32 12,30 15,32 C17,28 22,29 23,32 L41,32 C43,28.5 47,28.5 49,31 C51,29 55,29 57,31 C58.5,31 60,32 60.72,36.04 A29,29 0 0,1 3.28,36.04 Z">
+        <GeometryDrawing.Brush><LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%"><GradientStop Offset="0" Color="#3E8A55"/><GradientStop Offset="1" Color="#173D2A"/></LinearGradientBrush></GeometryDrawing.Brush>
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="1.2" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
       </GeometryDrawing>
-      <GeometryDrawing Geometry="M8,15 H26 V20 H8 Z" Brush="#EAE5D9">
-        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      <GeometryDrawing Geometry="M13,23 H27 V27 H13 Z">
+        <GeometryDrawing.Brush><LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%"><GradientStop Offset="0" Color="#E9E1CC"/><GradientStop Offset="0.6" Color="#C4B79A"/><GradientStop Offset="1" Color="#8F8169"/></LinearGradientBrush></GeometryDrawing.Brush>
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="1.3" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
       </GeometryDrawing>
-      <GeometryDrawing Geometry="M14,22 V50">
-        <GeometryDrawing.Pen><Pen Brush="#A79F8F" Thickness="1.0" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      <GeometryDrawing Geometry="M15,27 H25 V34 H15 Z">
+        <GeometryDrawing.Brush><LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%"><GradientStop Offset="0" Color="#E9E1CC"/><GradientStop Offset="0.6" Color="#C4B79A"/><GradientStop Offset="1" Color="#8F8169"/></LinearGradientBrush></GeometryDrawing.Brush>
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="1.2" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
       </GeometryDrawing>
-      <GeometryDrawing Geometry="M38,52 V33 L42,28 L46,34 L50,30 L53,34 V52 Z" Brush="#DAD4C6">
-        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      <GeometryDrawing Geometry="M15,34 H25 V41 H15 Z">
+        <GeometryDrawing.Brush><LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%"><GradientStop Offset="0" Color="#E9E1CC"/><GradientStop Offset="0.6" Color="#C4B79A"/><GradientStop Offset="1" Color="#8F8169"/></LinearGradientBrush></GeometryDrawing.Brush>
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="1.2" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
       </GeometryDrawing>
-      <GeometryDrawing Geometry="M49,34 L53,34 V52 H49 Z" Brush="#B9B1A1">
-        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.0" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      <GeometryDrawing Geometry="M15,41 H25 V48 H15 Z">
+        <GeometryDrawing.Brush><LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%"><GradientStop Offset="0" Color="#E9E1CC"/><GradientStop Offset="0.6" Color="#C4B79A"/><GradientStop Offset="1" Color="#8F8169"/></LinearGradientBrush></GeometryDrawing.Brush>
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="1.2" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
       </GeometryDrawing>
-      <GeometryDrawing Geometry="M27,52 L29,46 L38,46 L40,52 Z" Brush="#BDB5A4">
-        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.4" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      <GeometryDrawing Geometry="M15,48 H25 V55 H15 Z">
+        <GeometryDrawing.Brush><LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%"><GradientStop Offset="0" Color="#E9E1CC"/><GradientStop Offset="0.6" Color="#C4B79A"/><GradientStop Offset="1" Color="#8F8169"/></LinearGradientBrush></GeometryDrawing.Brush>
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="1.2" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
       </GeometryDrawing>
-      <GeometryDrawing Geometry="M22,31 Q26,26 29,30 Q25,35 22,31 Z" Brush="#4E7A3A">
-        <GeometryDrawing.Pen><Pen Brush="#14110F" Thickness="1.0" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      <GeometryDrawing Geometry="M22,27 H25 V55 H22 Z" Brush="#735E5242"/>
+      <GeometryDrawing Geometry="M27,23 C33,17.5 39,16 44,17 L43,21.5 C39,21 34,22.5 31,25.5 L27,27 Z">
+        <GeometryDrawing.Brush><LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%"><GradientStop Offset="0" Color="#E9E1CC"/><GradientStop Offset="0.6" Color="#C4B79A"/><GradientStop Offset="1" Color="#8F8169"/></LinearGradientBrush></GeometryDrawing.Brush>
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="1.3" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M33.5,19.2 L35,23.4 M39,17.3 L39.4,21.4">
+        <GeometryDrawing.Pen><Pen Brush="#7C6F59" Thickness="0.9" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M39,41 H49 V55 H39 Z">
+        <GeometryDrawing.Brush><LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%"><GradientStop Offset="0" Color="#E9E1CC"/><GradientStop Offset="0.6" Color="#C4B79A"/><GradientStop Offset="1" Color="#8F8169"/></LinearGradientBrush></GeometryDrawing.Brush>
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="1.2" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M39,34 L42,31.5 L44.5,34 L47,32 L49,34.5 V41 H39 Z">
+        <GeometryDrawing.Brush><LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%"><GradientStop Offset="0" Color="#E9E1CC"/><GradientStop Offset="0.6" Color="#C4B79A"/><GradientStop Offset="1" Color="#8F8169"/></LinearGradientBrush></GeometryDrawing.Brush>
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="1.2" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M46,34 L49,34.5 V55 H46 Z" Brush="#735E5242"/>
+      <GeometryDrawing Geometry="M6.89,46.5 C14,52 22,54.5 32,54 C42,53.5 50,52 57.11,46.5 A29,29 0 0,1 6.89,46.5 Z">
+        <GeometryDrawing.Brush><LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%"><GradientStop Offset="0" Color="#6E9A4E"/><GradientStop Offset="1" Color="#2F5A2C"/></LinearGradientBrush></GeometryDrawing.Brush>
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="1.3" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M28,55 L29.5,49.5 L35.5,49 L36.5,54.5 Z">
+        <GeometryDrawing.Brush><LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%"><GradientStop Offset="0" Color="#E9E1CC"/><GradientStop Offset="0.6" Color="#C4B79A"/><GradientStop Offset="1" Color="#8F8169"/></LinearGradientBrush></GeometryDrawing.Brush>
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="1.2" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M17,24 C20,30 15,36 19,42 C22,47 18,51 20,55">
+        <GeometryDrawing.Pen><Pen Brush="#1F5A2E" Thickness="1.2" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M18.5,29 Q20.7,29.81 21.1,27.5 Q18.9,26.69 18.5,29 Z" Brush="#4FAE5A">
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="0.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M16.5,37 Q15.71,34.8 13.68,35.97 Q14.47,38.18 16.5,37 Z" Brush="#4FAE5A">
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="0.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M20.2,44.5 Q22.23,45.68 23.02,43.47 Q20.99,42.3 20.2,44.5 Z" Brush="#4FAE5A">
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="0.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M19,51.5 Q18.6,49.19 16.4,50 Q16.8,52.31 19,51.5 Z" Brush="#4FAE5A">
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="0.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
+      </GeometryDrawing>
+      <GeometryDrawing Geometry="M3,32 A29,29 0 1,1 61,32 A29,29 0 1,1 3,32 Z">
+        <GeometryDrawing.Pen><Pen Brush="#16121A" Thickness="1.8" LineJoin="Round" LineCap="Round"/></GeometryDrawing.Pen>
       </GeometryDrawing>
     </DrawingGroup>
   </DrawingImage>
