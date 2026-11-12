@@ -27,7 +27,7 @@ Requiere el runtime WebView2 de Windows 10/11 (ya instalado normalmente). Sin el
 6. **Buscar global**: JP, FR y ES a la vez (seleccionable), todas las hojas; modos subcadena / texto exacto / palabra completa / regex;
    distinguir mayusculas y tildes; contadores total, por estado y por hoja; fragmento resaltado; clic abre la celda; **Exportar lista** (TSV).
    **Reemplazar en ES** sobre los resultados marcados (o todos), con vista previa antes/despues y las mismas validaciones al guardar
-   (las celdas que no pasan se listan como rechazadas). El indice de busqueda se carga en memoria al importar/indexar.
+   (las celdas que no pasan se listan como rechazadas). La busqueda recorre SQLite en streaming (no carga las filas en RAM).
 7. **Generar translations.dat**: fusiona repo + tus ediciones, aplica el suavizado, ejecuta `construir_dat` con la puerta
    (>= 757.594 entradas, <= 43 rechazos, 0 `…`; los dos primeros pasan a aviso si la version del juego difiere de `data/recommended-game-version.txt`)
    y `validar_blob_suavizado` (en serie). Deja `translations.dat` + `rechazos.csv` en la carpeta elegida y muestra entradas, rechazos, tamano y sha256.
@@ -52,3 +52,10 @@ python tools/editor/run_editor.py --navegador
 ```
 Variables: `GRIDANIA_EDITOR_HOME` (carpeta de trabajo), `GRIDANIA_EDITOR_REPO` (usar un checkout en vez de la copia descargada).
 Tras «Actualizar desde GitHub» el codigo de `tools/py` se recarga sin reiniciar.
+
+## Rendimiento, indice y registro
+
+- Indice persistente (`editor.db`): firma por hoja (size+mtime de ja/fr/traducciones/ediciones). Solo se reindexan las hojas que cambian; "Actualizar indice" (Ctrl = reconstruir todo). Nunca se indexa solo: si falta el indice, la ventana ofrece construirlo (con barra de progreso real y boton Cancelar, que conserva el indice anterior); si esta desactualizado, aparece un aviso.
+- Indexado en una transaccion, un solo parseo por hoja y reparto por hojas en procesos (`GRIDANIA_EDITOR_PROCESOS=1` lo desactiva). Columnas `clase` y `flujo` materializadas con indices SQL; las `editor.db` antiguas se migran solas al abrir (ediciones y flujo intactos).
+- Registro rotativo `editor.log` en la carpeta de datos (Ayuda > Abrir carpeta de registros): arranque, version, tiempo de cada fase, excepciones no capturadas, peticiones lentas y fallbacks. Si WebView2 falla, se abre el navegador con un aviso visible; si el servidor HTTP muere el proceso termina con mensaje.
+- Empaquetado: `--onefile` autoextrae en cada arranque (lento); preferir `--onedir` o `--onefile` con `--runtime-tmpdir` fijo si el arranque tarda.

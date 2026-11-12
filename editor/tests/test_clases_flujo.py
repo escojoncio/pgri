@@ -36,12 +36,14 @@ def test_flujo_persistencia_y_tsv(tmp_path):
 @pytest.fixture()
 def base(tmp_path):
     b = indexer.Base(str(tmp_path / 'x.db'))
-    f = flujo.Flujo(str(tmp_path / 'flujo.json')); b.registrar_flujo(f.estado_sql)
+    f = flujo.Flujo(str(tmp_path / 'flujo.json'))
     filas = [('quest/000/a', 1, None, 1, 'rojo', 'h', 'ja uno', '', 'es uno', None, None, None, 0),
              ('quest/000/a', 2, None, 1, 'verde', 'h', 'ja dos', '', 'es dos', None, None, None, 0),
              ('ENpcResident', 1, None, 0, 'rojo', 'h', 'ja tres', '', '', None, None, None, 0),
              ('Item', 1, 0, 0, 'verde', 'h', 'ja cuatro', '', 'es cuatro', None, None, None, 1)]
-    b.con.executemany('INSERT INTO celdas(hoja,row,sub,col,estado,h,ja,fr,es,es_json,origen,h_es,editada) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)', filas); b.con.commit()
+    filas = [x + (clases.clase_de(x[0]),) for x in filas]   # clase y flujo son columnas materializadas
+    b.con.executemany('INSERT INTO celdas(hoja,row,sub,col,estado,h,ja,fr,es,es_json,origen,h_es,editada,clase) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)', filas); b.con.commit()
+    b.vincular_flujo(f)
     return b, f
 
 
@@ -63,7 +65,7 @@ def test_filtros_clase_flujo_y_combinados(base):
 
 def test_busqueda_con_clase_y_flujo(base):
     from gridania_editor import busqueda
-    b, f = base; i = busqueda.Indice.desde_base(b); i.flujo = f
+    b, f = base; i = busqueda.Indice.desde_base(b)
     f.poner([('quest/000/a', 1, None, 1)], 'hecho')
     assert i.buscar(busqueda.Consulta('ja', ['ja'], clase='Misiones'))['total'] == 2
     assert i.buscar(busqueda.Consulta('ja', ['ja'], clase='Misiones', flujo='hecho'))['total'] == 1

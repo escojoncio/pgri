@@ -14,14 +14,19 @@ jobs:
       - run: pip install -r editor/requirements-dev.txt
       - name: Tests (los que necesitan tools/py o el juego se saltan)
         run: python -m pytest editor/tests -q
-      - name: PyInstaller
+      - name: PyInstaller (onedir: sin autoextraccion en cada arranque)
         working-directory: editor
         run: >
-          pyinstaller --noconfirm --onefile --windowed --name GridaniaEditor
+          pyinstaller --noconfirm --onedir --noupx --windowed --name GridaniaEditor
           --paths . --add-data "gridania_editor/ui;gridania_editor/ui"
-          --collect-all webview --hidden-import gridania_editor.stdlib_para_scripts
+          --collect-all webview --collect-submodules gridania_editor
+          --hidden-import gridania_editor.stdlib_para_scripts
           run_editor.py
+      - name: Empaquetar zip
+        shell: pwsh
+        working-directory: editor
+        run: Compress-Archive -Path dist/GridaniaEditor -DestinationPath dist/GridaniaEditor-win64.zip
       - uses: actions/upload-artifact@v4
         with:
           name: GridaniaEditor-win64
-          path: editor/dist/GridaniaEditor.exe
+          path: editor/dist/GridaniaEditor-win64.zip

@@ -1,12 +1,15 @@
 """Estado de la aplicacion (sin HTTP): ajustes, base de datos, motor de celdas y tareas en segundo plano."""
-import collections, json, os, re, threading, time, traceback
+import collections, json, logging, os, re, sqlite3, threading, time, traceback
 from . import celda as celda_mod
-from . import builder, busqueda, celda, clases, config, edits, extractor, flujo, github_sync, indexer, repo_env
+from . import builder, busqueda, celda, clases, config, edits, extractor, flujo, github_sync, indexer, registro, repo_env
+
+log = logging.getLogger('gridania.app')
 
 
 class Tarea(object):
     def __init__(self, cfg):
         self.cfg = cfg; self.nombre = ''; self.estado = 'libre'; self.log = []; self.resultado = None; self.error = None; self.lock = threading.Lock(); self.t0 = 0
+        self.cancelar_ev = threading.Event(); self.prog = {'fase': '', 'hecho': 0, 'total': 0}; self.cancelable = False
 
     def escribir(self, linea):
         linea = self.cfg.redactar(str(linea))
@@ -14,35 +17,82 @@ class Tarea(object):
             self.log.append('%s %s' % (time.strftime('%H:%M:%S'), linea))
             if len(self.log) > 3000: del self.log[:500]
 
-    def iniciar(self, nombre, fn):
+    def avance(self, fase, hecho=0, total=0):
+        with self.lock: self.prog = {'fase': fase, 'hecho': hecho, 'total': total}
+
+    def cancelar(self):
+        with self.lock:
+            if self.estado != 'ejecutando' or not self.cancelable: return False
+        self.cancelar_ev.set(); self.escribir('cancelando...'); return True
+
+    def iniciar(self, nombre, fn, cancelable=False):
         with self.lock:
             if self.estado == 'ejecutando': raise RuntimeError('ya hay una tarea en curso: %s' % self.nombre)
             self.nombre = nombre; self.estado = 'ejecutando'; self.resultado = None; self.error = None; self.log = []; self.t0 = time.time()
+            self.cancelar_ev.clear(); self.cancelable = cancelable; self.prog = {'fase': '', 'hecho': 0, 'total': 0}
+        log.info('tarea %s: inicio', nombre)
         def correr():
             try:
                 r = fn(self.escribir)
                 with self.lock: self.resultado = r; self.estado = 'ok'
-            except Exception as x:
+                log.info('tarea %s: ok en %.1f s', nombre, time.time() - self.t0)
+            except indexer.Cancelado:
+                self.escribir('Cancelado: se conserva el indice anterior.')
+                with self.lock: self.error = 'cancelada'; self.estado = 'cancelada'
+                log.info('tarea %s: cancelada', nombre)
+            except BaseException as x:   # BaseException: un hilo que muere sin marcar el estado dejaria la UI esperando para siempre
                 self.escribir('ERROR: %s: %s' % (type(x).__name__, x))
+                log.error('tarea %s: error', nombre, exc_info=True)
                 if os.environ.get('GRIDANIA_EDITOR_DEBUG'): self.escribir(traceback.format_exc())
                 with self.lock: self.error = self.cfg.redactar('%s: %s' % (type(x).__name__, x)); self.estado = 'error'
-        threading.Thread(target=correr, daemon=True).start()
+        threading.Thread(target=correr, daemon=True, name='tarea-' + nombre).start()
 
     def ver(self, desde=0):
         with self.lock:
             return {'nombre': self.nombre, 'estado': self.estado, 'resultado': self.resultado, 'error': self.error, 'log': self.log[desde:], 'siguiente': len(self.log),
-                    'segundos': int(time.time() - self.t0) if self.t0 else 0}
+                    'segundos': int(time.time() - self.t0) if self.t0 else 0, 'progreso': dict(self.prog), 'cancelable': self.cancelable}
 
 
 class Aplicacion(object):
-    def __init__(self, home=None, repo_override=None):
+    def __init__(self, home=None, repo_override=None, diferir=False):
+        """diferir=True: no migra la BD ni vincula el flujo aqui (lo hace arrancar_fondo() en un hilo, para que la ventana salga ya)"""
         self.cfg = config.Config(home, repo_override)
         self.base = indexer.Base(self.cfg.db_ruta)
         self.tarea = Tarea(self.cfg)
         self.flujo = flujo.Flujo(os.path.join(self.cfg.home, 'flujo.json'))   # estados Por hacer / Hecho: solo en la carpeta de datos del editor
-        self.base.registrar_flujo(self.flujo.estado_sql)
         self._R = None; self._motor = None; self._indice = None
         self.lock = threading.RLock()
+        self.aviso = ''                                  # mensaje visible en la UI (p. ej. fallback a navegador)
+        self.arranque = {'listo': True, 'fase': '', 'hecho': 0, 'total': 0}
+        self.vigencia = None                             # estado del indice persistente: {'vigente', 'hojas_cambiadas', 'motivo'}
+        if diferir: self.arranque['listo'] = False
+        else: self._preparar_base()
+
+    def _preparar_base(self):
+        def av(fase, hecho=0, total=0): self.arranque.update(fase=fase, hecho=hecho, total=total)
+        with registro.fase('migracion de la base'): self.base.migrar_datos(av)
+        with registro.fase('flujo -> columna'): self.base.vincular_flujo(self.flujo)
+
+    def arrancar_fondo(self):
+        """migracion de editor.db antigua, flujo y comprobacion de si el indice sigue vigente, en segundo plano (la UI muestra «Cargando...» con la fase)"""
+        def f():
+            try:
+                self._preparar_base()
+                with registro.fase('vigencia del indice'): self.refrescar_vigencia()
+            except BaseException:
+                log.error('arranque en segundo plano', exc_info=True)
+                self.aviso = 'Error preparando la base de datos; mira el registro (Ayuda > Abrir carpeta de registros).'
+            finally:
+                self.arranque.update(listo=True, fase='', hecho=0, total=0)
+        threading.Thread(target=f, daemon=True, name='arranque').start()
+
+    def refrescar_vigencia(self):
+        try:
+            if not repo_env.hay_repo(self.cfg.repo_dir): self.vigencia = {'vigente': False, 'hojas_cambiadas': 0, 'motivo': 'sin_repo'}; return self.vigencia
+            self.vigencia = indexer.estado_indice(None, self.base, self.cfg.repo_dir, self.raiz_textos(), self.cfg.ediciones_dir)
+        except Exception as x:
+            log.warning('vigencia: %s', x); self.vigencia = None
+        return self.vigencia
 
     # ------------------------------------------------------------ infraestructura
     def R(self, forzar=False):
@@ -72,9 +122,13 @@ class Aplicacion(object):
         try: j = json.load(open(os.path.join(self.cfg.juego_dir, 'info.json'), encoding='utf-8'))
         except (OSError, ValueError): pass
         if j: j = {k: v for k, v in j.items() if k != 'no_leidas'}
-        return {'config': self.cfg.publico(), 'sync': self._leer('sync_info.json'), 'juego': j, 'indice': indexer.meta(self.base), 'contadores': indexer.contadores(self.base),
+        try: indice = indexer.meta(self.base); contadores = indexer.contadores(self.base)
+        except sqlite3.Error as x:      # /api/estado responde SIEMPRE (con arranque.fase y progreso) aunque la BD este ocupada
+            log.warning('estado: base no disponible: %s', x); indice = None; contadores = {e: 0 for e in indexer.ESTADOS}
+        return {'config': self.cfg.publico(), 'sync': self._leer('sync_info.json'), 'juego': j, 'indice': indice, 'contadores': contadores,
                 'ediciones': edits.contar(self.cfg.ediciones_dir), 'repo_ok': repo_env.hay_repo(self.cfg.repo_dir), 'tarea': self.tarea.ver(10 ** 9),
-                'version_recomendada': self._recomendada(), 'clases': clases.CLASES, 'flujo': self.flujo.totales()}
+                'version_recomendada': self._recomendada(), 'clases': clases.CLASES, 'flujo': self.flujo.totales(),
+                'arranque': dict(self.arranque, ocupada=self.base.motivo), 'indice_estado': self.vigencia, 'aviso': self.aviso, 'registro': registro.ruta_log(self.cfg.home)}
 
     def _recomendada(self):
         try: return open(os.path.join(self.cfg.repo_dir, 'data', 'recommended-game-version.txt'), encoding='utf-8').read().strip()
@@ -158,6 +212,7 @@ class Aplicacion(object):
         except Exception: return None
 
     def guardar(self, id_, texto):
+        self.base.exigir_libre()
         reg = indexer.obtener(self.base, id_)
         if not reg: raise KeyError('celda desconocida')
         m = self.motor(); c = m.contexto(reg['hoja'], reg['row'], reg['sub'], reg['col'])
@@ -171,7 +226,7 @@ class Aplicacion(object):
     # ------------------------------------------------------------ busqueda global
     def indice(self):
         with self.lock:
-            if self._indice is None: self._indice = busqueda.Indice.desde_base(self.base); self._indice.flujo = self.flujo
+            if self._indice is None: self._indice = busqueda.Indice.desde_base(self.base)   # perezoso y sin filas en RAM: recorre SQLite al buscar
             return self._indice
 
     @staticmethod
@@ -190,6 +245,7 @@ class Aplicacion(object):
 
     def reemplazar(self, b):
         """Reemplazo SOLO en el ES de las celdas encontradas (ids = seleccion; sin ids = todas). aplicar=False: vista previa. Cada cambio pasa por la misma evaluacion y puertas que al guardar."""
+        if b.get('aplicar'): self.base.exigir_libre()
         q = self.consulta(dict(b, campos=['es'])); nuevo = b.get('reemplazo', '')
         ids = b.get('ids')
         sel = set(int(i) for i in ids) if ids else None
@@ -207,14 +263,14 @@ class Aplicacion(object):
                     'errores': [list(x) for x in r['errores']], 'avisos': [list(x) for x in r['avisos']]}
             if r['errores'] or r['es'] is None: rechazadas.append(item); continue
             if b.get('aplicar'):
-                edits.guardar(self.base, self.cfg.ediciones_dir, m.R, c, r['es'])
+                edits.guardar(self.base, self.cfg.ediciones_dir, m.R, c, r['es'], comprobar=False)
                 self.indice().actualizar(f['id'], edits_plano(r['es']), 'verde')
             cambios.append(item)
         return {'aplicado': bool(b.get('aplicar')), 'cambios': cambios[:300], 'n_cambios': len(cambios), 'rechazadas': rechazadas[:300], 'n_rechazadas': len(rechazadas), 'sin_cambio': sin_cambio}
 
     # ------------------------------------------------------------ flujo de trabajo (Por hacer / Hecho)
     def _idx_flujo(self):
-        i = self.indice(); i.flujo = self.flujo; return i
+        return self.indice()
 
     def _celdas_de(self, b):
         """seleccion de celdas del cuerpo: ids | tabla (filtro del panel izquierdo) | busqueda (consulta global) -> [(hoja,row,sub,col)]"""
@@ -310,6 +366,7 @@ class Aplicacion(object):
     def _ruta_deshacer(self): return os.path.join(self.cfg.home, 'suavizado_deshacer.json')
 
     def suavizar_aplicar(self, b):
+        self.base.exigir_libre()
         cambios, sin, omitidas, no_admite, trunc, desc = self._suavizar_candidatas(b)
         m = self.motor(); items = []; por_id = {}
         for x in cambios:
@@ -328,6 +385,7 @@ class Aplicacion(object):
 
     def suavizar_deshacer(self):
         """restaura el ultimo lote: devuelve cada celda a su texto, origen y fila de ediciones anteriores. Las celdas cambiadas despues de la tanda NO se tocan y se reportan"""
+        self.base.exigir_libre()
         lote = self._leer('suavizado_deshacer.json') or []
         if not lote: raise ValueError('no hay nada que deshacer')
         ult = lote.pop(); ok = []; cambiadas = []; incompatibles = 0
@@ -364,23 +422,16 @@ class Aplicacion(object):
 
     def misiones(self, q=None, clase=None, expansion=None, solo_flujo=None, limite=3000):
         """lista de hojas (misiones/escenas/hojas) con contador de celdas, de Por hacer y de Hecho, ordenada por expansion (si hay tabla) y luego por nombre"""
-        orden = self._orden_expansion(); ph = {}; he = {}
-        with self.flujo.lock: items = list(self.flujo.datos.items())
-        existentes = {}   # solo cuentan las claves que existen en el indice (las marcas huerfanas no suman)
-        for k, v in items:
-            h = k.rsplit('|', 3)[0]
-            if h not in existentes:
-                existentes[h] = {flujo.clave(r['hoja'], r['row'], r['sub'], r['col']) for r in self.base.q('SELECT hoja,row,sub,col FROM celdas WHERE hoja=?', (h,))}
-            if k in existentes[h]: (ph if v == 'por_hacer' else he)[h] = (ph if v == 'por_hacer' else he).get(h, 0) + 1
+        orden = self._orden_expansion()
         res = []; ql = (q or '').lower()
-        for r in indexer.hojas_resumen(self.base, None):
+        for r in indexer.hojas_resumen_flujo(self.base):   # UNA consulta agregada (color y flujo por hoja); solo cuentan celdas que existen en el indice
             h = r['hoja']
             if clase and clases.clase_de(h) != clase: continue
             if ql and ql not in h.lower(): continue
             e = orden.get(h)
             if expansion and (not e or e[0] != expansion): continue
             x = {'hoja': h, 'total': r['total'], 'rojo': r['rojo'], 'naranja': r['naranja'], 'verde': r['verde'], 'blanco': r['blanco'],
-                 'por_hacer': ph.get(h, 0), 'hecho': he.get(h, 0), 'expansion': e[0] if e else '', 'clase': clases.clase_de(h), '_o': (e[1], e[2]) if e else (999, 0)}
+                 'por_hacer': r['por_hacer'], 'hecho': r['hecho'], 'expansion': e[0] if e else '', 'clase': clases.clase_de(h), '_o': (e[1], e[2]) if e else (999, 0)}
             if solo_flujo == 'por_hacer' and not x['por_hacer']: continue
             if solo_flujo == 'hecho' and x['hecho'] < x['total']: continue
             res.append(x)
@@ -425,10 +476,11 @@ class Aplicacion(object):
         return {'importadas': n, 'ignoradas': ign, 'totales': self.flujo.totales()}
 
     # ------------------------------------------------------------ tareas
-    def _indexar(self, log):
+    def _indexar(self, log, forzar=False):
         R = self.R(); self.olvidar_motor(); self._indice = None
-        meta = indexer.indexar(R, self.base, self.cfg.repo_dir, self.raiz_textos(), self.cfg.ediciones_dir, log)
-        log('cargando el indice de busqueda en memoria...'); self.indice()
+        t = self.tarea
+        meta = indexer.indexar(R, self.base, self.cfg.repo_dir, self.raiz_textos(), self.cfg.ediciones_dir, log, forzar=forzar, cancelar=t.cancelar_ev, avance=t.avance)
+        self.vigencia = {'vigente': True, 'hojas_cambiadas': 0, 'motivo': 'ok'}
         return meta
 
     def tarea_sync(self):
@@ -454,8 +506,14 @@ class Aplicacion(object):
             return info
         self.tarea.iniciar('extraer', fn)
 
-    def tarea_indexar(self):
-        self.tarea.iniciar('indexar', lambda log: self._indexar(log))
+    def tarea_indexar(self, forzar=False):
+        self.tarea.iniciar('indexar', lambda log: self._indexar(log, bool(forzar)), cancelable=True)
+
+    def tarea_cancelar(self):
+        return {'cancelada': self.tarea.cancelar()}
+
+    def abrir_registros(self):
+        return {'ruta': registro.abrir_carpeta(self.cfg.home)}
 
     def tarea_generar(self, destino=None, relajar='auto', validar=True):
         cfg = self.cfg

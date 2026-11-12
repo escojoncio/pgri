@@ -62,7 +62,14 @@ mark{background:#ffd24d;color:#111} .res{border-bottom:1px solid #333;padding:3p
 .mc:hover{background:#2d3140} .mc.sel{background:#34406a;outline:1px solid #fff}
 .mc .idx{color:#778;flex:none} .mc .hb{color:#9fd;flex:none;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap} .mc .tx{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .mc .fl{width:12px;flex:none;text-align:center} .mc .fl.hecho{color:#8fd68f} .mc .fl.por_hacer{color:#ff9a9a}
+#cargando{position:fixed;inset:0;background:#1e1f24;z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:20px;text-align:center}
+#cargando progress,#tProg{width:min(440px,90vw);height:14px} #cgM{max-width:640px;color:#cfd3da;overflow-wrap:anywhere}
+.banner{display:none;gap:8px;align-items:center;padding:6px 10px;background:#4a4220;color:#ffe9a6;flex:none;flex-wrap:wrap} .banner.on{display:flex}
 </style></head><body>
+<div id="cargando"><h2 id="cgT">Cargando...</h2><div id="cgM">Preparando el editor.</div><progress id="cgP"></progress>
+ <div style="display:flex;gap:8px"><button id="cgIr" style="display:none" title="Construye el indice de celdas (una sola vez; despues solo se reindexan las hojas que cambian). Puedes cancelarlo.">Construir indice ahora</button><button class="sec" id="cgNo" style="display:none" title="Abre el editor sin indice (la tabla estara vacia).">Ahora no</button><button class="sec" id="cgCancel" style="display:none" title="Cancela el indexado y conserva el indice anterior.">Cancelar</button></div></div>
+<div id="avisoTop" class="banner"></div>
+<div id="bannerIdx" class="banner"><span id="bannerIdxT"></span><button class="mini" id="bannerIdxIr" title="Reindexa solo las hojas que han cambiado.">Actualizar indice</button><button class="mini sec" id="bannerIdxNo">Ocultar</button></div>
 <header>
  <b>Editor Gridania</b>
  <span id="chips"></span>
@@ -74,6 +81,7 @@ mark{background:#ffd24d;color:#111} .res{border-bottom:1px solid #333;padding:3p
  <button id="bMis" class="sec" title="Vista «Por mision / escena / hoja»: carga una hoja completa como conversacion continua, en orden, con lista de misiones, contadores y navegacion.">Por mision / hoja</button>
  <button id="bBusq" class="sec" title="Cambia entre la tabla de celdas y la busqueda global (japones, frances y espanol a la vez, con reemplazo).">Buscar global</button>
  <button id="bCfg" class="sec" title="Repositorio, token de GitHub, carpeta del juego y carpeta de salida del .dat.">Ajustes</button>
+ <button id="bIdx" class="sec" title="Reindexa SOLO las hojas que han cambiado en el repo, el juego o las ediciones. Con Ctrl pulsado reconstruye todo el indice.">Actualizar indice</button>
  <button id="bTar" class="sec" title="Muestra u oculta el registro de la tarea en curso (actualizar, extraer, generar).">Tareas</button>
  <button id="bAyuda" title="Explica cada boton, filtro y color del programa.">Ayuda</button>
  <button id="bSalir" class="sec" title="Cierra el editor.">Salir</button>
@@ -160,7 +168,7 @@ mark{background:#ffd24d;color:#111} .res{border-bottom:1px solid #333;padding:3p
   <div class="lbl">Fila siguiente (clic para abrir)</div><div class="ctx" id="ctxSig" title="Celda siguiente de la misma hoja; clic para abrirla."></div>
  </div></section>
 </main>
-<div id="tareas"><div style="display:flex;padding:4px 8px;background:#2a2c33"><b id="tNombre" style="flex:1">Tarea</b><button class="sec" id="tCerrar" title="Oculta el registro.">x</button></div><div id="log"></div></div>
+<div id="tareas"><div style="display:flex;padding:4px 8px;background:#2a2c33"><b id="tNombre" style="flex:1">Tarea</b><button class="sec mini" id="tCancel" style="display:none" title="Cancela la tarea (solo el indexado).">Cancelar</button><button class="sec" id="tCerrar" title="Oculta el registro.">x</button></div><div style="padding:4px 8px"><progress id="tProg" style="display:none"></progress> <span id="tFase" style="font-size:12px;color:#9aa"></span></div><div id="log"></div></div>
 <dialog id="dCfg"><h3>Ajustes</h3>
  <label>Repositorio (propietario/nombre)</label><input id="cRepo"><label>Rama</label><input id="cRama">
  <label>Token personal de GitHub (se guarda solo en este PC)</label><input id="cToken" type="password" autocomplete="off">
@@ -171,6 +179,7 @@ mark{background:#ffd24d;color:#111} .res{border-bottom:1px solid #333;padding:3p
 <dialog id="dSuave" class="grande"><h3>Suavizar saltos de linea</h3><div id="suInfo"></div><div id="suLista" style="max-height:55vh;overflow:auto"></div>
  <p style="display:flex;gap:8px"><button id="suAplicar" title="Escribe los cambios (solo cambian los saltos de linea, nunca las palabras ni el numero de trozos).">Aplicar</button><button class="sec" id="suCerrar" title="Cierra sin cambiar nada.">Cancelar</button></p></dialog>
 <dialog id="dAyuda" class="grande"><h3>Ayuda</h3>
+<p><button id="aLogs" class="sec" title="Abre la carpeta con editor.log (arranque, tiempos, errores).">Abrir carpeta de registros</button> <span id="aLogRuta" style="font-size:12px;color:#9aa"></span></p>
 <h4>Cabecera</h4><dl>
 <dt>Actualizar desde GitHub</dt><dd>Baja del repositorio la traduccion, los glosarios y los textos japones y frances. Antes rellena repo y token en Ajustes.</dd>
 <dt>Extraer del juego</dt><dd>Lee el japones y el frances del juego instalado, para ver que ha cambiado tras una actualizacion.</dd>
@@ -374,21 +383,51 @@ $('bqExp').onclick=async()=>{try{const r=await api('/api/buscar_exportar',bqCuer
 $('bqPrev').onclick=()=>bqReemplazo(false);$('bqApl').onclick=()=>bqReemplazo(true);
 $('bqSelTodo').onchange=e=>document.querySelectorAll('#bqRes .sel').forEach(x=>x.checked=e.target.checked);
 // ---------- tareas
-function tareaLog(){api('/api/tarea?desde='+tareaDesde).then(t=>{$('tNombre').textContent=`${t.nombre||'Tarea'}: ${t.estado} (${t.segundos}s)`;if(t.log.length){$('log').textContent+=t.log.join('\n')+'\n';$('log').scrollTop=1e9}tareaDesde=t.siguiente;
- if(t.estado==='ejecutando'){sondeo=setTimeout(tareaLog,1000)}else{sondeo=null;if(t.resultado&&t.nombre==='generar')$('log').textContent+='RESULTADO '+JSON.stringify(t.resultado,null,1)+'\n';if(t.error)$('log').textContent+='ERROR: '+t.error+'\n';cargar();hojas()}})}
+function progTarea(t){const p=t.progreso||{},bar=$('tProg');bar.style.display=t.estado==='ejecutando'?'':'none';if(p.total>0){bar.max=p.total;bar.value=p.hecho}else bar.removeAttribute('value');$('tFase').textContent=t.estado==='ejecutando'?(p.fase||'')+(p.total>0?` ${p.hecho.toLocaleString('es')}/${p.total.toLocaleString('es')}`:''):'';$('tCancel').style.display=(t.estado==='ejecutando'&&t.cancelable)?'':'none'}
+function tareaLog(){api('/api/tarea?desde='+tareaDesde).then(t=>{$('tNombre').textContent=`${t.nombre||'Tarea'}: ${t.estado} (${t.segundos}s)`;if(t.log.length){$('log').textContent+=t.log.join('\n')+'\n';$('log').scrollTop=1e9}tareaDesde=t.siguiente;progTarea(t);
+ if(t.estado==='ejecutando'){sondeo=setTimeout(tareaLog,1000)}else{sondeo=null;if(t.resultado&&t.nombre==='generar')$('log').textContent+='RESULTADO '+JSON.stringify(t.resultado,null,1)+'\n';if(t.error)$('log').textContent+='ERROR: '+t.error+'\n';cargar();hojas()}}).catch(e=>{sondeo=null;$('log').textContent+='Sin respuesta del servidor: '+e.message+'\n'})}
+$('tCancel').onclick=()=>api('/api/tarea_cancelar',{}).catch(e=>alert(e.message));
 async function lanzar(ruta,cuerpo){try{$('tareas').style.display='flex';$('log').textContent='';tareaDesde=0;await api(ruta,cuerpo||{});if(!sondeo)tareaLog()}catch(e){$('log').textContent=e.message}}
-$('bSync').onclick=()=>lanzar('/api/sync');$('bExt').onclick=()=>lanzar('/api/extraer');$('bGen').onclick=()=>lanzar('/api/generar');
+$('bSync').onclick=()=>lanzar('/api/sync');$('bIdx').onclick=e=>{$('bannerIdx').classList.remove('on');lanzar('/api/indexar',{forzar:!!(e.ctrlKey||e.metaKey)})};$('bExt').onclick=()=>lanzar('/api/extraer');$('bGen').onclick=()=>lanzar('/api/generar');
 $('bTar').onclick=()=>{$('tareas').style.display='flex';tareaDesde=0;$('log').textContent='';tareaLog()};$('tCerrar').onclick=()=>$('tareas').style.display='none';
 $('bExp').onclick=async()=>{try{const r=await api('/api/exportar',{});alert(`Exportadas ${r.filas} filas de ${r.hojas} hojas a:\n${r.carpeta}`)}catch(e){alert(e.message)}};
 $('bSalir').onclick=async()=>{await api('/api/salir',{});document.body.innerHTML='<p style="padding:20px">Editor cerrado. Puedes cerrar esta pestana.</p>'};
-$('bAyuda').onclick=()=>$('dAyuda').showModal();$('aCerrar').onclick=()=>$('dAyuda').close();
+$('bAyuda').onclick=()=>$('dAyuda').showModal();$('aLogs').onclick=async()=>{try{const r=await api('/api/abrir_registros',{});$('aLogRuta').textContent=r.ruta}catch(e){$('aLogRuta').textContent=e.message}};$('aCerrar').onclick=()=>$('dAyuda').close();
 // ---------- ajustes
 $('bCfg').onclick=async()=>{const e=await api('/api/estado');const c=e.config;$('cRepo').value=c.repo;$('cRama').value=c.rama;$('cToken').value='';$('cToken').placeholder=c.token_guardado?'(guardado; deja vacio para conservarlo)':'ghp_...';
  $('cJuego').value=c.ruta_juego;$('cDat').value=c.carpeta_dat;$('cMin').value=c.min_entradas;$('cMax').value=c.max_rechazos;$('dCfg').showModal()};
 $('cCerrar').onclick=()=>$('dCfg').close();
 $('cGuardar').onclick=async()=>{await api('/api/config',{repo:$('cRepo').value,rama:$('cRama').value,token:$('cToken').value,ruta_juego:$('cJuego').value,carpeta_dat:$('cDat').value,min_entradas:$('cMin').value,max_rechazos:$('cMax').value});$('dCfg').close()};
 $('cBorrar').onclick=async()=>{await api('/api/borrar_token',{});$('cToken').placeholder='ghp_...'};
-(async()=>{const e=await api('/api/estado');CLASES=e.clases||[];
+// ---------- arranque: la ventana ya esta visible con «Cargando...»; nunca se indexa sin que el usuario lo pida
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+function cgMostrar(t,m,o){o=o||{};$('cargando').style.display='flex';$('cgT').textContent=t;$('cgM').textContent=m||'';const p=$('cgP');p.style.display=o.barra===false?'none':'';
+ if(o.total>0){p.max=o.total;p.value=o.hecho||0}else p.removeAttribute('value');$('cgIr').style.display=o.ir?'':'none';$('cgNo').style.display=o.no?'':'none';$('cgCancel').style.display=o.cancelar?'':'none'}
+function cgOcultar(){$('cargando').style.display='none'}
+function avisoTop(t){const b=$('avisoTop');b.textContent=t||'';b.classList.toggle('on',!!t)}
+async function esperarIndexado(){ // sondea la tarea como maximo 1 vez por segundo y SOLO mientras se ejecuta
+ let tD=0,fallos=0;for(;;){try{const t=await api('/api/tarea?desde='+tD);fallos=0;tD=t.siguiente;const p=t.progreso||{};
+  if(t.estado==='ejecutando'){cgMostrar('Indexando...',(p.fase||'')+(p.total>0?` ${p.hecho.toLocaleString('es')} de ${p.total.toLocaleString('es')}`:'')+` (${t.segundos} s)`,{total:p.total,hecho:p.hecho,cancelar:t.cancelable})}
+  else return t}catch(e){if(++fallos>=5){cgMostrar('El servidor no responde',e.message+' Mira el registro (Ayuda > Abrir carpeta de registros).',{barra:false});return null}}
+  await sleep(1000)}}
+async function ofrecerIndice(motivo){
+ for(;;){cgMostrar('Falta el indice de celdas',motivo+' Se construye una sola vez (unos segundos) y despues solo se reindexan las hojas que cambien. No se hace nada hasta que lo pidas.',{barra:false,ir:true,no:true});
+  const q=await new Promise(r=>{$('cgIr').onclick=()=>r(true);$('cgNo').onclick=()=>r(false)});if(!q)return false;
+  try{await api('/api/indexar',{})}catch(e){cgMostrar('No se pudo indexar',e.message,{barra:false,no:true});await new Promise(r=>$('cgNo').onclick=r);return false}
+  $('cgCancel').onclick=()=>api('/api/tarea_cancelar',{});const t=await esperarIndexado();
+  if(t&&t.estado==='ok')return true;if(!t)return false;
+  cgMostrar(t.estado==='cancelada'?'Indexado cancelado':'Error al indexar',t.error||'',{barra:false,ir:true,no:true})
+  const q2=await new Promise(r=>{$('cgIr').onclick=()=>r(true);$('cgNo').onclick=()=>r(false)});if(!q2)return false}}
+(async()=>{let e,n=0;
+ cgMostrar('Cargando...','Preparando el editor.');
+ for(;;){try{e=await api('/api/estado')}catch(x){if(++n>40){cgMostrar('No se puede conectar con el editor',x.message+' Mira el registro (Ayuda > Abrir carpeta de registros).',{barra:false});return}await sleep(500);continue}
+  if(e.arranque&&!e.arranque.listo){const a=e.arranque;cgMostrar('Cargando...',a.fase||'Preparando la base de datos (solo la primera vez tras actualizar).',{total:a.total,hecho:a.hecho});await sleep(700);continue}break}
+ CLASES=e.clases||[];avisoTop(e.aviso);
  for(const id of ['bqClase','mClase'])$(id).innerHTML=(id==='mClase'?'<option value="">Clase: todas</option>':'<option value="">todas las clases</option>')+CLASES.map(c=>`<option>${esc(c)}</option>`).join('');
- if(!e.repo_ok){$('vacio').textContent='Primero abre Ajustes (repo y token) y pulsa «Actualizar desde GitHub».'}await cargar();hojas();if(e.tarea.estado==='ejecutando'){$('tareas').style.display='flex';tareaLog()}})();
+ if(e.tarea.estado==='ejecutando'){cgOcultar();$('tareas').style.display='flex';tareaLog()}
+ else if(!e.repo_ok){cgOcultar();$('vacio').textContent='Primero abre Ajustes (repo y token) y pulsa «Actualizar desde GitHub».'}
+ else if(!(e.indice&&e.indice.celdas>0)){const ok=await ofrecerIndice('El editor aun no tiene indice de celdas para este repo.');if(ok)e=await api('/api/estado');cgOcultar()}
+ else{cgOcultar();const v=e.indice_estado;if(v&&v.vigente===false&&v.hojas_cambiadas>0){const sf=v.motivo==='sin_firmas';$('bannerIdxT').textContent=sf?'El indice viene de una version anterior del editor: funciona, pero conviene actualizarlo una vez.':`El repo, el juego o tus ediciones han cambiado desde el ultimo indice (${v.hojas_cambiadas.toLocaleString('es')} hojas).`;$('bannerIdx').classList.add('on')}}
+ $('bannerIdxIr').onclick=()=>$('bIdx').click();$('bannerIdxNo').onclick=()=>$('bannerIdx').classList.remove('on');
+ await cargar();hojas()})();
 </script></body></html>

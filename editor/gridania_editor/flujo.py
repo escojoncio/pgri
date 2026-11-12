@@ -21,6 +21,7 @@ def partir_clave(k):
 class Flujo(object):
     def __init__(self, ruta):
         self.ruta = ruta; self.lock = threading.RLock(); self.datos = {}
+        self.alcambiar = None   # callback(cambios|None) -> mantiene la columna materializada `flujo` de la BD (None = resincronizar todo)
         try:
             with open(ruta, encoding='utf-8') as f:
                 d = json.load(f)
@@ -37,14 +38,15 @@ class Flujo(object):
     def poner(self, celdas, estado):
         """celdas = iterable de (hoja,row,sub,col); estado 'sin' = quitar la marca. -> n cambiadas"""
         if estado not in ESTADOS: raise ValueError('estado desconocido: %s' % estado)
-        n = 0
+        n = 0; cambios = []
         with self.lock:
             for c in celdas:
                 k = clave(*c)
                 if estado == SIN:
-                    if self.datos.pop(k, None) is not None: n += 1
-                elif self.datos.get(k) != estado: self.datos[k] = estado; n += 1
+                    if self.datos.pop(k, None) is not None: n += 1; cambios.append((tuple(c), SIN))
+                elif self.datos.get(k) != estado: self.datos[k] = estado; n += 1; cambios.append((tuple(c), estado))
             if n: self._guardar()
+        if n and self.alcambiar: self.alcambiar(cambios)   # fuera del cerrojo: evita interbloqueos con el de la BD
         return n
 
     def totales(self):
@@ -84,4 +86,5 @@ class Flujo(object):
                 if e == SIN: self.datos.pop(k, None)
                 else: self.datos[k] = e
             self._guardar()
+        if self.alcambiar: self.alcambiar(None)
         return len(nuevas), ign
