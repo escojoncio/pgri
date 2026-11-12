@@ -163,6 +163,7 @@ def test_sin_webview_importable_cae_al_navegador(tmp_path, monkeypatch):
     assert len(abiertas) == 1; srvs[0].salir.set(); th.join(15)
 
 
+@pytest.mark.skipif(not sys.platform.startswith('linux'), reason='usa /proc')
 def test_arranque_real_sin_procesos_hijos_ni_segundo_log(tmp_path):
     """simula el exe: run_editor.py como __main__ con freeze_support primero; ningun proceso hijo ni segundo 'arranque' en el registro"""
     home = str(tmp_path / 'd')
@@ -194,7 +195,7 @@ def test_carpeta_junto_al_programa(tmp_path, monkeypatch):
 def test_carpeta_no_escribible_cae_a_documentos_con_aviso(tmp_path, monkeypatch):
     monkeypatch.delenv('GRIDANIA_EDITOR_HOME', raising=False); monkeypatch.setattr(config, 'AVISO_CARPETA', '')
     monkeypatch.setattr(config, '_escribible', lambda d: False)
-    monkeypatch.setenv('HOME', str(tmp_path / 'home')); (tmp_path / 'home' / 'Documents').mkdir(parents=True)
+    monkeypatch.setenv('HOME', str(tmp_path / 'home')); monkeypatch.setenv('USERPROFILE', str(tmp_path / 'home')); (tmp_path / 'home' / 'Documents').mkdir(parents=True)
     r = config.carpeta_trabajo()
     assert r == str(tmp_path / 'home' / 'Documents' / 'GridaniaEditor') and 'no es escribible' in config.AVISO_CARPETA
 
