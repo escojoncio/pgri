@@ -14,7 +14,7 @@ jobs:
       - run: pip install -r editor/requirements-dev.txt
       - name: Tests (los que necesitan tools/py o el juego se saltan)
         run: python -m pytest editor/tests -q
-      - name: PyInstaller (onedir: sin autoextraccion en cada arranque)
+      - name: PyInstaller (onedir, sin autoextraccion en cada arranque)
         working-directory: editor
         run: >
           pyinstaller --noconfirm --onedir --noupx --windowed --name GridaniaEditor
