@@ -369,19 +369,25 @@ def test_vigilante_espera_a_webview2_y_no_abre_dos_uis(tmp_path):
         def __init__(self): self.ui_cargada = threading.Event(); self.salir = threading.Event()
     class Ap(object):
         aviso = ''; cfg = type('C', (), {'home': str(tmp_path)})()
-    # carga lenta (tras la espera inicial pero antes del maximo): NO se abre el navegador
-    srv, win, ap, est, abiertas = Srv(), Win(), Ap(), {'navegador': False}, []
-    threading.Timer(0.3, srv.ui_cargada.set).start()
-    app_mod._vigilar_ui(srv, ap, win, est, 'u', espera=0.1, maximo=2, paso=0.05, abrir=abiertas.append)
+    # la UI carga a tiempo: NO se abre el navegador
+    srv, win, ap, est, abiertas = Srv(), Win(), Ap(), {'navegador': False, 'win': None}, []
+    est['win'] = win
+    threading.Timer(0.1, srv.ui_cargada.set).start()
+    app_mod._vigilar_ui(srv, ap, est, 'u', espera=1, paso=0.02, abrir=abiertas.append)
     assert abiertas == [] and not win.destruida and not est['navegador']
-    # nunca carga: se cierra la ventana propia y se abre UN navegador
+    # nunca carga: se cierra la ventana propia, se abre UN navegador y el servidor NO se cierra
     srv, win, est = Srv(), Win(), {'navegador': False}
-    app_mod._vigilar_ui(srv, ap, win, est, 'u', espera=0.05, maximo=0.3, paso=0.05, abrir=abiertas.append)
-    assert abiertas == ['u'] and win.destruida and est['navegador'] and 'WebView2' in ap.aviso
+    est['win'] = win
+    app_mod._vigilar_ui(srv, ap, est, 'u', espera=0.1, paso=0.02, abrir=abiertas.append)
+    assert abiertas == ['u'] and win.destruida and est['navegador'] and 'ventana propia' in ap.aviso and not srv.salir.is_set()
+    # ni siquiera se llego a crear la ventana (import colgado): tambien se abre el navegador
+    srv, est, abiertas = Srv(), {'navegador': False, 'win': None, 'etapa': 'import webview'}, []
+    app_mod._vigilar_ui(srv, ap, est, 'u', espera=0.1, paso=0.02, abrir=abiertas.append)
+    assert abiertas == ['u'] and 'import webview' in ap.aviso
     # el usuario cierra la ventana mientras carga: no se abre nada
     srv, win, est, abiertas = Srv(), Win(), {'navegador': False}, []
-    win.events.closed.e.set()
-    app_mod._vigilar_ui(srv, ap, win, est, 'u', espera=0.05, maximo=1, paso=0.05, abrir=abiertas.append)
+    est['win'] = win; win.events.closed.e.set()
+    app_mod._vigilar_ui(srv, ap, est, 'u', espera=0.2, paso=0.02, abrir=abiertas.append)
     assert abiertas == [] and not est['navegador']
 
 

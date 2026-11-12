@@ -8,9 +8,21 @@ esta, abre el navegador por defecto).
 GitHub > Actions > workflow **editor** > ultima ejecucion > artefacto `GridaniaEditor-win64` (se genera en `windows-latest` con PyInstaller).
 Requiere el runtime WebView2 de Windows 10/11 (ya instalado normalmente). Sin el, usa `GridaniaEditor.exe --navegador`.
 
+## Datos
+Todo lo que genera el editor (editor.db, editor.log, faulthandler.log, config.json, flujo.json, ediciones/, exportado/, cache del repo descargado, instancia.*)
+vive en la carpeta `datos/` JUNTO al ejecutable (en desarrollo `tools/editor/datos`; se puede forzar con la variable `GRIDANIA_EDITOR_HOME` o `--carpeta`).
+Si esa carpeta no es escribible se avisa y se usa `Documentos/GridaniaEditor`. Al primer arranque, si `datos/` esta vacia y existe la ubicacion antigua
+(`%LOCALAPPDATA%\GridaniaEditor`) se COPIAN (sin borrar) sus ajustes, ediciones y marcas; el indice, la cache del repo y la extraccion del juego no se copian
+(se regeneran: Actualizar desde GitHub / Reindexar). No incluyas `datos/` al repartir el programa (contiene el token). Menu Ayuda > Abrir carpeta de datos y registros.
+
+## Diagnostico de arranque
+`datos/editor.log` registra inicio y fin de cada fase (aplicacion, servidor, import webview, deteccion WebView2, create_window, start, primera peticion de la UI, migracion,
+vigencia) y, mientras algo tarde, un volcado cada 10 s con la etapa y las fases activas; `datos/faulthandler.log` vuelca las pilas de todos los hilos cada 30 s hasta que la UI carga.
+Si la UI no pide la pagina en 15 s se abre el navegador por defecto con la URL (el servidor sigue activo).
+
 ## Uso
 1. **Ajustes**: repo (`escojoncio/gridania`), rama, token personal de GitHub con lectura de *Contents* (se guarda solo en
-   `%LOCALAPPDATA%\GridaniaEditor\config.json`; nunca en el repo ni en logs), carpeta `sqpack/ffxiv` del juego y carpeta de destino del `.dat`.
+   `<carpeta del programa>\datos\config.json`; nunca en el repo ni en logs), carpeta `sqpack/ffxiv` del juego y carpeta de destino del `.dat`.
 2. **Actualizar desde GitHub**: baja `traducciones/`, `data/`, `textos/ja`, `textos/fr`, `tools/py` y unas tablas de `trabajo/informes`
    (API de GitHub, sin git; la primera vez usa el zip del commit, luego solo lo que cambia por sha). Reindexa.
 3. **Extraer del juego** (tras una actualizacion del juego): extrae ja y fr con `tools/py/extract_ja.py` y clasifica cada celda comparando el
@@ -57,5 +69,5 @@ Tras «Actualizar desde GitHub» el codigo de `tools/py` se recarga sin reinicia
 
 - Indice persistente (`editor.db`): firma por hoja (size+mtime de ja/fr/traducciones/ediciones). Solo se reindexan las hojas que cambian; "Actualizar indice" (Ctrl = reconstruir todo). Nunca se indexa solo: si falta el indice, la ventana ofrece construirlo (con barra de progreso real y boton Cancelar, que conserva el indice anterior); si esta desactualizado, aparece un aviso.
 - Indexado en una transaccion, un solo parseo por hoja y reparto por hojas en procesos (`GRIDANIA_EDITOR_PROCESOS=1` lo desactiva). Columnas `clase` y `flujo` materializadas con indices SQL; las `editor.db` antiguas se migran solas al abrir (ediciones y flujo intactos).
-- Registro rotativo `editor.log` en la carpeta de datos (Ayuda > Abrir carpeta de registros): arranque, version, tiempo de cada fase, excepciones no capturadas, peticiones lentas y fallbacks. Si WebView2 falla, se abre el navegador con un aviso visible; si el servidor HTTP muere el proceso termina con mensaje.
+- Registro rotativo `editor.log` en la carpeta de datos (Ayuda > Abrir carpeta de datos y registros): arranque, version, tiempo de cada fase, excepciones no capturadas, peticiones lentas y fallbacks. Si WebView2 falla, se abre el navegador con un aviso visible; si el servidor HTTP muere el proceso termina con mensaje.
 - Empaquetado: `--onefile` autoextrae en cada arranque (lento); preferir `--onedir` o `--onefile` con `--runtime-tmpdir` fijo si el arranque tarda.

@@ -5,13 +5,67 @@ DEFECTO = {'repo': 'escojoncio/gridania', 'rama': 'main', 'token': '', 'ruta_jue
 _lock = threading.Lock()
 
 
+AVISO_CARPETA = ''     # se rellena si la carpeta junto al ejecutable no es escribible (la UI/arranque lo muestran)
+
+
+def carpeta_base():
+    """carpeta junto al ejecutable (frozen) o tools/editor (desarrollo)"""
+    if getattr(sys, 'frozen', False): return os.path.dirname(os.path.abspath(sys.executable))
+    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def carpeta_antigua():
+    """ubicacion de versiones anteriores (solo para migrar)"""
+    if sys.platform.startswith('win') and os.environ.get('LOCALAPPDATA'): return os.path.join(os.environ['LOCALAPPDATA'], 'GridaniaEditor')
+    return os.path.join(os.path.expanduser('~'), '.gridania-editor')
+
+
+def _escribible(d):
+    try:
+        os.makedirs(d, exist_ok=True)
+        t = os.path.join(d, '.escritura_%d.tmp' % os.getpid())
+        with open(t, 'w') as f: f.write('x')
+        os.remove(t); return True
+    except OSError:
+        return False
+
+
 def carpeta_trabajo():
-    """GRIDANIA_EDITOR_HOME > %LOCALAPPDATA%/GridaniaEditor (Windows) > ~/.gridania-editor"""
+    """GRIDANIA_EDITOR_HOME > <carpeta del .exe>/datos (en desarrollo tools/editor/datos) > Documentos/GridaniaEditor (con aviso, si la anterior no es escribible)"""
+    global AVISO_CARPETA
     v = os.environ.get('GRIDANIA_EDITOR_HOME')
     if v: return os.path.abspath(v)
-    if sys.platform.startswith('win') and os.environ.get('LOCALAPPDATA'):
-        return os.path.join(os.environ['LOCALAPPDATA'], 'GridaniaEditor')
-    return os.path.join(os.path.expanduser('~'), '.gridania-editor')
+    d = os.path.join(carpeta_base(), 'datos')
+    if _escribible(d): return d
+    docs = os.path.join(os.path.expanduser('~'), 'Documents')
+    alt = os.path.join(docs if os.path.isdir(docs) else os.path.expanduser('~'), 'GridaniaEditor')
+    AVISO_CARPETA = 'La carpeta junto al programa (%s) no es escribible; los datos se guardan en %s. Mueve el programa a una carpeta con permisos de escritura para usar <programa>/datos.' % (d, alt)
+    return alt
+
+
+_IGNORAR_MIGRA = ('editor.log', 'editor.log.1', 'editor.log.2', 'editor.log.3', 'faulthandler.log', 'instancia.lock', 'instancia.json')
+_NO_COPIAR = ('editor.db', 'editor.db-wal', 'editor.db-shm', 'repo', 'juego')   # regenerables (indice, cache del repo, extraccion): se rehacen; copiarlos retrasaria la ventana
+
+
+def migrar_antigua(nuevo, antigua=None, log=None):
+    """copia (sin borrar) los datos de la ubicacion antigua a `nuevo` si este esta vacio. -> lista de elementos copiados (vacia si no procede)"""
+    import shutil
+    antigua = antigua or carpeta_antigua()
+    try:
+        if not os.path.isdir(antigua) or os.path.abspath(antigua) == os.path.abspath(nuevo): return []
+        if any(n not in _IGNORAR_MIGRA for n in os.listdir(nuevo)): return []
+        copiados = []
+        for n in sorted(os.listdir(antigua)):
+            if n in _IGNORAR_MIGRA or n in _NO_COPIAR or n.endswith('.tmp'): continue
+            o, d = os.path.join(antigua, n), os.path.join(nuevo, n)
+            if os.path.isdir(o): shutil.copytree(o, d, dirs_exist_ok=True)
+            else: shutil.copy2(o, d)
+            copiados.append(n)
+        if log: log.info('migrados desde %s (sin borrar): %s', antigua, copiados)
+        return copiados
+    except OSError as x:
+        if log: log.warning('no se pudo migrar desde %s: %s', antigua, x)
+        return []
 
 
 class Config(object):

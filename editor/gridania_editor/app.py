@@ -6,8 +6,7 @@ from . import stdlib_para_scripts  # noqa: F401  (declara la stdlib que usan los
 from .aplicacion import Aplicacion
 from .servidor import Servidor
 
-ESPERA_UI_S = 25    # tras este tiempo sin pedir la pagina se empieza a comprobar si la ventana propia sigue viva (WebView2 puede tardar en cargar)
-MAXIMO_UI_S = 120   # si aun asi la pagina no se ha pedido, la ventana propia no funciona: se cierra y se abre el navegador (nunca las dos UIs)
+ESPERA_UI_S = 15    # si la UI no pide la pagina en este tiempo tras empezar a crear la ventana, se abre el navegador por defecto (el servidor sigue vivo)
 
 
 def _decir(texto, nivel=logging.WARNING):
@@ -32,17 +31,21 @@ def _caja(titulo, texto):
 def main(argv=None):
     ap = argparse.ArgumentParser(description='Editor de traducciones Gridania')
     ap.add_argument('--navegador', action='store_true', help='usar el navegador por defecto en vez de la ventana propia')
-    ap.add_argument('--puerto', type=int, default=0); ap.add_argument('--carpeta', help='carpeta de trabajo (por defecto %%LOCALAPPDATA%%/GridaniaEditor)')
+    ap.add_argument('--puerto', type=int, default=0); ap.add_argument('--carpeta', help='carpeta de trabajo (por defecto <carpeta del programa>/datos)')
     ap.add_argument('--sin-abrir', action='store_true', help='solo arranca el servidor (pruebas)')
     a = ap.parse_args(argv)
+    por_defecto = not a.carpeta and not os.environ.get('GRIDANIA_EDITOR_HOME')
     home = os.path.abspath(a.carpeta or config.carpeta_trabajo())
     lg = registro.iniciar(home, __version__)
+    registro.activar_faulthandler(home)
+    if config.AVISO_CARPETA: _decir(config.AVISO_CARPETA); _caja('Editor de traducciones Gridania', config.AVISO_CARPETA)
     cerrojo = instancia.adquirir(home)
     if cerrojo is None:
         cerrojo = _recuperar_obsoleta(home, lg)
     if cerrojo is None:
         return _ya_abierto(home, lg)
     try:
+        if por_defecto and cerrojo is not None: config.migrar_antigua(home, log=lg)
         return _principal(a, lg)
     except BaseException as x:
         if isinstance(x, (KeyboardInterrupt, SystemExit)): raise
@@ -97,22 +100,24 @@ def terminar(codigo):
     os._exit(codigo or 0)
 
 
-def _vigilar_ui(srv, app, win, estado, url, espera=None, maximo=None, paso=0.5, abrir=None):
-    """WebView2 ausente/roto: la ventana no carga y el proceso seguiria en segundo plano. Si la pagina no se pide a tiempo se comprueba que la ventana responda
-    (sigue abierta): mientras sea asi se espera hasta `maximo`; si no carga, se CIERRA la ventana y se abre el navegador (una sola UI)."""
-    espera = ESPERA_UI_S if espera is None else espera; maximo = MAXIMO_UI_S if maximo is None else maximo; abrir = abrir or webbrowser.open
-    if srv.ui_cargada.wait(espera) or srv.salir.is_set(): return
+def _vigilar_ui(srv, app, estado, url, espera=None, paso=0.5, abrir=None):
+    """Si la UI no pide la pagina en `espera` s (WebView2 ausente/roto/colgado, import de webview bloqueado...) se abre el navegador por defecto con la URL y se avisa.
+    El servidor NO se cierra. Si hay ventana propia se intenta cerrar (una sola UI); si el usuario la cerro antes, no se abre nada."""
+    espera = ESPERA_UI_S if espera is None else espera; abrir = abrir or webbrowser.open
     t0 = time.time()
-    while time.time() - t0 < max(0, maximo - espera):
+    while time.time() - t0 < espera:
         if srv.ui_cargada.wait(paso) or srv.salir.is_set(): return
+        win = estado.get('win')
         try:
-            if win.events.closed.is_set(): return          # la cerro el usuario: no se abre nada
+            if win is not None and win.events.closed.is_set(): return          # la cerro el usuario: no se abre nada
         except AttributeError: pass
     estado['navegador'] = True
-    app.aviso = 'La ventana propia (WebView2) no ha cargado; se ha abierto el navegador. Instala el WebView2 Runtime de Microsoft para usar la ventana propia.'
+    app.aviso = 'La ventana propia no ha cargado en %d s (etapa: %s); se ha abierto el navegador. Instala/repara el WebView2 Runtime de Microsoft para usar la ventana propia.' % (espera, estado.get('etapa') or '?')
     _decir(app.aviso)
-    try: win.destroy()
-    except Exception: pass
+    win = estado.get('win')
+    if win is not None:
+        try: win.destroy()
+        except Exception: pass
     instancia.publicar(app.cfg.home, url, 'navegador', getattr(srv, 'clave', None))
     abrir(url)
 
@@ -120,10 +125,48 @@ def _vigilar_ui(srv, app, win, estado, url, espera=None, maximo=None, paso=0.5, 
 def _principal(a, lg):
     with registro.fase('aplicacion'):
         app = Aplicacion(a.carpeta, diferir=True)
+    if config.AVISO_CARPETA: app.aviso = config.AVISO_CARPETA
     try:
         return _servir(a, lg, app)
     finally:
         cerrar_trabajo(app)
+
+
+def _abrir_ventana(srv, app, url, estado):
+    """import webview + create_window + start en el hilo principal, cada paso registrado. Lo primero tras arrancar el servidor; la preparacion de la base va aparte (hilos)."""
+    registro.etapa('import webview'); estado['etapa'] = 'import webview'
+    with registro.fase('import webview'):
+        import webview
+    registro.etapa('deteccion WebView2'); estado['etapa'] = 'deteccion WebView2'
+    with registro.fase('deteccion WebView2'):
+        lg = logging.getLogger('gridania'); lg.info('WebView2 en el registro: %s', webview2_instalado())
+    registro.etapa('create_window'); estado['etapa'] = 'create_window'
+    with registro.fase('create_window'):
+        win = webview.create_window('Editor de traducciones Gridania', url, width=1400, height=900)
+    estado['win'] = win
+    lg = logging.getLogger('gridania')
+    for nombre in ('loaded', 'shown', 'closed'):
+        try: getattr(win.events, nombre).__iadd__(lambda *x, n=nombre: registro.etapa('evento de ventana: ' + n))
+        except Exception: pass
+    instancia.publicar(app.cfg.home, url, 'ventana', srv.clave)
+    threading.Thread(target=lambda: (srv.salir.wait(), win.destroy()), daemon=True, name='cierre').start()
+    return webview
+
+
+def webview2_instalado():
+    """Windows: version del runtime WebView2 segun el registro (None si no se encuentra o no es Windows)"""
+    if not sys.platform.startswith('win'): return None
+    try:
+        import winreg
+        for raiz, ruta in ((winreg.HKEY_LOCAL_MACHINE, r'SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}'),
+                           (winreg.HKEY_LOCAL_MACHINE, r'SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}'),
+                           (winreg.HKEY_CURRENT_USER, r'Software\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}')):
+            try:
+                with winreg.OpenKey(raiz, ruta) as k: return winreg.QueryValueEx(k, 'pv')[0]
+            except OSError: continue
+    except Exception as x:
+        return 'error: %s' % x
+    return None
 
 
 def _servir(a, lg, app):
@@ -131,20 +174,22 @@ def _servir(a, lg, app):
         srv = Servidor(app, a.puerto); srv.arrancar()
     url = srv.url
     _decir('Editor Gridania en %s' % url, logging.INFO)
-    app.arrancar_fondo()
+    registro.vigilar_arranque(srv.ui_cargada.is_set)
     if a.sin_abrir:
+        app.arrancar_fondo(srv.ui_cargada)
         instancia.publicar(app.cfg.home, url, 'navegador', srv.clave)
         srv.salir.wait(); srv.parar(); return _salida(srv)
-    usado = False; estado = {'navegador': False}
+    usado = False; estado = {'navegador': False, 'win': None, 'etapa': ''}
+    srv.al_pedir_pagina = lambda: (registro.etapa('primera peticion GET / de la UI'), registro.parar_faulthandler())
     if not a.navegador:
+        threading.Thread(target=_vigilar_ui, args=(srv, app, estado, url), daemon=True, name='vigilante-ui').start()
         try:
-            import webview
-            win = webview.create_window('Editor de traducciones Gridania', url, width=1400, height=900)
-            instancia.publicar(app.cfg.home, url, 'ventana', srv.clave)
-            threading.Thread(target=lambda: (srv.salir.wait(), win.destroy()), daemon=True, name='cierre').start()
-            threading.Thread(target=_vigilar_ui, args=(srv, app, win, estado, url), daemon=True, name='vigilante-ui').start()
+            webview = _abrir_ventana(srv, app, url, estado)
+            app.arrancar_fondo(srv.ui_cargada)      # DESPUES de pedir la ventana: la base se prepara en hilos y nunca retrasa su aparicion
             t0 = time.time()
-            webview.start()
+            registro.etapa('webview.start (bucle de la GUI)'); estado['etapa'] = 'webview.start'
+            webview.start(lambda: registro.etapa('GUI iniciada (func de start)'))
+            registro.etapa('webview.start ha vuelto')
             usado = (srv.ui_cargada.is_set() or time.time() - t0 > 3) and not estado['navegador']
             if not usado and not estado['navegador']:
                 app.aviso = 'La ventana propia se cerro al abrirse; se usa el navegador.'; _decir(app.aviso)
@@ -152,6 +197,7 @@ def _servir(a, lg, app):
             lg.warning('ventana propia no disponible', exc_info=True)
             app.aviso = 'No se pudo abrir la ventana propia (%s: %s); se usa el navegador. Detalles en el registro.' % (type(x).__name__, x)
             _decir(app.aviso)
+    app.arrancar_fondo(srv.ui_cargada)              # idempotente (navegador / fallo de la ventana)
     if not usado:
         if not estado['navegador']:
             instancia.publicar(app.cfg.home, url, 'navegador', srv.clave); webbrowser.open(url)
@@ -163,7 +209,7 @@ def _servir(a, lg, app):
 def _salida(srv):
     if srv.fallo:
         msg = 'El servidor del editor ha fallado y se cierra: %s' % srv.fallo
-        _decir(msg); _caja('Editor de traducciones Gridania', msg + '\nVer el registro (Ayuda > Abrir carpeta de registros).')
+        _decir(msg); _caja('Editor de traducciones Gridania', msg + '\nVer el registro (Ayuda > Abrir carpeta de datos y registros).')
         return 2
     return 0
 

@@ -179,7 +179,7 @@ mark{background:#ffd24d;color:#111} .res{border-bottom:1px solid #333;padding:3p
 <dialog id="dSuave" class="grande"><h3>Suavizar saltos de linea</h3><div id="suInfo"></div><div id="suLista" style="max-height:55vh;overflow:auto"></div>
  <p style="display:flex;gap:8px"><button id="suAplicar" title="Escribe los cambios (solo cambian los saltos de linea, nunca las palabras ni el numero de trozos).">Aplicar</button><button class="sec" id="suCerrar" title="Cierra sin cambiar nada.">Cancelar</button></p></dialog>
 <dialog id="dAyuda" class="grande"><h3>Ayuda</h3>
-<p><button id="aLogs" class="sec" title="Abre la carpeta con editor.log (arranque, tiempos, errores).">Abrir carpeta de registros</button> <span id="aLogRuta" style="font-size:12px;color:#9aa"></span></p>
+<p><button id="aLogs" class="sec" title="Abre la carpeta de datos (junto al programa): editor.log, faulthandler.log, ediciones, ajustes.">Abrir carpeta de datos y registros</button> <span id="aLogRuta" style="font-size:12px;color:#9aa"></span></p>
 <h4>Cabecera</h4><dl>
 <dt>Actualizar desde GitHub</dt><dd>Baja del repositorio la traduccion, los glosarios y los textos japones y frances. Antes rellena repo y token en Ajustes.</dd>
 <dt>Extraer del juego</dt><dd>Lee el japones y el frances del juego instalado, para ver que ha cambiado tras una actualizacion.</dd>
@@ -408,7 +408,7 @@ function avisoTop(t){const b=$('avisoTop');b.textContent=t||'';b.classList.toggl
 async function esperarIndexado(){ // sondea la tarea como maximo 1 vez por segundo y SOLO mientras se ejecuta
  let tD=0,fallos=0;for(;;){try{const t=await api('/api/tarea?desde='+tD);fallos=0;tD=t.siguiente;const p=t.progreso||{};
   if(t.estado==='ejecutando'){cgMostrar('Indexando...',(p.fase||'')+(p.total>0?` ${p.hecho.toLocaleString('es')} de ${p.total.toLocaleString('es')}`:'')+` (${t.segundos} s)`,{total:p.total,hecho:p.hecho,cancelar:t.cancelable})}
-  else return t}catch(e){if(++fallos>=5){cgMostrar('El servidor no responde',e.message+' Mira el registro (Ayuda > Abrir carpeta de registros).',{barra:false});return null}}
+  else return t}catch(e){if(++fallos>=5){cgMostrar('El servidor no responde',e.message+' Mira el registro (Ayuda > Abrir carpeta de datos y registros).',{barra:false});return null}}
   await sleep(1000)}}
 async function ofrecerIndice(motivo){
  for(;;){cgMostrar('Falta el indice de celdas',motivo+' Se construye una sola vez (unos segundos) y despues solo se reindexan las hojas que cambien. No se hace nada hasta que lo pidas.',{barra:false,ir:true,no:true});
@@ -420,7 +420,7 @@ async function ofrecerIndice(motivo){
   const q2=await new Promise(r=>{$('cgIr').onclick=()=>r(true);$('cgNo').onclick=()=>r(false)});if(!q2)return false}}
 (async()=>{let e,n=0;
  cgMostrar('Cargando...','Preparando el editor.');
- for(;;){try{e=await api('/api/estado')}catch(x){if(++n>40){cgMostrar('No se puede conectar con el editor',x.message+' Mira el registro (Ayuda > Abrir carpeta de registros).',{barra:false});return}await sleep(500);continue}
+ for(;;){try{e=await api('/api/estado')}catch(x){if(++n>40){cgMostrar('No se puede conectar con el editor',x.message+' Mira el registro (Ayuda > Abrir carpeta de datos y registros).',{barra:false});return}await sleep(500);continue}
   if(e.arranque&&!e.arranque.listo){const a=e.arranque;cgMostrar('Cargando...',a.fase||'Preparando la base de datos (solo la primera vez tras actualizar).',{total:a.total,hecho:a.hecho});await sleep(700);continue}break}
  CLASES=e.clases||[];avisoTop(e.aviso);
  for(const id of ['bqClase','mClase'])$(id).innerHTML=(id==='mClase'?'<option value="">Clase: todas</option>':'<option value="">todas las clases</option>')+CLASES.map(c=>`<option>${esc(c)}</option>`).join('');

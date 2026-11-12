@@ -64,7 +64,7 @@ class Aplicacion(object):
         self.lock = threading.RLock()
         self.aviso = ''                                  # mensaje visible en la UI (p. ej. fallback a navegador)
         self.arranque = {'listo': True, 'fase': '', 'hecho': 0, 'total': 0}
-        self.vigencia = None                             # estado del indice persistente: {'vigente', 'hojas_cambiadas', 'motivo'}
+        self._fondo = False; self.vigencia = None                             # estado del indice persistente: {'vigente', 'hojas_cambiadas', 'motivo'}
         if diferir: self.arranque['listo'] = False
         else: self._preparar_base()
 
@@ -73,18 +73,28 @@ class Aplicacion(object):
         with registro.fase('migracion de la base'): self.base.migrar_datos(av)
         with registro.fase('flujo -> columna'): self.base.vincular_flujo(self.flujo)
 
-    def arrancar_fondo(self):
-        """migracion de editor.db antigua, flujo y comprobacion de si el indice sigue vigente, en segundo plano (la UI muestra «Cargando...» con la fase)"""
+    def arrancar_fondo(self, ui_cargada=None):
+        """IDEMPOTENTE. Migracion de editor.db antigua + flujo (hilo 'arranque': la UI muestra «Cargando...» con la fase y el editor sigue usable) y, en OTRO hilo de baja
+        prioridad, la comprobacion de si el indice sigue vigente: espera a que la UI haya cargado (maximo 60 s) para no competir con la ventana por el disco."""
+        with self.lock:
+            if self._fondo: return
+            self._fondo = True
         def f():
-            try:
-                self._preparar_base()
-                with registro.fase('vigencia del indice'): self.refrescar_vigencia()
+            try: self._preparar_base()
             except BaseException:
                 log.error('arranque en segundo plano', exc_info=True)
-                self.aviso = 'Error preparando la base de datos; mira el registro (Ayuda > Abrir carpeta de registros).'
+                self.aviso = 'Error preparando la base de datos; mira el registro (Ayuda > Abrir carpeta de datos y registros).'
             finally:
                 self.arranque.update(listo=True, fase='', hecho=0, total=0)
+        def v():
+            if ui_cargada is not None:
+                with registro.fase('espera de la UI para comprobar la vigencia'): ui_cargada.wait(60)
+            while not self.arranque.get('listo'): time.sleep(0.2)
+            try:
+                with registro.fase('vigencia del indice'): self.refrescar_vigencia()
+            except BaseException: log.error('vigencia', exc_info=True)
         threading.Thread(target=f, daemon=True, name='arranque').start()
+        threading.Thread(target=v, daemon=True, name='vigencia').start()
 
     def refrescar_vigencia(self):
         try:

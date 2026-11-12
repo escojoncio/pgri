@@ -37,6 +37,7 @@ class Ocupada(RuntimeError):
     """la base esta siendo indexada/migrada: las escrituras del usuario se rechazan con un mensaje claro (nunca esperan al cerrojo de SQLite)"""
 
 
+TRAMO_MIGRACION = 50000       # filas (por rango de id) por transaccion de la migracion de `clase`
 MIGRANDO = 'migrando la base de datos'
 INDEXANDO = 'indexando'
 
@@ -134,14 +135,23 @@ class Base(object):
         try:
             if 'clase' in self.migrados:
                 t0 = time.time()
-                if avance: avance('creando indices', 0, 0)
-                self._indices_aparte(('i_hoja',))                  # el relleno por hoja usa este indice
-                hojas = [r['hoja'] for r in self.q('SELECT DISTINCT hoja FROM celdas')]
-                for i in range(0, len(hojas), 200):
-                    with self.lock:
-                        for h in hojas[i:i + 200]: self.con.execute('UPDATE celdas SET clase=? WHERE hoja=?', (clases.clase_de(h), h))
-                        self.con.commit()
-                    if avance: avance('migrando base de datos', min(i + 200, len(hojas)), len(hojas))
+                # UPDATE por SQL con una tabla temporal hoja->clase (una entrada por hoja) y por tramos de id: cada tramo toma el cerrojo un instante (la UI sigue
+                # leyendo entre tramos) y solo reescribe las filas cuya clase cambia
+                with self.lock:
+                    hojas = [r['hoja'] for r in self.con.execute('SELECT DISTINCT hoja FROM celdas')]
+                    self.con.execute('CREATE TEMP TABLE IF NOT EXISTS tmp_clases (hoja TEXT PRIMARY KEY, clase TEXT NOT NULL)')
+                    self.con.execute('DELETE FROM tmp_clases')
+                    self.con.executemany('INSERT INTO tmp_clases VALUES (?,?)', [(h, clases.clase_de(h)) for h in hojas])
+                    lo, hi = self.con.execute('SELECT MIN(id), MAX(id) FROM celdas').fetchone()
+                paso = TRAMO_MIGRACION
+                if lo is not None:
+                    for ini in range(lo, hi + 1, paso):
+                        with self.lock:
+                            self.con.execute('UPDATE celdas SET clase=(SELECT t.clase FROM tmp_clases t WHERE t.hoja=celdas.hoja) WHERE id>=? AND id<? AND clase IS NOT '
+                                             '(SELECT t.clase FROM tmp_clases t WHERE t.hoja=celdas.hoja)', (ini, ini + paso))
+                            self.con.commit()
+                        if avance: avance('migrando base de datos', min(ini + paso, hi + 1) - lo, hi + 1 - lo)
+                with self.lock: self.con.execute('DROP TABLE IF EXISTS tmp_clases'); self.con.commit()
                 log.info('migracion: clase rellenada en %.1f s (%d hojas)', time.time() - t0, len(hojas))
             if avance: avance('creando indices', 0, 0)
             self._indices_aparte()

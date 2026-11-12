@@ -17,7 +17,7 @@ def dir_ui():
 
 class Servidor(object):
     def __init__(self, app, puerto=0):
-        self.app = app; self.clave = secrets.token_urlsafe(16); self.salir = threading.Event(); self.ui_cargada = threading.Event(); self.fallo = None
+        self.app = app; self.clave = secrets.token_urlsafe(16); self.salir = threading.Event(); self.ui_cargada = threading.Event(); self.fallo = None; self.al_pedir_pagina = None
         servidor = self
         class H(BaseHTTPRequestHandler):
             protocol_version = 'HTTP/1.1'
@@ -40,7 +40,10 @@ class Servidor(object):
                 if u.path in ('/', '/index.html'):
                     try: html = open(os.path.join(dir_ui(), 'index.html'), encoding='utf-8').read().replace('__CLAVE__', servidor.clave)
                     except OSError: return self._err(500, 'falta ui/index.html')
-                    servidor.ui_cargada.set()
+                    if not servidor.ui_cargada.is_set():
+                        servidor.ui_cargada.set()
+                        try: servidor.al_pedir_pagina and servidor.al_pedir_pagina()
+                        except Exception: log.warning('al_pedir_pagina', exc_info=True)
                     b = html.encode('utf-8'); self.send_response(200); self.send_header('Content-Type', 'text/html; charset=utf-8'); self.send_header('Content-Length', str(len(b))); self.send_header('Cache-Control', 'no-store'); self.end_headers(); self.wfile.write(b); return
                 if not u.path.startswith('/api/'): return self._err(404, 'no existe')
                 if not self._auth(): return self._err(401, 'clave invalida')
