@@ -1,147 +1,366 @@
 <!doctype html>
 <html lang="es"><head><meta charset="utf-8"><title>Editor de traducciones Gridania</title>
 <style>
-*{box-sizing:border-box} body{margin:0;font:14px system-ui,Segoe UI,sans-serif;background:#1e1f24;color:#e6e6e6;display:flex;flex-direction:column;height:100vh}
-header{display:flex;gap:6px;align-items:center;padding:6px 10px;background:#2a2c33;flex-wrap:wrap}
-button{background:#3b6ea5;color:#fff;border:0;padding:6px 10px;border-radius:4px;cursor:pointer} button:hover{background:#4a82c0} button.sec{background:#555} button:disabled{opacity:.5}
-input,select,textarea{background:#15161a;color:#e6e6e6;border:1px solid #444;border-radius:4px;padding:4px}
+*{box-sizing:border-box} html,body{max-width:100vw;overflow:hidden}
+body{margin:0;font:14px system-ui,Segoe UI,sans-serif;background:#1e1f24;color:#e6e6e6;display:flex;flex-direction:column;height:100vh}
+header{display:flex;gap:6px;align-items:center;padding:6px 10px;background:#2a2c33;flex-wrap:wrap;flex:none}
+button{background:#3b6ea5;color:#fff;border:0;padding:6px 10px;border-radius:4px;cursor:pointer} button:hover{background:#4a82c0} button.sec{background:#555} button.sec:hover{background:#666} button.mini{padding:3px 7px;font-size:12px} button:disabled{opacity:.5}
+input,select,textarea{background:#15161a;color:#e6e6e6;border:1px solid #444;border-radius:4px;padding:4px;max-width:100%}
 .chip{padding:3px 9px;border-radius:10px;color:#111;cursor:pointer;font-weight:600;border:2px solid transparent;user-select:none}
 .chip.off{opacity:.35} .rojo{background:#ff9d9d}.naranja{background:#ffc27a}.verde{background:#a6e6a6}.blanco{background:#f2f2f2}
-main{flex:1;display:flex;min-height:0} #izq,#busq{width:36%;display:flex;flex-direction:column;border-right:1px solid #444} #der{flex:1;overflow:auto;padding:10px}
-#filtros{display:flex;gap:6px;padding:6px;flex-wrap:wrap;align-items:center} #tabla{flex:1;overflow:auto}
-table{border-collapse:collapse;width:100%} td{padding:3px 6px;border-bottom:1px solid #2d2f36;color:#111;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px;cursor:pointer}
+main{flex:1;display:flex;min-height:0;min-width:0;overflow:hidden}
+#izq,#busq{width:36%;flex:none;min-width:0;display:flex;flex-direction:column;border-right:1px solid #444}
+#der{flex:1;min-width:0;overflow-y:auto;overflow-x:hidden;padding:10px}
+#ed{min-width:0;max-width:100%}
+#filtros{display:flex;gap:6px;padding:6px;flex-wrap:wrap;align-items:center;flex:none} #filtros input,#filtros select{min-width:0}
+#flujoBar{display:flex;gap:4px;padding:0 6px 6px;flex-wrap:wrap;align-items:center;font-size:12px;flex:none}
+#tabla{flex:1;overflow:auto;min-height:0}
+table{border-collapse:collapse;width:100%;table-layout:fixed}
+td{padding:3px 6px;border-bottom:1px solid #2d2f36;color:#111;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+td.fl{text-align:center;font-weight:700} td.fl.hecho{color:#060} td.fl.por_hacer{color:#a00}
 tr.sel td{outline:2px solid #fff;outline-offset:-2px}
-.lbl{font-size:12px;color:#9aa;margin:8px 0 2px} pre{margin:0;white-space:pre-wrap;background:#15161a;border:1px solid #333;padding:6px;border-radius:4px;max-height:140px;overflow:auto}
+.lbl{font-size:12px;color:#9aa;margin:8px 0 2px}
+pre{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;background:#15161a;border:1px solid #333;padding:6px;border-radius:4px;max-height:140px;overflow:auto;min-width:0}
 textarea#es{width:100%;height:150px;font:14px Consolas,monospace}
-.vent{display:inline-block;vertical-align:top;margin:4px 8px 4px 0;border:2px solid #7a6a3a;background:#101a2a;border-radius:6px;padding:6px 10px;font:14px Consolas,monospace;min-width:260px}
-.vent div{white-space:pre;min-height:1.2em} .c{color:#ffd24d} .vent small{color:#889}
-.err{color:#ff7b7b} .avi{color:#ffd24d} li{margin:2px 0}
-#tareas{position:fixed;right:10px;bottom:10px;width:520px;max-height:40vh;background:#101114;border:1px solid #555;border-radius:6px;display:none;flex-direction:column}
-#log{overflow:auto;padding:6px;font:12px Consolas,monospace;white-space:pre-wrap;flex:1}
-dialog{background:#2a2c33;color:#e6e6e6;border:1px solid #666;border-radius:8px} dialog label{display:block;margin:6px 0 2px;font-size:12px;color:#9aa} dialog input{width:420px}
-.pager{padding:4px 8px;display:flex;gap:8px;align-items:center}
-#busq{display:none;flex-direction:column;border-right:1px solid #444;overflow:auto;padding:6px} #busq label{margin-right:8px;white-space:nowrap}
-mark{background:#ffd24d;color:#111} .res{border-bottom:1px solid #333;padding:3px;cursor:pointer;font-size:12px} .res:hover{background:#2d3140} .res .campo{color:#9aa}
-#tres{display:grid;grid-template-columns:1fr 1fr 1.3fr;gap:10px} .col h4{margin:0 0 4px;color:#9ad} .ctx{font-size:12px;color:#bbb;border:1px dashed #444;padding:4px;margin:4px 0;cursor:pointer;white-space:pre-wrap;max-height:90px;overflow:auto}
-.vent{min-width:0} .hab{color:#9fd;font-weight:600}
+.err{color:#ff7b7b} .avi{color:#ffd24d} li{margin:2px 0;overflow-wrap:anywhere}
+#tareas{position:fixed;right:10px;bottom:10px;width:520px;max-width:96vw;max-height:40vh;background:#101114;border:1px solid #555;border-radius:6px;display:none;flex-direction:column;z-index:5}
+#log{overflow:auto;padding:6px;font:12px Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere;flex:1}
+dialog{background:#2a2c33;color:#e6e6e6;border:1px solid #666;border-radius:8px;max-width:92vw} dialog label{display:block;margin:6px 0 2px;font-size:12px;color:#9aa} dialog input{width:420px;max-width:100%}
+dialog.grande{width:780px;max-height:86vh;overflow:auto} dialog h4{margin:14px 0 4px;color:#9ad} dialog dl{margin:0} dialog dt{font-weight:700;margin-top:6px} dialog dd{margin:0 0 0 14px;color:#cfd3da}
+.pager{padding:4px 8px;display:flex;gap:8px;align-items:center;flex:none}
+#busq{display:none;overflow:auto;padding:6px} #busq label{margin-right:8px;white-space:nowrap}
+mark{background:#ffd24d;color:#111} .res{border-bottom:1px solid #333;padding:3px;cursor:pointer;font-size:12px;overflow-wrap:anywhere} .res:hover{background:#2d3140} .res .campo{color:#9aa}
+#tres{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1.3fr);gap:10px;min-width:0}
+.col{min-width:0;overflow:hidden} .col h4{margin:0 0 4px;color:#9ad}
+.scroll{max-height:300px;overflow:auto}
+.ctx{font-size:12px;color:#bbb;border:1px dashed #444;padding:4px;margin:4px 0;cursor:pointer;white-space:pre-wrap;overflow-wrap:anywhere;max-height:90px;overflow:auto}
+.hab{color:#9fd;font-weight:600;overflow-wrap:anywhere}
+#meta{color:#9aa;overflow-wrap:anywhere}
+/* vista ingame */
+.vgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:10px;min-width:0}
+.vtit{font-weight:700;color:#9ad;margin:2px 0}
+.vent{margin:6px 0;border:2px solid #8d7d4a;background:rgba(14,22,40,.88);border-radius:8px;padding:6px 10px 4px;font:15px/1.35 Consolas,'Courier New',monospace;min-width:0;max-width:100%;position:relative}
+.vent.mala{border-color:#e55}
+.vent .nom{display:inline-block;background:#2b3a5c;border:1px solid #8d7d4a;border-radius:4px;padding:0 8px;margin:-16px 0 4px -4px;font-size:13px;font-weight:700;color:#fff;overflow-wrap:anywhere}
+.ln{display:flex;gap:6px;align-items:baseline;min-height:1.35em;border-radius:3px}
+.ln .t{flex:1;min-width:0;white-space:pre-wrap;overflow-wrap:anywhere;color:#f4f4f4}
+.ln .nl{color:#4a5775;font-size:11px;flex:none} .ln .an{color:#778;font-size:11px;flex:none;min-width:44px;text-align:right}
+.ln.aviso .an{color:#ffd24d} .ln.mal{background:rgba(255,60,60,.28)} .ln.mal .an{color:#ff8a8a;font-weight:700}
+.c{color:#ffd24d}
+.vpie{display:flex;justify-content:space-between;font:11px system-ui;color:#889;margin-top:2px;gap:6px;flex-wrap:wrap}
+.vpie .sig{color:#e8d98a;font-size:13px} .vpie .prob{color:#ff9a9a;font-weight:700}
+.vent.compacto{font-size:13px;padding:4px 8px} .vent.compacto .nom{margin-top:-14px}
+#estSuave{font-size:12px;margin:4px 0} .ok{color:#8fd68f}
+#mis{display:none;width:36%;flex:none;min-width:0;flex-direction:column;border-right:1px solid #444}
+.mtop,.mnav{display:flex;gap:5px;padding:5px 6px;flex-wrap:wrap;align-items:center;flex:none} .mtop input,.mtop select{min-width:0}
+#mLista{flex:0 0 32%;overflow:auto;border-top:1px solid #333;border-bottom:1px solid #333;min-height:60px}
+.mi{padding:3px 8px;border-bottom:1px solid #2d2f36;cursor:pointer;overflow:hidden} .mi:hover{background:#2d3140} .mi.sel{background:#34406a}
+.mi .mn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap} .mi .mc2{font-size:11px;color:#9aa;overflow-wrap:anywhere}
+#mCeldas{flex:1;overflow:auto;min-height:0} #mInfo,#mTitulo{padding:3px 8px;font-size:12px;color:#9aa;overflow-wrap:anywhere;flex:none}
+.mc{display:flex;gap:6px;padding:2px 6px;border-left:6px solid #888;border-bottom:1px solid #2d2f36;cursor:pointer;font-size:12px;align-items:baseline;min-width:0}
+.mc.rojo{border-left-color:#ff9d9d}.mc.naranja{border-left-color:#ffc27a}.mc.verde{border-left-color:#a6e6a6}.mc.blanco{border-left-color:#f2f2f2}
+.mc:hover{background:#2d3140} .mc.sel{background:#34406a;outline:1px solid #fff}
+.mc .idx{color:#778;flex:none} .mc .hb{color:#9fd;flex:none;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap} .mc .tx{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mc .fl{width:12px;flex:none;text-align:center} .mc .fl.hecho{color:#8fd68f} .mc .fl.por_hacer{color:#ff9a9a}
 </style></head><body>
 <header>
  <b>Editor Gridania</b>
  <span id="chips"></span>
  <span style="flex:1"></span>
- <button id="bSync" title="Descarga traduccion, glosarios y textos ja/fr del repo">Actualizar desde GitHub</button>
- <button id="bExt" class="sec" title="Extrae ja/fr de la carpeta sqpack/ffxiv indicada en Ajustes">Extraer del juego</button>
- <button id="bGen" title="suavizado + construir_dat + puerta + validacion">Generar translations.dat</button>
- <button id="bExp" class="sec">Exportar cambios</button>
- <button id="bBusq" class="sec">Buscar global</button>
- <button id="bCfg" class="sec">Ajustes</button>
- <button id="bTar" class="sec">Tareas</button>
- <button id="bSalir" class="sec">Salir</button>
+ <button id="bSync" title="Descarga del repositorio de GitHub la traduccion, los glosarios y los textos japones/frances. Hace falta haber puesto repo y token en Ajustes.">Actualizar desde GitHub</button>
+ <button id="bExt" class="sec" title="Lee el japones y el frances directamente del juego instalado (carpeta sqpack/ffxiv indicada en Ajustes) para detectar lo que ha cambiado.">Extraer del juego</button>
+ <button id="bGen" title="Crea el fichero translations.dat con el repo + tus cambios. Aplica antes el suavizado de saltos de linea (el mismo del repo) y las comprobaciones. Tarda decenas de minutos.">Generar translations.dat</button>
+ <button id="bExp" class="sec" title="Copia tus ediciones (un fichero por hoja) a una carpeta cambios_FECHA para subirlas al repositorio.">Exportar cambios</button>
+ <button id="bMis" class="sec" title="Vista «Por mision / escena / hoja»: carga una hoja completa como conversacion continua, en orden, con lista de misiones, contadores y navegacion.">Por mision / hoja</button>
+ <button id="bBusq" class="sec" title="Cambia entre la tabla de celdas y la busqueda global (japones, frances y espanol a la vez, con reemplazo).">Buscar global</button>
+ <button id="bCfg" class="sec" title="Repositorio, token de GitHub, carpeta del juego y carpeta de salida del .dat.">Ajustes</button>
+ <button id="bTar" class="sec" title="Muestra u oculta el registro de la tarea en curso (actualizar, extraer, generar).">Tareas</button>
+ <button id="bAyuda" title="Explica cada boton, filtro y color del programa.">Ayuda</button>
+ <button id="bSalir" class="sec" title="Cierra el editor.">Salir</button>
 </header>
 <main>
  <section id="izq">
   <div id="filtros">
-   <input id="fHoja" list="hojas" placeholder="Hoja (ej. quest/000/...)" size="26"><datalist id="hojas"></datalist>
-   <input id="fQ" placeholder="Buscar en JP / ES" size="22">
-   <label><input type="checkbox" id="fEd"> solo editadas</label>
+   <input id="fHoja" list="hojas" placeholder="Hoja (ej. quest/000/...)" size="22" title="Limita la tabla a una hoja concreta (empieza a escribir y elige de la lista). Vacio = todas."><datalist id="hojas"></datalist>
+   <select id="fClase" title="Clase de texto: Dialogo de PNJ, Misiones, Escenas, Objetos, Habilidades, Lugares, Interfaz... Se deduce sola del nombre de la hoja. Entre parentesis, cuantas celdas hay."><option value="">Clase: todas</option></select>
+   <input id="fQ" placeholder="Buscar en JP / ES" size="18" title="Muestra solo las celdas cuyo texto japones o espanol contiene lo que escribas (pulsa Enter o sal del cuadro).">
+   <label title="Muestra solo las celdas que has editado tu en este programa (llevan un asterisco *)."><input type="checkbox" id="fEd"> solo editadas</label>
+   <select id="fFlujo" title="Estado de trabajo (no es el color): Por hacer = pendientes que tu marcas; Hecho = ya revisadas; Sin clasificar = sin marca."><option value="">Estado: todos</option></select>
   </div>
-  <div id="tabla"><table><tbody id="filas"></tbody></table></div>
-  <div class="pager"><button class="sec" id="pPrev">&lt;</button><span id="pInfo"></span><button class="sec" id="pNext">&gt;</button></div>
+  <div id="flujoBar">
+   <span title="Marca TODAS las celdas que cumplen los filtros actuales (no solo las de esta pagina).">Marcar los resultados filtrados:</span>
+   <button class="sec mini" id="mfPor" title="Marca como «Por hacer» todos los resultados filtrados.">Por hacer</button>
+   <button class="sec mini" id="mfHecho" title="Marca como «Hecho» todos los resultados filtrados.">Hecho</button>
+   <button class="sec mini" id="mfSin" title="Quita la marca (Sin clasificar) a todos los resultados filtrados.">Quitar</button>
+   <button class="sec mini" id="mfSuave" title="Aplica el espaciado corregido (reflujo y suavizado de saltos de linea) a los resultados filtrados. Antes muestra una vista previa antes/despues.">Suavizar saltos</button>
+   <button class="sec mini" id="mfNoNL" title="Quita los saltos de linea de presentacion de los resultados filtrados (une con un espacio) sin perder palabras, macros ni separadores. Vista previa y deshacer. Las celdas que no lo admiten no se tocan.">Eliminar saltos</button>
+   <button class="sec mini" id="mfNoNLS" title="Quita todos los saltos de los resultados filtrados y despues vuelve a suavizar (espaciado corregido).">Eliminar y suavizar</button>
+   <button class="sec mini" id="mfDesh" title="Deshace el ultimo suavizado en bloque aplicado (restaura el texto anterior).">Deshacer suavizado</button>
+   <button class="sec mini" id="mfExp" title="Guarda tus marcas Por hacer / Hecho en un fichero TSV (carpeta de salida de Ajustes).">Exportar estados</button>
+   <button class="sec mini" id="mfImp" title="Carga marcas desde un fichero TSV exportado antes (se suman a las actuales).">Importar estados</button><input type="file" id="mfFile" accept=".tsv,.txt" style="display:none">
+  </div>
+  <div id="tabla"><table><colgroup><col style="width:20%"><col style="width:13%"><col style="width:5%"><col style="width:31%"><col style="width:31%"></colgroup><tbody id="filas"></tbody></table></div>
+  <div class="pager"><button class="sec" id="pPrev" title="Pagina anterior de resultados.">&lt;</button><span id="pInfo"></span><button class="sec" id="pNext" title="Pagina siguiente de resultados.">&gt;</button></div>
+ </section>
+ <section id="mis">
+  <div class="mtop">
+   <input id="mQ" placeholder="Buscar mision / escena por nombre o ID" size="24" title="Escribe parte del nombre o del ID de la hoja (ej. ManFst002 o 00085).">
+   <select id="mClase" title="Limita la lista a una clase de texto (Misiones, Escenas...)."></select>
+   <select id="mExp" title="Limita la lista a una expansion (usa la tabla trabajo/informes/expansion_historia.tsv del repo)."><option value="">Expansion: todas</option></select>
+   <select id="mFl" title="Filtra por tu estado de trabajo."><option value="">Todas</option><option value="por_hacer">Con celdas Por hacer</option><option value="hecho">Totalmente Hecho</option></select>
+  </div>
+  <div class="mnav">
+   <button class="sec mini" id="mPrevM" title="Mision / hoja anterior de la lista.">&laquo; Mision</button><button class="sec mini" id="mNextM" title="Mision / hoja siguiente de la lista.">Mision &raquo;</button>
+   <button class="sec mini" id="mPrevC" title="Celda anterior, en el orden de traduccion (Alt+flecha izquierda).">&lsaquo; Celda</button><button class="sec mini" id="mNextC" title="Celda siguiente, en el orden de traduccion (Alt+flecha derecha).">Celda &rsaquo;</button>
+   <button class="sec mini" id="mHecho" title="Marca como «Hecho» TODAS las celdas de la mision abierta.">Marcar mision Hecho</button><button class="sec mini" id="mPor" title="Marca como «Por hacer» TODAS las celdas de la mision abierta.">Mision Por hacer</button>
+   <button class="sec mini" id="mSuave" title="Espaciado corregido de saltos de linea en toda la mision (con vista previa y deshacer).">Suavizar saltos</button><button class="sec mini" id="mNoNL" title="Quita los saltos de linea de presentacion de toda la mision (con vista previa y deshacer).">Eliminar saltos</button><button class="sec mini" id="mNoNLS" title="Quita todos los saltos de la mision y vuelve a suavizar.">Eliminar y suavizar</button>
+  </div>
+  <div id="mCuenta" style="padding:0 8px;font-size:12px;color:#9aa;flex:none"></div>
+  <div id="mLista"></div><div id="mTitulo"></div><div id="mInfo"></div><div id="mCeldas"></div>
  </section>
  <section id="busq">
   <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-   <input id="bqT" placeholder="Texto o expresion a buscar" size="30">
-   <select id="bqModo"><option value="subcadena">subcadena</option><option value="exacto">texto exacto (campo completo)</option><option value="palabra">palabra completa</option><option value="regex">regex</option></select>
-   <label><input type="checkbox" id="bqJa" checked>JP</label><label><input type="checkbox" id="bqFr" checked>FR</label><label><input type="checkbox" id="bqEs" checked>ES</label>
-   <label><input type="checkbox" id="bqMay">Distinguir mayusculas</label><label><input type="checkbox" id="bqTil">Distinguir tildes</label>
-   <input id="bqHoja" placeholder="Hoja (opcional)" size="16">
-   <select id="bqEst"><option value="">todos los estados</option><option>rojo</option><option>naranja</option><option>verde</option><option>blanco</option></select>
-   <button id="bqIr">Buscar</button><button class="sec" id="bqExp">Exportar lista</button>
+   <input id="bqT" placeholder="Texto o expresion a buscar" size="30" title="Lo que quieres encontrar. Pulsa Enter para buscar.">
+   <select id="bqModo" title="Como se compara: subcadena (aparece dentro), texto exacto (el campo entero), palabra completa o expresion regular (avanzado)."><option value="subcadena">subcadena</option><option value="exacto">texto exacto (campo completo)</option><option value="palabra">palabra completa</option><option value="regex">regex</option></select>
+   <label title="Buscar en el texto japones."><input type="checkbox" id="bqJa" checked>JP</label><label title="Buscar en el texto frances."><input type="checkbox" id="bqFr" checked>FR</label><label title="Buscar en la traduccion al espanol."><input type="checkbox" id="bqEs" checked>ES</label>
+   <label title="Si lo activas, «Casa» y «casa» son distintas."><input type="checkbox" id="bqMay">Distinguir mayusculas</label><label title="Si lo activas, «cafe» y «café» son distintas."><input type="checkbox" id="bqTil">Distinguir tildes</label>
+   <input id="bqHoja" placeholder="Hoja (opcional)" size="14" title="Busca solo en esta hoja (nombre exacto). Vacio = todas.">
+   <select id="bqClase" title="Busca solo en una clase de texto (dialogos, misiones, escenas, objetos...). Se deduce de la hoja."><option value="">todas las clases</option></select>
+   <select id="bqEst" title="Busca solo celdas de un color: rojo = nueva sin traducir; naranja = japones cambiado; verde = al dia; blanco = sin traducir ya existente."><option value="">todos los colores</option><option>rojo</option><option>naranja</option><option>verde</option><option>blanco</option></select>
+   <select id="bqFlujo" title="Busca solo celdas con este estado de trabajo."><option value="">todos los estados de trabajo</option><option value="por_hacer">Por hacer</option><option value="hecho">Hecho</option><option value="sin">Sin clasificar</option></select>
+   <button id="bqIr" title="Ejecuta la busqueda (tambien con Enter).">Buscar</button><button class="sec" id="bqExp" title="Guarda la lista de resultados en un fichero TSV.">Exportar lista</button>
   </div>
   <div id="bqInfo" style="margin:6px 0"></div><div id="bqHojas" style="font-size:12px;color:#9aa;max-height:70px;overflow:auto"></div>
-  <div style="margin:6px 0;display:flex;gap:6px;align-items:center;flex-wrap:wrap"><b>Reemplazar en ES:</b><input id="bqRep" placeholder="reemplazo (regex: \\1)" size="22">
-   <button class="sec" id="bqPrev">Vista previa</button><button id="bqApl">Aplicar a seleccionados</button><label><input type="checkbox" id="bqTodos">todos los resultados</label><label><input type="checkbox" id="bqSelTodo">marcar los de esta pagina</label></div>
+  <div style="margin:6px 0;display:flex;gap:6px;align-items:center;flex-wrap:wrap"><b>Reemplazar en ES:</b><input id="bqRep" placeholder="reemplazo (regex: \\1)" size="22" title="Texto nuevo que sustituira lo buscado, solo en la traduccion al espanol.">
+   <button class="sec" id="bqPrev" title="Muestra el antes y el despues sin guardar nada.">Vista previa</button><button id="bqApl" title="Aplica el reemplazo a las celdas marcadas (pasa las mismas comprobaciones que al guardar).">Aplicar a seleccionados</button><label title="Aplica a todos los resultados, no solo a los marcados."><input type="checkbox" id="bqTodos">todos los resultados</label><label title="Marca todas las casillas de la pagina actual."><input type="checkbox" id="bqSelTodo">marcar los de esta pagina</label></div>
+  <div style="margin:4px 0;display:flex;gap:6px;align-items:center;flex-wrap:wrap"><b>Estado de trabajo:</b>
+   <button class="sec mini" id="bqMPor" title="Marca como «Por hacer» las celdas con casilla marcada (o todos los resultados si no marcas ninguna).">Por hacer</button><button class="sec mini" id="bqMHecho" title="Marca como «Hecho» las celdas con casilla marcada (o todos los resultados).">Hecho</button><button class="sec mini" id="bqMSin" title="Quita la marca a las celdas con casilla marcada (o todos los resultados).">Quitar</button>
+   <button class="sec mini" id="bqSuave" title="Aplica el espaciado corregido (saltos de linea) a las celdas marcadas o a todos los resultados, con vista previa.">Suavizar saltos</button><button class="sec mini" id="bqNoNL" title="Quita los saltos de linea de presentacion de las celdas marcadas o de todos los resultados (vista previa y deshacer).">Eliminar saltos</button><button class="sec mini" id="bqNoNLS" title="Quita todos los saltos y vuelve a suavizar.">Eliminar y suavizar</button></div>
   <div id="bqRepRes" style="font-size:12px"></div>
   <div id="bqRes"></div>
-  <div class="pager"><button class="sec" id="bqPrevP">&lt;</button><span id="bqPag"></span><button class="sec" id="bqNextP">&gt;</button></div>
+  <div class="pager"><button class="sec" id="bqPrevP" title="Pagina anterior.">&lt;</button><span id="bqPag"></span><button class="sec" id="bqNextP" title="Pagina siguiente.">&gt;</button></div>
  </section>
  <section id="der"><div id="vacio">Elige una celda de la tabla.</div><div id="ed" style="display:none">
-  <div><b id="titulo"></b> <span id="meta" style="color:#9aa"></span> <span id="hablante" class="hab"></span></div>
-  <div class="lbl">Fila anterior (clic para abrir)</div><div class="ctx" id="ctxPrev"></div>
+  <div><b id="titulo"></b> <span id="meta"></span> <span id="hablante" class="hab"></span></div>
+  <div style="margin:6px 0;display:flex;gap:6px;align-items:center;flex-wrap:wrap"><b>Estado de trabajo:</b> <span id="flActual" title="Estado de trabajo de esta celda"></span>
+   <button class="sec mini" id="fcPor" title="Marca esta celda como «Por hacer» (Alt+1).">Por hacer (Alt+1)</button><button class="sec mini" id="fcHecho" title="Marca esta celda como «Hecho» (Alt+2).">Hecho (Alt+2)</button><button class="sec mini" id="fcSin" title="Quita la marca de esta celda (Alt+0).">Sin clasificar (Alt+0)</button></div>
+  <div class="lbl">Fila anterior (clic para abrir)</div><div class="ctx" id="ctxPrev" title="Celda anterior de la misma hoja; clic para abrirla."></div>
   <div id="tres">
-   <div class="col"><h4>Japones</h4><pre id="ja"></pre><div id="vja"></div><div id="bloquePrevio" style="display:none"><div class="lbl">Japones anterior (repo importado)</div><pre id="jaPrevio"></pre></div></div>
-   <div class="col"><h4>Frances</h4><pre id="fr"></pre><div id="vfr"></div></div>
+   <div class="col"><h4>Japones</h4><pre id="ja"></pre><div class="scroll" id="vja"></div><div id="bloquePrevio" style="display:none"><div class="lbl">Japones anterior (repo importado)</div><pre id="jaPrevio"></pre></div></div>
+   <div class="col"><h4>Frances</h4><pre id="fr"></pre><div class="scroll" id="vfr"></div></div>
    <div class="col"><h4>Espanol (editable)</h4>
-    <textarea id="es" spellcheck="false"></textarea>
+    <textarea id="es" spellcheck="false" title="Aqui escribes la traduccion. Cada salto de linea es un salto del original (el numero debe coincidir)."></textarea>
     <div style="margin:6px 0;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-     <button id="bGuardar">Guardar (Ctrl+S)</button><button id="bReflujo" class="sec">Usar texto con reflujo</button>
-     <label><input type="checkbox" id="cReflujo" checked> reflujo</label>
-     <label>Jugador <select id="genero"><option value="masc">masculino</option><option value="fem">femenino</option></select></label><span id="msg"></span></div>
-    <div class="lbl">Vista previa «como en el juego» <span id="cajaInfo"></span></div><div id="vista"></div>
+     <button id="bGuardar" title="Guarda la traduccion en tus ediciones (Ctrl+S). Solo si no hay errores.">Guardar (Ctrl+S)</button><button id="bReflujo" class="sec" title="Pone en el cuadro el texto con los saltos de linea reajustados al ancho de la caja (58 car., max. 4 lineas por ventana). No cambia palabras.">Usar texto con reflujo</button>
+     <button id="bSuaveCelda" class="sec" title="Muestra el antes y el despues del espaciado corregido (saltos de linea) de esta celda y, si aceptas, lo pone en el cuadro. Puedes deshacerlo.">Suavizar saltos</button><button id="bNoNL" class="sec" title="Quita los saltos de linea de presentacion de esta celda (los une con un espacio). Muestra antes/despues. No pierde palabras, macros ni separadores del original; si la celda no lo admite, avisa.">Eliminar saltos</button><button id="bNoNLS" class="sec" title="Quita todos los saltos y despues vuelve a suavizar (espaciado corregido).">Eliminar y suavizar</button><button id="bGuardarSig" title="Guarda esta celda y abre la siguiente de la mision (Por mision / hoja).">Guardar y siguiente</button><button id="bSuaveDesh" class="sec" style="display:none" title="Devuelve el cuadro al texto que tenia antes de suavizar.">Deshacer</button>
+     <label title="Si esta activo, la vista previa reajusta los saltos de linea automaticamente."><input type="checkbox" id="cReflujo" checked> reflujo</label><span id="msg"></span></div>
+    <div class="lbl">Vista previa «como en el juego» <span id="cajaInfo"></span></div><div id="estSuave"></div><div id="vista" class="vgrid"></div>
     <div class="lbl">Avisos</div><ul id="avisos"></ul></div>
   </div>
-  <div class="lbl">Fila siguiente (clic para abrir)</div><div class="ctx" id="ctxSig"></div>
+  <div class="lbl">Fila siguiente (clic para abrir)</div><div class="ctx" id="ctxSig" title="Celda siguiente de la misma hoja; clic para abrirla."></div>
  </div></section>
 </main>
-<div id="tareas"><div style="display:flex;padding:4px 8px;background:#2a2c33"><b id="tNombre" style="flex:1">Tarea</b><button class="sec" id="tCerrar">x</button></div><div id="log"></div></div>
+<div id="tareas"><div style="display:flex;padding:4px 8px;background:#2a2c33"><b id="tNombre" style="flex:1">Tarea</b><button class="sec" id="tCerrar" title="Oculta el registro.">x</button></div><div id="log"></div></div>
 <dialog id="dCfg"><h3>Ajustes</h3>
  <label>Repositorio (propietario/nombre)</label><input id="cRepo"><label>Rama</label><input id="cRama">
  <label>Token personal de GitHub (se guarda solo en este PC)</label><input id="cToken" type="password" autocomplete="off">
  <label>Carpeta sqpack/ffxiv del juego</label><input id="cJuego"><label>Carpeta de destino del translations.dat</label><input id="cDat">
  <label>Puerta: minimo de entradas</label><input id="cMin"><label>Puerta: maximo de rechazos</label><input id="cMax">
- <p style="display:flex;gap:8px"><button id="cGuardar">Guardar</button><button class="sec" id="cBorrar">Borrar token guardado</button><button class="sec" id="cCerrar">Cerrar</button></p>
+ <p style="display:flex;gap:8px"><button id="cGuardar" title="Guarda los ajustes en este PC.">Guardar</button><button class="sec" id="cBorrar" title="Elimina el token de GitHub guardado en este PC.">Borrar token guardado</button><button class="sec" id="cCerrar" title="Cierra sin guardar.">Cerrar</button></p>
 </dialog>
+<dialog id="dSuave" class="grande"><h3>Suavizar saltos de linea</h3><div id="suInfo"></div><div id="suLista" style="max-height:55vh;overflow:auto"></div>
+ <p style="display:flex;gap:8px"><button id="suAplicar" title="Escribe los cambios (solo cambian los saltos de linea, nunca las palabras ni el numero de trozos).">Aplicar</button><button class="sec" id="suCerrar" title="Cierra sin cambiar nada.">Cancelar</button></p></dialog>
+<dialog id="dAyuda" class="grande"><h3>Ayuda</h3>
+<h4>Cabecera</h4><dl>
+<dt>Actualizar desde GitHub</dt><dd>Baja del repositorio la traduccion, los glosarios y los textos japones y frances. Antes rellena repo y token en Ajustes.</dd>
+<dt>Extraer del juego</dt><dd>Lee el japones y el frances del juego instalado, para ver que ha cambiado tras una actualizacion.</dd>
+<dt>Generar translations.dat</dt><dd>Fabrica el fichero que usa el parche. Une repo y tus cambios, aplica el espaciado corregido (suavizado de saltos de linea: el mismo programa del repo, antes de construir el .dat) y pasa las comprobaciones. Tarda mucho.</dd>
+<dt>Exportar cambios</dt><dd>Copia tus ediciones a una carpeta para subirlas al repositorio.</dd>
+<dt>Buscar global</dt><dd>Alterna entre la tabla y la busqueda en todos los textos.</dd>
+<dt>Ajustes / Tareas / Salir</dt><dd>Ajustes del programa, registro de la tarea en curso y cierre.</dd></dl>
+<h4>Chips de color (arriba)</h4><dl>
+<dt>rojo</dt><dd>Celda nueva, o con japones cambiado, sin traduccion valida.</dd>
+<dt>naranja</dt><dd>El japones cambio pero hay una traduccion antigua: hay que revisarla.</dd>
+<dt>verde</dt><dd>Traducida y al dia.</dd>
+<dt>blanco</dt><dd>Ya existia pero no esta traducida.</dd>
+<dd>Pulsa un chip para mostrar u ocultar ese color. El numero es cuantas celdas hay.</dd></dl>
+<h4>Tabla (panel izquierdo)</h4><dl>
+<dt>Hoja</dt><dd>Muestra solo una hoja (grupo de textos).</dd>
+<dt>Clase</dt><dd>Filtra por tipo de texto: dialogo de PNJ, misiones, escenas, objetos, habilidades, lugares, interfaz, logros... Se deduce sola del nombre de la hoja; lo que no encaja va a «Otros».</dd>
+<dt>Buscar en JP / ES</dt><dd>Filtra por texto japones o espanol. Se combina con los demas filtros.</dd>
+<dt>solo editadas</dt><dd>Solo celdas que has guardado tu. Llevan un asterisco <b>*</b> junto al numero de fila.</dd>
+<dt>Estado (Por hacer / Hecho / Sin clasificar)</dt><dd>Tu propia lista de tareas, independiente del color. Se guarda solo en tu PC (fichero flujo.json de la carpeta del editor), nunca en el repositorio. Cada opcion muestra cuantas celdas hay con los filtros actuales. En la tabla: ✔ = Hecho, ○ = Por hacer.</dd>
+<dt>Marcar los resultados filtrados</dt><dd>Los botones Por hacer / Hecho / Quitar marcan TODAS las celdas que cumplen los filtros (no solo la pagina visible). Pide confirmacion.</dd>
+<dt>Exportar / Importar estados</dt><dd>Guarda o recupera tus marcas en un fichero TSV (columnas hoja, row, sub, col, estado).</dd>
+<dt>&lt; y &gt;</dt><dd>Pagina anterior y siguiente.</dd></dl>
+<h4>Editor (panel derecho)</h4><dl>
+<dt>Japones / Frances</dt><dd>El texto original, y debajo como se veria en el juego. Si el frances es largo, la columna tiene su propio desplazamiento.</dd>
+<dt>Espanol</dt><dd>Escribe aqui. Cada salto de linea es un salto del original.</dd>
+<dt>Guardar (Ctrl+S)</dt><dd>Guarda en tus ediciones. Se bloquea si hay errores (se muestran en rojo en Avisos).</dd>
+<dt>Usar texto con reflujo</dt><dd>Reajusta los saltos de linea al ancho de la caja sin tocar palabras.</dd>
+<dt>Suavizar saltos</dt><dd>Espaciado corregido: cortes de linea gramaticales, 58 caracteres, maximo 4 lineas por ventana y ultima ventana no huerfana. Nunca cambia palabras, macros ni el numero de trozos. En una celda enseña antes/despues y puedes deshacer. Junto al filtro de la tabla hay otro «Suavizar saltos» que lo hace sobre todos los resultados filtrados (con vista previa y «Deshacer suavizado»). Al generar el .dat se aplica solo.</dd>
+<dt>reflujo</dt><dd>Casilla: la vista previa reajusta saltos automaticamente.</dd>
+<dt>Por hacer / Hecho / Sin clasificar (Alt+1, Alt+2, Alt+0)</dt><dd>Marca la celda abierta.</dd></dl>
+<h4>Eliminar saltos</h4><dl>
+<dt>Eliminar saltos / Eliminar y suavizar</dt><dd>Quita los saltos de linea de presentacion dentro de cada trozo, uniendo con un espacio, sin perder palabras, macros ni colores. Los saltos que el japones exige (separadores entre trozos y saltos del original) NO se pueden borrar sin romper el formato: se conservan (al generar el .dat, el suavizado puede convertirlos en espacio). Solo se quitan los que el formato admite; si una celda no admite ninguno, se avisa y no se toca. El numero de trozos no cambia. «Eliminar y suavizar» ademas vuelve a colocar los saltos con el espaciado corregido. Esta en la celda, en la tabla (sobre los resultados filtrados), en la mision y en la busqueda; siempre con vista previa antes/despues y «Deshacer suavizado».</dd></dl>
+<h4>Por mision / hoja</h4><dl>
+<dt>Lista de misiones</dt><dd>Cada hoja (mision, escena...) con numero de celdas, Por hacer, Hecho y rojas/naranjas. Se ordena por expansion si el repo tiene expansion_historia.tsv; si no, por carpeta. Se puede buscar por nombre o ID y filtrar por clase, expansion o estado.</dd>
+<dt>Conversacion</dt><dd>Al elegir una mision se ven todas sus celdas en el orden de traduccion, con hablante y color. Al abrir una, el editor de la derecha muestra fila anterior y siguiente (JP, FR, ES), hablante y vista del juego. Edita y guarda en el sitio.</dd>
+<dt>« Mision / Mision » / ‹ Celda / Celda ›</dt><dd>Navegar entre misiones y celdas (Alt+flechas para celdas). «Guardar y siguiente» guarda y avanza.</dd>
+<dt>Marcar mision Hecho</dt><dd>Marca todas las celdas de la mision como Hecho.</dd></dl>
+<h4>Vista «como en el juego»</h4><dl>
+<dt>Ventana oscura</dt><dd>Cada recuadro es una ventana de dialogo del juego. Arriba, en una etiqueta, el hablante <code>(-Nombre-)</code>. Los colores del juego se ven en amarillo.</dd>
+<dt>▼ / ■</dt><dd>▼ indica que hay que pulsar para continuar; ■ marca la ultima ventana.</dd>
+<dt>Ventana 1/3, lineas, ancho</dt><dd>En el pie, numero de ventana y de lineas. A la derecha de cada linea: caracteres usados / caracteres seguros (el limite duro sale al pasar el raton). Amarillo = pasa del limite recomendado; rojo = supera el limite duro (no cabe).</dd>
+<dt>↵</dt><dd>Marca discreta de cada salto de linea.</dd>
+<dt>Avisos en rojo</dt><dd>Mas de 4 lineas en una ventana, linea mas ancha que la caja, o ultima ventana huerfana (una sola linea de dos palabras o menos).</dd>
+<dt>Suavizado</dt><dd>Sobre la vista se indica si la celda se ha suavizado o ya cumplia. La vista muestra el texto ya suavizado, igual que saldra en el .dat.</dd>
+<dt>♀ Mujer / ♂ Hombre</dt><dd>Si el texto tiene variantes segun el sexo del jugador, se ven las dos a la vez, una junto a otra. Si no, una sola vista.</dd></dl>
+<h4>Busqueda global</h4><dl>
+<dt>Texto, modo, JP/FR/ES</dt><dd>Que buscar y donde. Modos: subcadena, texto exacto, palabra completa, regex (avanzado).</dd>
+<dt>Clase, color y estado de trabajo</dt><dd>Filtros que se combinan con el texto.</dd>
+<dt>Reemplazar en ES</dt><dd>Cambia texto en la traduccion de los resultados marcados (o todos). Vista previa primero; las celdas que no pasan las comprobaciones se rechazan.</dd>
+<dt>Por hacer / Hecho / Quitar y Suavizar saltos</dt><dd>Actuan sobre las casillas marcadas o, si no marcas ninguna, sobre todos los resultados.</dd>
+<dt>Exportar lista</dt><dd>Guarda los resultados en un TSV.</dd></dl>
+<p><button id="aCerrar" title="Cierra la ayuda.">Cerrar</button></p></dialog>
 <script>
 const K='__CLAVE__';
 const $=id=>document.getElementById(id);
 async function api(ruta,cuerpo){const o={headers:{'X-K':K}};if(cuerpo!==undefined){o.method='POST';o.headers['Content-Type']='application/json';o.body=JSON.stringify(cuerpo)}
  const r=await fetch(ruta,o);const j=await r.json();if(!r.ok)throw new Error(j.error||r.status);return j}
-const ESTADOS=['rojo','naranja','verde','blanco'];let activos=new Set(['rojo','naranja']);let off=0,total=0,LIM=100,selId=null,timer=null,tareaDesde=0,sondeo=null;
-function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
-function chips(c){$('chips').innerHTML=ESTADOS.map(e=>`<span class="chip ${e} ${activos.has(e)?'':'off'}" data-e="${e}">${e} ${(c[e]||0).toLocaleString('es')}</span>`).join(' ');
+const ESTADOS=['rojo','naranja','verde','blanco'];let activos=new Set(['rojo','naranja']);let off=0,total=0,LIM=100,selId=null,timer=null,tareaDesde=0,sondeo=null,modoVista='tabla';
+const FL={por_hacer:'Por hacer',hecho:'Hecho',sin:'Sin clasificar'};const FLM={por_hacer:'\u25CB',hecho:'\u2714',sin:''};
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
+function qs(o){return new URLSearchParams(o).toString()}
+function chips(c){$('chips').innerHTML=ESTADOS.map(e=>`<span class="chip ${e} ${activos.has(e)?'':'off'}" data-e="${e}" title="Pulsa para mostrar u ocultar las celdas ${e}s. ${{rojo:'Nuevas o con japones cambiado, sin traducir.',naranja:'Japones cambiado: revisa la traduccion antigua.',verde:'Traducidas y al dia.',blanco:'Ya existian pero sin traducir.'}[e]}">${e} ${(c[e]||0).toLocaleString('es')}</span>`).join(' ');
  document.querySelectorAll('.chip').forEach(x=>x.onclick=()=>{const e=x.dataset.e;activos.has(e)?activos.delete(e):activos.add(e);off=0;cargar()})}
-async function cargar(){const p=new URLSearchParams({estados:[...activos].join(','),offset:off,limite:LIM,hoja:$('fHoja').value,q:$('fQ').value,editadas:$('fEd').checked?'1':'0'});
+function filtroTabla(){return {hoja:$('fHoja').value||null,estados:[...activos],q:$('fQ').value||null,editadas:$('fEd').checked,clase:$('fClase').value||null,flujo:$('fFlujo').value||null}}
+function opciones(sel,pri,lista,cont,claveVal){const v=sel.value;sel.innerHTML=`<option value="">${pri}</option>`+lista.map(c=>`<option value="${esc(claveVal?c[0]:c)}">${esc(claveVal?c[1]:c)} (${((cont[claveVal?c[0]:c])||0).toLocaleString('es')})</option>`).join('');sel.value=v}
+let CLASES=[];
+async function cargar(){const f=filtroTabla();const p=new URLSearchParams({estados:f.estados.join(','),offset:off,limite:LIM,hoja:f.hoja||'',q:f.q||'',editadas:f.editadas?'1':'0',clase:f.clase||'',flujo:f.flujo||''});
  const d=await api('/api/celdas?'+p);total=d.total;chips(d.contadores);
- $('filas').innerHTML=d.filas.map(f=>`<tr data-id="${f.id}" class="${f.id===selId?'sel':''}"><td class="${f.estado}">${esc(f.hoja)}</td><td class="${f.estado}">${f.row}${f.sub!=null?'.'+f.sub:''}:${f.col}${f.editada?' *':''}</td><td class="${f.estado}">${esc(f.ja||'')}</td><td class="${f.estado}">${esc(f.es||'')}</td></tr>`).join('');
+ opciones($('fClase'),'Clase: todas',CLASES,d.contadores_clase);
+ opciones($('fFlujo'),'Estado: todos',[['por_hacer','Por hacer'],['hecho','Hecho'],['sin','Sin clasificar']],d.contadores_flujo,true);
+ $('filas').innerHTML=d.filas.map(f=>`<tr data-id="${f.id}" class="${f.id===selId?'sel':''}" title="Clase: ${esc(f.clase)}"><td class="${f.estado}">${esc(f.hoja)}</td><td class="${f.estado}" title="${f.editada?'Editada por ti':''}">${f.row}${f.sub!=null?'.'+f.sub:''}:${f.col}${f.editada?' *':''}</td><td class="${f.estado} fl ${f.flujo}" title="${FL[f.flujo]}">${FLM[f.flujo]}</td><td class="${f.estado}">${esc(f.ja||'')}</td><td class="${f.estado}">${esc(f.es||'')}</td></tr>`).join('');
  document.querySelectorAll('#filas tr').forEach(t=>t.onclick=()=>abrir(+t.dataset.id));
  $('pInfo').textContent=`${total?off+1:0}-${Math.min(off+LIM,total)} de ${total.toLocaleString('es')}`}
 async function hojas(){const d=await api('/api/hojas');$('hojas').innerHTML=d.hojas.map(h=>`<option value="${esc(h.hoja)}">`).join('')}
-function ventanas(v,el,info){el=el||'vista';if(!v){$(el).innerHTML='';return}
- if(info!==false)$('cajaInfo').textContent=`(caja ${v.caja.tipo}, ${v.caja.seguro}/${v.caja.duro} car., ${v.nlineas} lineas, ${v.nventanas} ventanas)`;
- $(el).innerHTML=v.ventanas.map((w,i)=>`<div class="vent"><small>ventana ${i+1}/${v.nventanas}</small>`+w.map(l=>`<div>${esc(l).replace(/\x01/g,'<span class="c">').replace(/\x02/g,'</span>').replace(/\x03/g,'\u25A3')}</div>`).join('')+'</div>').join('')}
+// ---------- vista ingame
+function anchoLinea(l){return l.replace(/[\x01\x02]/g,'').length+(l.match(/\x03/g)||[]).length}
+function colorear(l){return esc(l).replace(/\x01/g,'<span class="c">').replace(/\x02/g,'</span>').replace(/\x03/g,'\u25A3')||'\u200b'}
+function palabras(l){return l.replace(/[\x01\x02\x03]/g,'').trim().split(/\s+/).filter(Boolean).length}
+function ingame(v,opt){opt=opt||{};if(!v)return '';const seg=v.caja.seguro,dur=v.caja.duro,N=v.nventanas,MAXL=4;const nom=v.hablante;
+ return v.ventanas.map((w,i)=>{const ult=i===N-1;const probs=[];
+  if(!opt.compacto){if(w.length>MAXL)probs.push(`mas de ${MAXL} lineas (${w.length})`);if(dur&&w.some(l=>anchoLinea(l)>dur))probs.push('linea mas ancha que la caja');if(ult&&N>1&&w.length===1&&palabras(w[0])<=2)probs.push('ventana final huerfana')}
+  const lin=w.map(l=>{const a=anchoLinea(l);const cl=(!opt.compacto&&dur&&a>dur)?'mal':((!opt.compacto&&seg&&a>seg)?'aviso':'');
+   return `<div class="ln ${cl}"><span class="t">${colorear(l)}</span><span class="nl" title="Salto de linea">\u21B5</span>${opt.compacto||!seg?'':`<span class="an" title="Caracteres de la linea / seguros (recomendado). Limite duro: ${dur}">${a}/${seg}</span>`}</div>`}).join('');
+  return `<div class="vent ${opt.compacto?'compacto':''} ${probs.length?'mala':''}">${nom?`<div class="nom" title="Hablante">${esc(nom)}</div>`:''}${lin}<div class="vpie"><span>ventana ${i+1}/${N} \u00B7 ${w.length} lineas</span>${probs.length?`<span class="prob">\u26A0 ${esc(probs.join('; '))}</span>`:''}<span class="sig" title="${ult?'Ultima ventana':'Pulsa para continuar'}">${ult?'\u25A0':'\u25BC'}</span></div></div>`}).join('')}
+function vistaFuente(v,el){$(el).innerHTML=ingame(v,{compacto:true})}
+function vistaES(r){const cont=$('vista');
+ if(r.variantes){cont.innerHTML=[['fem','\u2640 Mujer'],['masc','\u2642 Hombre']].map(([g,t])=>`<div><div class="vtit" title="Asi se ve si el jugador es ${g==='fem'?'mujer':'hombre'}">${t}</div>${ingame(r.variantes[g])}</div>`).join('');const v=r.variantes.masc||r.vista;if(v)info(v)}
+ else{cont.innerHTML=r.vista?ingame(r.vista):'';if(r.vista)info(r.vista)}
+ const s=r.suavizado;let t='';if(s){const m={aplicado:'Suavizado: <b>aplicado</b> (la vista muestra el espaciado corregido, igual que saldra en el .dat).',cumplia:'Suavizado: <b class="ok">ya cumplia</b>, no hace falta cambiar nada.',no_aplica:'Suavizado: no se aplica a este tipo de celda.'}[s.suavizado]||'';t=m;
+  if(s.reflujo==='cambiada')t+=' Reflujo: la vista reajusta los saltos; pulsa «Usar texto con reflujo» para llevarlo al cuadro.'}
+ $('estSuave').innerHTML=t}
+function info(v){$('cajaInfo').textContent=`(caja ${v.caja.tipo}, ${v.caja.seguro}/${v.caja.duro} car., ${v.nlineas} lineas, ${v.nventanas} ventanas)`}
 let ultimoTexto='';
-function pintar(r){ventanas(r.vista);ultimoTexto=r.texto;if(r.vista_ja!==undefined){ventanas(r.vista_ja,'vja',false);ventanas(r.vista_fr,'vfr',false)}
+function pintar(r){vistaES(r);ultimoTexto=r.texto;if(r.vista_ja!==undefined){vistaFuente(r.vista_ja,'vja');vistaFuente(r.vista_fr,'vfr')}
  const li=[...r.errores.map(e=>`<li class="err">ERROR ${esc(e[0])}: ${esc(e[1])}</li>`),...r.avisos.map(e=>`<li class="avi">${esc(e[0])}: ${esc(e[1])}</li>`)];
  $('avisos').innerHTML=li.join('')||'<li>sin avisos</li>';$('bGuardar').disabled=r.errores.length>0}
+function flActual(f){$('flActual').textContent=FL[f]||'';$('flActual').style.color=f==='hecho'?'#8fd68f':(f==='por_hacer'?'#ff9a9a':'#9aa')}
 async function abrir(id){selId=id;const d=await api('/api/celda?id='+id);$('vacio').style.display='none';$('ed').style.display='block';
- $('titulo').textContent=`${d.hoja}  fila ${d.row}${d.sub!=null?'.'+d.sub:''} col ${d.col}`;$('meta').textContent=`${d.estado} | ${d.tipo} | origen ${d.origen||'-'} | h ${d.h}${d.h_es&&d.h_es!==d.h?' (traduccion con h '+d.h_es+')':''}${d.reflujo?'':' | sin reflujo automatico'}`;
- $('ja').textContent=d.ja;$('fr').textContent=d.fr||'(sin frances)';ventanas(d.vista_ja,'vja',false);ventanas(d.vista_fr,'vfr',false);
+ $('titulo').textContent=`${d.hoja}  fila ${d.row}${d.sub!=null?'.'+d.sub:''} col ${d.col}`;$('meta').textContent=`${d.clase} | ${d.estado} | ${d.tipo} | origen ${d.origen||'-'} | h ${d.h}${d.h_es&&d.h_es!==d.h?' (traduccion con h '+d.h_es+')':''}${d.reflujo?'':' | sin reflujo automatico'}`;
+ $('ja').textContent=d.ja;$('fr').textContent=d.fr||'(sin frances)';vistaFuente(d.vista_ja,'vja');vistaFuente(d.vista_fr,'vfr');flActual(d.flujo);
  const h=d.hablante;$('hablante').textContent=h?'Hablante: '+Object.entries(h).map(([k,v])=>k+': '+v).join(' | '):'';ctx(d.contexto);$('bloquePrevio').style.display=d.ja_previo?'block':'none';$('jaPrevio').textContent=d.ja_previo;
- $('es').value=d.es_texto;$('msg').textContent=d.sin_traduccion?'Sin traduccion: plantilla con la estructura del original.':'';
- document.querySelectorAll('#filas tr').forEach(t=>t.classList.toggle('sel',+t.dataset.id===id));
- if(d.evaluacion)pintar(d.evaluacion);else{$('vista').innerHTML='';$('avisos').innerHTML='';$('bGuardar').disabled=false;previa()}}
+ $('es').value=d.es_texto;$('msg').textContent=d.sin_traduccion?'Sin traduccion: plantilla con la estructura del original.':'';$('bSuaveDesh').style.display='none';
+ document.querySelectorAll('#filas tr').forEach(t=>t.classList.toggle('sel',+t.dataset.id===id));marcaMision();
+ if(d.evaluacion)pintar(d.evaluacion);else{$('vista').innerHTML='';$('estSuave').innerHTML='';$('avisos').innerHTML='';$('bGuardar').disabled=false;previa()}}
 function ctx(c){for(const [k,el] of [['anterior','ctxPrev'],['siguiente','ctxSig']]){const x=c[k];const e=$(el);if(!x){e.textContent='(ninguna)';e.onclick=null;continue}
  e.textContent=`[${x.estado}] fila ${x.row}:${x.col}\nJP: ${x.ja||''}\nFR: ${x.fr||''}\nES: ${x.es||''}`;e.onclick=()=>abrir(x.id)}}
-async function previa(){if(selId==null)return;try{const r=await api('/api/preview',{id:selId,texto:$('es').value,genero:$('genero').value,reflujo:$('cReflujo').checked});pintar(r)}catch(e){$('avisos').innerHTML=`<li class="err">${esc(e.message)}</li>`}}
-$('es').oninput=()=>{clearTimeout(timer);timer=setTimeout(previa,300)};$('genero').onchange=previa;$('cReflujo').onchange=previa;
+async function previa(){if(selId==null)return;try{const r=await api('/api/preview',{id:selId,texto:$('es').value,reflujo:$('cReflujo').checked});pintar(r)}catch(e){$('avisos').innerHTML=`<li class="err">${esc(e.message)}</li>`}}
+$('es').oninput=()=>{clearTimeout(timer);timer=setTimeout(previa,300)};$('cReflujo').onchange=previa;
 $('bReflujo').onclick=()=>{if(ultimoTexto){$('es').value=ultimoTexto;previa()}};
-async function guardar(){if(selId==null)return;try{const r=await api('/api/guardar',{id:selId,texto:$('es').value});pintar(r.evaluacion);
- if(r.guardado){$('es').value=r.evaluacion.texto;$('msg').textContent='Guardado (origen sesion).';cargar()}else $('msg').textContent='No se guarda: hay errores.'}catch(e){$('msg').textContent=e.message}}
-$('bGuardar').onclick=guardar;document.addEventListener('keydown',e=>{if(e.ctrlKey&&e.key==='s'){e.preventDefault();guardar()}});
-['fHoja','fQ'].forEach(i=>$(i).onchange=()=>{off=0;cargar()});$('fEd').onchange=()=>{off=0;cargar()};
+async function guardar(){if(selId==null)return false;try{const r=await api('/api/guardar',{id:selId,texto:$('es').value});pintar(r.evaluacion);
+ if(r.guardado){$('es').value=r.evaluacion.texto;$('msg').textContent='Guardado (origen sesion).';cargar();refrescarMision();return true}else $('msg').textContent='No se guarda: hay errores.'}catch(e){$('msg').textContent=e.message}return false}
+$('bGuardar').onclick=guardar;
+// ---------- estado de trabajo
+async function marcarActual(est){if(selId==null)return;await api('/api/flujo_marcar',{estado:est,ids:[selId]});flActual(est);$('msg').textContent='Marcada: '+FL[est];cargar();refrescarMision()}
+$('fcPor').onclick=()=>marcarActual('por_hacer');$('fcHecho').onclick=()=>marcarActual('hecho');$('fcSin').onclick=()=>marcarActual('sin');
+async function marcarTabla(est){const n=total;if(!n)return;if(!confirm(`Marcar como «${FL[est]}» las ${n.toLocaleString('es')} celdas que cumplen los filtros actuales?`))return;
+ const r=await api('/api/flujo_marcar',{estado:est,tabla:filtroTabla()});alert(`Marcadas ${r.marcadas.toLocaleString('es')} celdas (${r.cambiadas.toLocaleString('es')} cambian).`);cargar();refrescarMision()}
+$('mfPor').onclick=()=>marcarTabla('por_hacer');$('mfHecho').onclick=()=>marcarTabla('hecho');$('mfSin').onclick=()=>marcarTabla('sin');
+$('mfExp').onclick=async()=>{try{const r=await api('/api/flujo_exportar',{});alert(`Exportadas ${r.filas} marcas a:\n${r.ruta}`)}catch(e){alert(e.message)}};
+$('mfImp').onclick=()=>$('mfFile').click();
+$('mfFile').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const t=await f.text();const rep=confirm('Aceptar = SUSTITUIR todas tus marcas por las del fichero.\nCancelar = SUMAR las del fichero a las actuales.');const r=await api('/api/flujo_importar',{contenido:t,reemplazar:rep});alert(`Importadas ${r.importadas} marcas (${r.ignoradas} lineas ignoradas).`);cargar();refrescarMision()}catch(x){alert(x.message)}e.target.value=''};
+// ---------- suavizado / eliminar saltos
+let suPend=null,textoPrevio=null;
+const NOM_MODO={suavizar:'Suavizar saltos',sin_saltos:'Eliminar todos los saltos',sin_saltos_suavizar:'Eliminar saltos y re-suavizar'};
+async function bloque(modo,sel){try{const r=await api('/api/suavizar_previa',Object.assign({modo},sel));suPend={modo,sel};
+ $('suInfo').innerHTML=`<b>${NOM_MODO[modo]}</b>: ${r.n_cambios} celdas cambiarian, ${r.sin_cambio} ya estaban bien, ${r.no_admite||0} no admiten quitar los saltos sin romper el formato (no se tocan), ${r.omitidas} omitidas (no verdes, sin traduccion o con errores).${r.truncado?`<br><span class="avi">Hay mas de ${r.maximo} celdas: se trata un maximo de ${r.maximo} por vez.</span>`:''}<br>Solo cambian saltos de linea y espacios; nunca palabras, macros, colores ni el numero de trozos. Se puede deshacer.`;
+ $('suLista').innerHTML=r.cambios.slice(0,40).map(c=>`<div class="res"><b>${esc(c.hoja)} ${c.row}${c.sub!=null?'.'+c.sub:''}:${c.col}</b><div class="lbl">Antes</div><pre>${esc(c.antes)}</pre><div class="lbl">Despues</div><pre>${esc(c.despues)}</pre></div>`).join('')+(r.n_cambios>40?`<p>... y ${r.n_cambios-40} mas.</p>`:'');
+ $('suAplicar').disabled=!r.n_cambios;$('dSuave').showModal()}catch(e){alert(e.message)}}
+$('suCerrar').onclick=()=>$('dSuave').close();
+$('suAplicar').onclick=async()=>{if(suPend&&suPend.local){$('es').value=suPend.local;$('dSuave').close();$('bSuaveDesh').style.display='';previa();return}
+ if(!suPend)return;try{const r=await api('/api/suavizar_aplicar',Object.assign({modo:suPend.modo},suPend.sel));$('dSuave').close();alert(`Aplicado en ${r.aplicadas} celdas. Puedes deshacerlo con «Deshacer suavizado».`);cargar();refrescarMision();if(selId!=null)abrir(selId)}catch(e){alert(e.message)}};
+$('mfSuave').onclick=()=>bloque('suavizar',{tabla:filtroTabla()});
+$('mfNoNL').onclick=()=>bloque('sin_saltos',{tabla:filtroTabla()});$('mfNoNLS').onclick=()=>bloque('sin_saltos_suavizar',{tabla:filtroTabla()});
+$('mfDesh').onclick=async()=>{if(!confirm('Deshacer el ultimo suavizado/eliminacion de saltos en bloque?'))return;try{const r=await api('/api/suavizar_deshacer',{});alert(`Restauradas ${r.restauradas} celdas (lote del ${r.fecha}).`+(r.cambiadas_despues?`\nNO restauradas ${r.cambiadas_despues} celdas: se editaron despues de la tanda (se respetan tus cambios).`:''));cargar();refrescarMision();if(selId!=null)abrir(selId)}catch(e){alert(e.message)}};
+function antesDespues(titulo,antes,despues,info,nuevo){suPend=nuevo?{local:nuevo}:null;$('suInfo').innerHTML=`<b>${titulo}</b> en esta celda. ${info||''}<br>Solo cambian saltos de linea y espacios; nunca palabras, macros ni trozos.`;
+ $('suLista').innerHTML=`<div class="lbl">Antes</div><pre>${esc(antes)}</pre><div class="lbl">Despues</div><pre>${esc(despues)}</pre>`;$('suAplicar').disabled=!nuevo;$('dSuave').showModal()}
+$('bSuaveCelda').onclick=async()=>{if(selId==null)return;try{const antes=$('es').value;const r=await api('/api/preview',{id:selId,texto:antes,reflujo:true});textoPrevio=antes;
+ const nuevo=r.texto!==antes?r.texto:null;antesDespues('Suavizar saltos',antes,r.texto,nuevo?'':'Esta celda <b>ya cumplia</b> el espaciado (o no admite reflujo).',nuevo)}catch(e){alert(e.message)}};
+async function celdaSinSaltos(res){if(selId==null)return;try{const antes=$('es').value;const r=await api('/api/sin_saltos_texto',{id:selId,texto:antes,resuavizar:res});textoPrevio=antes;
+ antesDespues(res?'Eliminar saltos y re-suavizar':'Eliminar todos los saltos',antes,r.texto,r.cambia?'':esc(r.motivo||'Sin cambios.'),r.cambia?r.texto:null)}catch(e){alert(e.message)}}
+$('bNoNL').onclick=()=>celdaSinSaltos(false);$('bNoNLS').onclick=()=>celdaSinSaltos(true);
+$('bSuaveDesh').onclick=()=>{if(textoPrevio!=null){$('es').value=textoPrevio;$('bSuaveDesh').style.display='none';previa()}};
+// ---------- teclado
+document.addEventListener('keydown',e=>{if(e.ctrlKey&&e.key==='s'){e.preventDefault();guardar();return}
+ if(e.altKey){const m={'1':'por_hacer','2':'hecho','0':'sin'}[e.key];if(m){e.preventDefault();marcarActual(m)}else if(e.key==='ArrowRight'){e.preventDefault();navC(1)}else if(e.key==='ArrowLeft'){e.preventDefault();navC(-1)}}});
+['fHoja','fQ'].forEach(i=>$(i).onchange=()=>{off=0;cargar()});['fEd','fClase','fFlujo'].forEach(i=>$(i).onchange=()=>{off=0;cargar()});
 $('pPrev').onclick=()=>{off=Math.max(0,off-LIM);cargar()};$('pNext').onclick=()=>{if(off+LIM<total){off+=LIM;cargar()}};
-// busqueda global
+// ---------- modo mision / escena / hoja
+let misL=[],misSel=null,celL=[],tM=null;
+function modo(m){modoVista=m;$('izq').style.display=m==='tabla'?'flex':'none';$('busq').style.display=m==='busq'?'flex':'none';$('mis').style.display=m==='mis'?'flex':'none';
+ $('bMis').classList.toggle('sec',m!=='mis');$('bBusq').classList.toggle('sec',m!=='busq');if(m==='mis'&&!misL.length)cargarMisiones()}
+$('bBusq').onclick=()=>modo(modoVista==='busq'?'tabla':'busq');$('bMis').onclick=()=>modo(modoVista==='mis'?'tabla':'mis');
+async function cargarMisiones(){try{const d=await api('/api/misiones?'+qs({q:$('mQ').value,clase:$('mClase').value,expansion:$('mExp').value,flujo:$('mFl').value}));misL=d.misiones;
+ const ev=$('mExp').value;$('mExp').innerHTML='<option value="">Expansion: todas</option>'+d.expansiones.map(x=>`<option>${esc(x)}</option>`).join('');$('mExp').value=ev;
+ $('mCuenta').textContent=`${d.total.toLocaleString('es')} hojas`+(d.expansiones.length?' (orden por expansion)':' (orden por carpeta)');
+ $('mLista').innerHTML=misL.map(m=>`<div class="mi ${m.hoja===misSel?'sel':''}" data-h="${esc(m.hoja)}" title="${esc(m.clase)}${m.expansion?' - '+esc(m.expansion):''}. Clic para cargarla como conversacion."><div class="mn">${esc(m.hoja)}</div><div class="mc2">${m.expansion?`<b>${esc(m.expansion)}</b> `:''}${m.total} celdas \u00B7 \u25CB ${m.por_hacer} \u00B7 \u2714 ${m.hecho}${m.rojo?` \u00B7 <span style="color:#ff9d9d">${m.rojo} rojas</span>`:''}${m.naranja?` \u00B7 <span style="color:#ffc27a">${m.naranja} naranjas</span>`:''}</div></div>`).join('');
+ document.querySelectorAll('#mLista .mi').forEach(x=>x.onclick=()=>abrirMision(x.dataset.h))}catch(e){$('mCuenta').textContent=e.message}}
+async function abrirMision(hoja,irA,sinAbrir){misSel=hoja;const d=await api('/api/hoja_celdas?'+qs({hoja}));celL=d.celdas;pintaCeldas();
+ document.querySelectorAll('#mLista .mi').forEach(x=>{x.classList.toggle('sel',x.dataset.h===hoja);if(x.dataset.h===hoja&&!sinAbrir)x.scrollIntoView({block:'nearest'})});
+ $('mTitulo').textContent=hoja;if(sinAbrir)return;const id=irA||(celL.find(c=>c.estado==='rojo'||c.estado==='naranja')||celL[0]||{}).id;if(id!=null)abrir(id)}
+function pintaCeldas(){const sc=$('mCeldas').scrollTop;$('mCeldas').innerHTML=celL.map((c,i)=>`<div class="mc ${c.estado} ${c.id===selId?'sel':''}" data-id="${c.id}" title="Celda ${i+1} de ${celL.length}. Clic para abrirla."><span class="fl ${c.flujo}" title="${FL[c.flujo]}">${FLM[c.flujo]||'\u00B7'}</span><span class="idx">${c.row}${c.sub!=null?'.'+c.sub:''}:${c.col}${c.editada?' *':''}</span>${c.hablante?`<b class="hb">${esc(c.hablante)}</b>`:''}<span class="tx">${esc((c.es||c.ja||'').replace(/^\(-.+?-\)/,'').trim())}</span></div>`).join('');
+ document.querySelectorAll('#mCeldas .mc').forEach(x=>x.onclick=()=>abrir(+x.dataset.id));$('mCeldas').scrollTop=sc;
+ const h=celL.filter(c=>c.flujo==='hecho').length,p=celL.filter(c=>c.flujo==='por_hacer').length;$('mInfo').textContent=`${celL.length} celdas \u00B7 \u25CB Por hacer ${p} \u00B7 \u2714 Hecho ${h}`}
+function marcaMision(){document.querySelectorAll('#mCeldas .mc').forEach(x=>x.classList.toggle('sel',+x.dataset.id===selId));const s=document.querySelector('#mCeldas .mc.sel');if(s)s.scrollIntoView({block:'nearest'})}
+async function refrescarMision(){if(modoVista!=='mis'||!misSel)return;await abrirMision(misSel,null,true);clearTimeout(tM);tM=setTimeout(cargarMisiones,200)}
+function navC(d){if(!celL.length)return;const i=celL.findIndex(c=>c.id===selId);const j=i+d;if(j>=0&&j<celL.length)abrir(celL[j].id);else navM(d,d<0)}
+async function navM(d,alFinal){if(!misL.length)return;const i=misL.findIndex(m=>m.hoja===misSel);const j=i+d;if(j<0||j>=misL.length)return;await abrirMision(misL[j].hoja);if(alFinal&&celL.length)abrir(celL[celL.length-1].id)}
+$('mPrevC').onclick=()=>navC(-1);$('mNextC').onclick=()=>navC(1);$('mPrevM').onclick=()=>navM(-1);$('mNextM').onclick=()=>navM(1);
+const selHoja=()=>({hoja:misSel,estados:[...ESTADOS]});
+async function marcarMision(est){if(!misSel)return;if(!confirm(`Marcar TODA la hoja «${misSel}» (${celL.length} celdas) como ${FL[est]}?`))return;await api('/api/flujo_marcar',{estado:est,tabla:selHoja()});refrescarMision();cargar()}
+$('mHecho').onclick=()=>marcarMision('hecho');$('mPor').onclick=()=>marcarMision('por_hacer');
+$('mSuave').onclick=()=>misSel&&bloque('suavizar',{tabla:selHoja()});$('mNoNL').onclick=()=>misSel&&bloque('sin_saltos',{tabla:selHoja()});$('mNoNLS').onclick=()=>misSel&&bloque('sin_saltos_suavizar',{tabla:selHoja()});
+$('bGuardarSig').onclick=async()=>{if(await guardar())navC(1)};
+$('mQ').oninput=()=>{clearTimeout(tM);tM=setTimeout(cargarMisiones,300)};['mClase','mExp','mFl'].forEach(i=>$(i).onchange=cargarMisiones);
+// ---------- busqueda global
 let bqOff=0,bqTot=0;const BQL=100;
 function bqCuerpo(extra){const campos=[['bqJa','ja'],['bqFr','fr'],['bqEs','es']].filter(x=>$(x[0]).checked).map(x=>x[1]);
- return Object.assign({texto:$('bqT').value,campos,modo:$('bqModo').value,mayus:$('bqMay').checked,tildes:$('bqTil').checked,hoja:$('bqHoja').value||null,estados:$('bqEst').value?[$('bqEst').value]:null},extra||{})}
+ return Object.assign({texto:$('bqT').value,campos,modo:$('bqModo').value,mayus:$('bqMay').checked,tildes:$('bqTil').checked,hoja:$('bqHoja').value||null,clase:$('bqClase').value||null,flujo:$('bqFlujo').value||null,estados:$('bqEst').value?[$('bqEst').value]:null},extra||{})}
 function marca(f){return esc(f.t.slice(0,f.ini))+'<mark>'+esc(f.t.slice(f.ini,f.fin))+'</mark>'+esc(f.t.slice(f.fin))}
 async function bqBuscar(){try{const r=await api('/api/buscar',bqCuerpo({offset:bqOff,limite:BQL}));bqTot=r.total;
  $('bqInfo').textContent=`${r.total.toLocaleString('es')} celdas. Por estado: `+Object.entries(r.por_estado).map(([k,v])=>k+' '+v).join(', ');
  $('bqHojas').textContent='Por hoja: '+Object.entries(r.por_hoja).slice(0,60).map(([k,v])=>k+' ('+v+')').join(', ');
- $('bqRes').innerHTML=r.resultados.map(x=>`<div class="res" data-id="${x.id}"><input type="checkbox" class="sel" data-id="${x.id}"> <span class="chip ${x.estado}" style="padding:0 6px">${x.estado}</span> ${esc(x.hoja)} ${x.row}${x.sub!=null?'.'+x.sub:''}:${x.col}`+Object.entries(x.campos).map(([c,f])=>`<div><span class="campo">${c.toUpperCase()}</span> ${marca(f)}</div>`).join('')+'</div>').join('');
+ $('bqRes').innerHTML=r.resultados.map(x=>`<div class="res" data-id="${x.id}"><input type="checkbox" class="sel" data-id="${x.id}" title="Marca esta celda para reemplazar, marcar estado o suavizar"> <span class="chip ${x.estado}" style="padding:0 6px">${x.estado}</span> ${esc(x.hoja)} ${x.row}${x.sub!=null?'.'+x.sub:''}:${x.col} <span style="color:#9aa" title="Clase">[${esc(x.clase)}]</span> ${x.flujo!=='sin'?`<b title="${FL[x.flujo]}">${FLM[x.flujo]}</b>`:''}`+Object.entries(x.campos).map(([c,f])=>`<div><span class="campo">${c.toUpperCase()}</span> ${marca(f)}</div>`).join('')+'</div>').join('');
  document.querySelectorAll('#bqRes .res').forEach(d=>d.onclick=e=>{if(e.target.className!=='sel')abrir(+d.dataset.id)});
  $('bqPag').textContent=`${bqTot?bqOff+1:0}-${Math.min(bqOff+BQL,bqTot)} de ${bqTot}`}catch(e){$('bqInfo').textContent=e.message}}
 function bqSel(){return [...document.querySelectorAll('#bqRes .sel:checked')].map(x=>+x.dataset.id)}
+function bqSelector(){const ids=bqSel();if(ids.length)return {ids};if(!bqTot){alert('Primero busca algo.');return null}if(!confirm(`No hay casillas marcadas: se usaran los ${bqTot.toLocaleString('es')} resultados.`))return null;return {busqueda:bqCuerpo()}}
+async function bqMarcar(est){const s=bqSelector();if(!s)return;const r=await api('/api/flujo_marcar',Object.assign({estado:est},s));alert(`Marcadas ${r.marcadas} celdas como «${FL[est]}».`);bqBuscar();cargar();refrescarMision()}
+$('bqMPor').onclick=()=>bqMarcar('por_hacer');$('bqMHecho').onclick=()=>bqMarcar('hecho');$('bqMSin').onclick=()=>bqMarcar('sin');
+$('bqSuave').onclick=()=>{const s=bqSelector();if(s)bloque('suavizar',s)};$('bqNoNL').onclick=()=>{const s=bqSelector();if(s)bloque('sin_saltos',s)};$('bqNoNLS').onclick=()=>{const s=bqSelector();if(s)bloque('sin_saltos_suavizar',s)};
 async function bqReemplazo(aplicar){try{const ids=$('bqTodos').checked?null:bqSel();if(ids&&!ids.length){$('bqRepRes').textContent='Marca resultados o activa «todos».';return}
  if(aplicar&&!confirm('Aplicar el reemplazo (solo ES, con las mismas validaciones que al guardar)?'))return;
  const r=await api('/api/reemplazar',bqCuerpo({reemplazo:$('bqRep').value,ids,aplicar}));
@@ -149,13 +368,12 @@ async function bqReemplazo(aplicar){try{const ids=$('bqTodos').checked?null:bqSe
   r.cambios.slice(0,40).map(c=>`<div class="res" data-id="${c.id}">${esc(c.hoja)} ${c.row}:${c.col}<br><span class="err">- ${esc(c.antes)}</span><br><span style="color:#8f8">+ ${esc(c.despues)}</span></div>`).join('')+
   r.rechazadas.slice(0,20).map(c=>`<div class="res" data-id="${c.id}">RECHAZADA ${esc(c.hoja)} ${c.row}:${c.col}: ${esc(c.errores.map(e=>e.join(' ')).join('; '))}</div>`).join('');
  document.querySelectorAll('#bqRepRes .res').forEach(d=>d.onclick=()=>abrir(+d.dataset.id));if(aplicar){bqBuscar();cargar()}}catch(e){$('bqRepRes').textContent=e.message}}
-$('bBusq').onclick=()=>{const v=$('busq').style.display==='flex';$('busq').style.display=v?'none':'flex';$('izq').style.display=v?'flex':'none'};
 $('bqIr').onclick=()=>{bqOff=0;bqBuscar()};$('bqT').onkeydown=e=>{if(e.key==='Enter'){bqOff=0;bqBuscar()}};
 $('bqPrevP').onclick=()=>{bqOff=Math.max(0,bqOff-BQL);bqBuscar()};$('bqNextP').onclick=()=>{if(bqOff+BQL<bqTot){bqOff+=BQL;bqBuscar()}};
 $('bqExp').onclick=async()=>{try{const r=await api('/api/buscar_exportar',bqCuerpo());alert(`Exportadas ${r.celdas} celdas a:\n${r.ruta}`)}catch(e){alert(e.message)}};
 $('bqPrev').onclick=()=>bqReemplazo(false);$('bqApl').onclick=()=>bqReemplazo(true);
 $('bqSelTodo').onchange=e=>document.querySelectorAll('#bqRes .sel').forEach(x=>x.checked=e.target.checked);
-// tareas
+// ---------- tareas
 function tareaLog(){api('/api/tarea?desde='+tareaDesde).then(t=>{$('tNombre').textContent=`${t.nombre||'Tarea'}: ${t.estado} (${t.segundos}s)`;if(t.log.length){$('log').textContent+=t.log.join('\n')+'\n';$('log').scrollTop=1e9}tareaDesde=t.siguiente;
  if(t.estado==='ejecutando'){sondeo=setTimeout(tareaLog,1000)}else{sondeo=null;if(t.resultado&&t.nombre==='generar')$('log').textContent+='RESULTADO '+JSON.stringify(t.resultado,null,1)+'\n';if(t.error)$('log').textContent+='ERROR: '+t.error+'\n';cargar();hojas()}})}
 async function lanzar(ruta,cuerpo){try{$('tareas').style.display='flex';$('log').textContent='';tareaDesde=0;await api(ruta,cuerpo||{});if(!sondeo)tareaLog()}catch(e){$('log').textContent=e.message}}
@@ -163,11 +381,14 @@ $('bSync').onclick=()=>lanzar('/api/sync');$('bExt').onclick=()=>lanzar('/api/ex
 $('bTar').onclick=()=>{$('tareas').style.display='flex';tareaDesde=0;$('log').textContent='';tareaLog()};$('tCerrar').onclick=()=>$('tareas').style.display='none';
 $('bExp').onclick=async()=>{try{const r=await api('/api/exportar',{});alert(`Exportadas ${r.filas} filas de ${r.hojas} hojas a:\n${r.carpeta}`)}catch(e){alert(e.message)}};
 $('bSalir').onclick=async()=>{await api('/api/salir',{});document.body.innerHTML='<p style="padding:20px">Editor cerrado. Puedes cerrar esta pestana.</p>'};
-// ajustes
+$('bAyuda').onclick=()=>$('dAyuda').showModal();$('aCerrar').onclick=()=>$('dAyuda').close();
+// ---------- ajustes
 $('bCfg').onclick=async()=>{const e=await api('/api/estado');const c=e.config;$('cRepo').value=c.repo;$('cRama').value=c.rama;$('cToken').value='';$('cToken').placeholder=c.token_guardado?'(guardado; deja vacio para conservarlo)':'ghp_...';
  $('cJuego').value=c.ruta_juego;$('cDat').value=c.carpeta_dat;$('cMin').value=c.min_entradas;$('cMax').value=c.max_rechazos;$('dCfg').showModal()};
 $('cCerrar').onclick=()=>$('dCfg').close();
 $('cGuardar').onclick=async()=>{await api('/api/config',{repo:$('cRepo').value,rama:$('cRama').value,token:$('cToken').value,ruta_juego:$('cJuego').value,carpeta_dat:$('cDat').value,min_entradas:$('cMin').value,max_rechazos:$('cMax').value});$('dCfg').close()};
 $('cBorrar').onclick=async()=>{await api('/api/borrar_token',{});$('cToken').placeholder='ghp_...'};
-(async()=>{const e=await api('/api/estado');if(!e.repo_ok){$('vacio').textContent='Primero abre Ajustes (repo y token) y pulsa «Actualizar desde GitHub».'}await cargar();hojas();if(e.tarea.estado==='ejecutando'){$('tareas').style.display='flex';tareaLog()}})();
+(async()=>{const e=await api('/api/estado');CLASES=e.clases||[];
+ for(const id of ['bqClase','mClase'])$(id).innerHTML=(id==='mClase'?'<option value="">Clase: todas</option>':'<option value="">todas las clases</option>')+CLASES.map(c=>`<option>${esc(c)}</option>`).join('');
+ if(!e.repo_ok){$('vacio').textContent='Primero abre Ajustes (repo y token) y pulsa «Actualizar desde GitHub».'}await cargar();hojas();if(e.tarea.estado==='ejecutando'){$('tareas').style.display='flex';tareaLog()}})();
 </script></body></html>

@@ -72,8 +72,14 @@ class Servidor(object):
         if ruta == '/api/hojas': return {'hojas': indexer.hojas_resumen(a.base, q.get('q') or None)}
         if ruta == '/api/celdas':
             est = [e for e in (q.get('estados') or '').split(',') if e in indexer.ESTADOS]
-            total, filas = indexer.listar(a.base, q.get('hoja') or None, est or None, q.get('q') or None, max(0, int(q.get('offset') or 0)), min(500, max(1, int(q.get('limite') or 100))), q.get('editadas') == '1')
-            return {'total': total, 'filas': filas, 'contadores': indexer.contadores(a.base, q.get('hoja') or None)}
+            fl = q.get('flujo') if q.get('flujo') in ('por_hacer', 'hecho', 'sin') else None
+            hoja, cl, txt, ed = q.get('hoja') or None, q.get('clase') or None, q.get('q') or None, q.get('editadas') == '1'
+            total, filas = indexer.listar(a.base, hoja, est or None, txt, max(0, int(q.get('offset') or 0)), min(500, max(1, int(q.get('limite') or 100))), ed, cl, fl)
+            return {'total': total, 'filas': filas, 'contadores': indexer.contadores(a.base, hoja, cl, fl),
+                    'contadores_flujo': indexer.contadores_flujo(a.base, hoja, est or None, txt, ed, cl),
+                    'contadores_clase': indexer.contadores_clase(a.base, hoja, est or None, txt, ed, fl)}
+        if ruta == '/api/misiones': return a.misiones(q.get('q'), q.get('clase') or None, q.get('expansion') or None, q.get('flujo') or None)
+        if ruta == '/api/hoja_celdas': return a.hoja_celdas(q['hoja'])
         if ruta == '/api/celda': return a.celda(int(q['id']))
         if ruta == '/api/tarea': return a.tarea.ver(int(q.get('desde') or 0))
         raise KeyError(ruta)
@@ -88,6 +94,13 @@ class Servidor(object):
         if ruta == '/api/extraer': a.tarea_extraer(b.get('ruta') or None); return {'ok': True}
         if ruta == '/api/indexar': a.tarea_indexar(); return {'ok': True}
         if ruta == '/api/generar': a.tarea_generar(b.get('destino') or None, b.get('relajar', 'auto'), bool(b.get('validar', True))); return {'ok': True}
+        if ruta == '/api/flujo_marcar': return a.flujo_marcar(b)
+        if ruta == '/api/flujo_exportar': return a.flujo_exportar(b.get('destino') or None)
+        if ruta == '/api/flujo_importar': return a.flujo_importar(b.get('contenido'), b.get('reemplazar'), b.get('ruta'))
+        if ruta == '/api/suavizar_previa': return a.suavizar_previa(b)
+        if ruta == '/api/suavizar_aplicar': return a.suavizar_aplicar(b)
+        if ruta == '/api/sin_saltos_texto': return a.sin_saltos_texto(int(b['id']), b['texto'], bool(b.get('resuavizar')))
+        if ruta == '/api/suavizar_deshacer': return a.suavizar_deshacer()
         if ruta == '/api/buscar': return a.buscar(b)
         if ruta == '/api/buscar_exportar': return a.exportar_busqueda(b)
         if ruta == '/api/reemplazar': return a.reemplazar(b)

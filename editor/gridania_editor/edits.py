@@ -1,5 +1,5 @@
 """Ediciones locales del usuario: ediciones/traducciones/<hoja>.jsonl con filas {row,sub,col,es,estado:'traducida',h,origen:'sesion'} (mismo formato que traducciones/)."""
-import json, os, shutil, time
+import collections, json, os, shutil, time
 from . import indexer
 
 ORIGEN = 'sesion'
@@ -35,6 +35,54 @@ def guardar(base, ediciones_dir, R, c, es):
     base.x('UPDATE celdas SET estado=?, es=?, es_json=?, origen=?, h_es=?, editada=1 WHERE hoja=? AND row=? AND sub IS ? AND col=?',
            ('verde', indexer.plano(es), json.dumps(es, ensure_ascii=False), ORIGEN, c.h, c.hoja, c.row, c.sub, c.col))
     return e
+
+
+def _fila_db(base, hoja, row, sub, col):
+    r = base.q('SELECT id,estado,es,es_json,origen,h_es,editada FROM celdas WHERE hoja=? AND row=? AND sub IS ? AND col=?', (hoja, row, sub, col))
+    return dict(r[0]) if r else None
+
+
+def guardar_lote(base, ediciones_dir, R, items):
+    """items = [(c, es)]. Una lectura/escritura del jsonl por hoja. -> (hechos, fallos): hechos = [{'c', 'previa' (fila de ediciones previa o None), 'db' (valores de la celda antes)}]"""
+    por_hoja = collections.OrderedDict()
+    for c, es in items: por_hoja.setdefault(c.hoja, []).append((c, es))
+    hechos = []; fallos = []
+    for hoja, lst in por_hoja.items():
+        p = ruta(ediciones_dir, hoja); filas = indexer.leer_trad(p); cambios = []
+        for c, es in lst:
+            e = {'row': c.row, 'sub': c.sub, 'col': c.col, 'es': es, 'estado': 'traducida', 'h': c.h, 'origen': ORIGEN}
+            try:
+                if e['origen'] not in R.C.ORIGENES_VALIDOS: raise ValueError('origen fuera de la lista blanca')
+                try: R.C.evaluar_cadena(c.text, c.raw, e)
+                except R.C.Rechazo as r: raise ValueError('rechazada por construir_dat: %s %s' % (r.motivo, r.detalle))
+            except ValueError as x: fallos.append((c, str(x))); continue
+            hechos.append({'c': c, 'previa': filas.get(c.k), 'db': _fila_db(base, c.hoja, c.row, c.sub, c.col)})
+            filas[c.k] = e; cambios.append((c, es))
+        if cambios:
+            _escribir(p, filas)
+            with base.lock:
+                base.con.executemany('UPDATE celdas SET estado=?, es=?, es_json=?, origen=?, h_es=?, editada=1 WHERE hoja=? AND row=? AND sub IS ? AND col=?',
+                                     [('verde', indexer.plano(es), json.dumps(es, ensure_ascii=False), ORIGEN, c.h, c.hoja, c.row, c.sub, c.col) for c, es in cambios])
+                base.con.commit()
+    return hechos, fallos
+
+
+def restaurar_lote(base, ediciones_dir, celdas):
+    """celdas = [{'hoja','row','sub','col','previa','db'}]: devuelve cada celda a su estado anterior (fila de ediciones previa o ninguna; valores de db originales, origen incluido). Una escritura por hoja."""
+    por_hoja = collections.OrderedDict()
+    for x in celdas: por_hoja.setdefault(x['hoja'], []).append(x)
+    for hoja, lst in por_hoja.items():
+        p = ruta(ediciones_dir, hoja); filas = indexer.leer_trad(p)
+        for x in lst:
+            k = (x['row'], x['sub'], x['col'])
+            if x.get('previa'): filas[k] = x['previa']
+            else: filas.pop(k, None)
+        if filas: _escribir(p, filas)
+        elif os.path.exists(p): os.remove(p)
+        d = [(x['db']['estado'], x['db']['es'], x['db']['es_json'], x['db']['origen'], x['db']['h_es'], 1 if x.get('previa') else 0, hoja, x['row'], x['sub'], x['col']) for x in lst if x.get('db')]
+        with base.lock:
+            base.con.executemany('UPDATE celdas SET estado=?, es=?, es_json=?, origen=?, h_es=?, editada=? WHERE hoja=? AND row=? AND sub IS ? AND col=?', d)
+            base.con.commit()
 
 
 def contar(ediciones_dir):

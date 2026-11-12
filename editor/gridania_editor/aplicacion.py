@@ -1,6 +1,7 @@
 """Estado de la aplicacion (sin HTTP): ajustes, base de datos, motor de celdas y tareas en segundo plano."""
 import collections, json, os, re, threading, time, traceback
-from . import builder, busqueda, celda, config, edits, extractor, github_sync, indexer, repo_env
+from . import celda as celda_mod
+from . import builder, busqueda, celda, clases, config, edits, extractor, flujo, github_sync, indexer, repo_env
 
 
 class Tarea(object):
@@ -38,6 +39,8 @@ class Aplicacion(object):
         self.cfg = config.Config(home, repo_override)
         self.base = indexer.Base(self.cfg.db_ruta)
         self.tarea = Tarea(self.cfg)
+        self.flujo = flujo.Flujo(os.path.join(self.cfg.home, 'flujo.json'))   # estados Por hacer / Hecho: solo en la carpeta de datos del editor
+        self.base.registrar_flujo(self.flujo.estado_sql)
         self._R = None; self._motor = None; self._indice = None
         self.lock = threading.RLock()
 
@@ -71,7 +74,7 @@ class Aplicacion(object):
         if j: j = {k: v for k, v in j.items() if k != 'no_leidas'}
         return {'config': self.cfg.publico(), 'sync': self._leer('sync_info.json'), 'juego': j, 'indice': indexer.meta(self.base), 'contadores': indexer.contadores(self.base),
                 'ediciones': edits.contar(self.cfg.ediciones_dir), 'repo_ok': repo_env.hay_repo(self.cfg.repo_dir), 'tarea': self.tarea.ver(10 ** 9),
-                'version_recomendada': self._recomendada()}
+                'version_recomendada': self._recomendada(), 'clases': clases.CLASES, 'flujo': self.flujo.totales()}
 
     def _recomendada(self):
         try: return open(os.path.join(self.cfg.repo_dir, 'data', 'recommended-game-version.txt'), encoding='utf-8').read().strip()
@@ -85,6 +88,7 @@ class Aplicacion(object):
         es = json.loads(reg['es_json']) if reg['es_json'] else None
         d = {'id': id_, 'hoja': c.hoja, 'row': c.row, 'sub': c.sub, 'col': c.col, 'estado': reg['estado'], 'origen': reg['origen'], 'editada': bool(reg['editada']),
              'h': c.h, 'h_es': reg['h_es'], 'tipo': c.tipo, 'ja': self._legible(c.tok), 'fr': self._legible(c.fr_tok) if c.fr_tok else '', 'ntrozos': len(c.ch) if c.ch else 1,
+             'clase': clases.clase_de(c.hoja), 'flujo': self.flujo.estado(c.hoja, c.row, c.sub, c.col),
              'perfil': {'tipo': c.pf.tipo, 'seguro': c.pf.seguro, 'duro': c.pf.duro, 'lineas': c.pf.lineas}, 'reflujo': bool(c.reflujo_W)}
         d['vista_ja'] = self._vista_fuente(m, c, c.tok); d['vista_fr'] = self._vista_fuente(m, c, c.fr_tok) if c.fr_tok else None
         d['hablante'] = self._hablante(c, reg, es, m)
@@ -108,7 +112,7 @@ class Aplicacion(object):
         try: return m.vista(c, tok, 'masc', False)
         except Exception: return None
 
-    HABLANTE_RE = re.compile(r'^\(-(.+?)-\)')
+    HABLANTE_RE = celda_mod.HABLANTE_RE
 
     def _hablante(self, c, reg, es, m):
         """nombre del hablante: prefijo (-Nombre-) del ja / fr / es y, si no, el rotulo de la clave de la fila (col 0)"""
@@ -139,7 +143,7 @@ class Aplicacion(object):
 
     @staticmethod
     def _resumen(r):
-        return {'ok': r['ok'], 'errores': [list(x) for x in r['errores']], 'avisos': [list(x) for x in r['avisos']], 'vista': r['vista'], 'texto': r['texto']}
+        return {'ok': r['ok'], 'errores': [list(x) for x in r['errores']], 'avisos': [list(x) for x in r['avisos']], 'vista': r['vista'], 'variantes': r.get('variantes'), 'suavizado': r.get('suavizado'), 'texto': r['texto']}
 
     def preview(self, id_, texto, genero='masc', reflujo=True):
         reg = indexer.obtener(self.base, id_)
@@ -167,12 +171,12 @@ class Aplicacion(object):
     # ------------------------------------------------------------ busqueda global
     def indice(self):
         with self.lock:
-            if self._indice is None: self._indice = busqueda.Indice.desde_base(self.base)
+            if self._indice is None: self._indice = busqueda.Indice.desde_base(self.base); self._indice.flujo = self.flujo
             return self._indice
 
     @staticmethod
     def consulta(b):
-        return busqueda.Consulta(b.get('texto', ''), b.get('campos') or ('ja', 'fr', 'es'), b.get('modo', 'subcadena'), b.get('mayus', False), b.get('tildes', False), b.get('estados'), b.get('hoja'))
+        return busqueda.Consulta(b.get('texto', ''), b.get('campos') or ('ja', 'fr', 'es'), b.get('modo', 'subcadena'), b.get('mayus', False), b.get('tildes', False), b.get('estados'), b.get('hoja'), b.get('clase'), b.get('flujo'))
 
     def buscar(self, b):
         return self.indice().buscar(self.consulta(b), int(b.get('offset') or 0), min(500, int(b.get('limite') or 100)))
@@ -207,6 +211,218 @@ class Aplicacion(object):
                 self.indice().actualizar(f['id'], edits_plano(r['es']), 'verde')
             cambios.append(item)
         return {'aplicado': bool(b.get('aplicar')), 'cambios': cambios[:300], 'n_cambios': len(cambios), 'rechazadas': rechazadas[:300], 'n_rechazadas': len(rechazadas), 'sin_cambio': sin_cambio}
+
+    # ------------------------------------------------------------ flujo de trabajo (Por hacer / Hecho)
+    def _idx_flujo(self):
+        i = self.indice(); i.flujo = self.flujo; return i
+
+    def _celdas_de(self, b):
+        """seleccion de celdas del cuerpo: ids | tabla (filtro del panel izquierdo) | busqueda (consulta global) -> [(hoja,row,sub,col)]"""
+        if b.get('ids') is not None:
+            cs = []
+            for i in b['ids']:
+                r = indexer.obtener(self.base, int(i))
+                if r: cs.append((r['hoja'], r['row'], r['sub'], r['col']))
+        elif b.get('tabla') is not None:
+            t = b['tabla']
+            cs = indexer.celdas_filtradas(self.base, t.get('hoja') or None, [e for e in (t.get('estados') or []) if e in indexer.ESTADOS] or None, t.get('q') or None, bool(t.get('editadas')), t.get('clase') or None, t.get('flujo') or None)
+        elif b.get('busqueda') is not None:
+            q = self.consulta(b['busqueda'])
+            cs = [(f['hoja'], f['row'], f['sub'], f['col']) for f, _ in self._idx_flujo().coincidencias(q)]
+        else: raise ValueError('indica ids, tabla o busqueda')
+        return cs
+
+    def flujo_marcar(self, b):
+        """b['estado'] = por_hacer|hecho|sin y UNO de: ids (celdas), tabla (filtro del panel izquierdo: marca TODOS los resultados filtrados) o busqueda (consulta global: todos sus resultados)"""
+        estado = b.get('estado')
+        if estado not in flujo.ESTADOS: raise ValueError('estado desconocido')
+        cs = self._celdas_de(b)
+        n = self.flujo.poner(cs, estado)
+        return {'marcadas': len(cs), 'cambiadas': n, 'totales': self.flujo.totales()}
+
+    # ------------------------------------------------------------ suavizado de saltos en bloque (con deshacer)
+    MAX_SUAVIZAR = 3000
+
+    MODOS_SUAVIZAR = ('suavizar', 'sin_saltos', 'sin_saltos_suavizar')
+
+    def _suavizar_candidatas(self, b):
+        """celdas verdes con traduccion cuyo texto cambia -> (cambios, sin_cambio, omitidas, no_admite, truncado). Sin escribir nada.
+        b['modo']: suavizar (reflujo/espaciado) | sin_saltos (quita los saltos de presentacion) | sin_saltos_suavizar (quita todo y re-suaviza)"""
+        modo = b.get('modo') or 'suavizar'
+        if modo not in self.MODOS_SUAVIZAR: raise ValueError('modo desconocido')
+        cs = self._celdas_de(b); trunc = len(cs) > self.MAX_SUAVIZAR; cs = cs[:self.MAX_SUAVIZAR]
+        m = self.motor(); cambios = []; sin = 0; omitidas = 0; no_admite = 0; descartadas = 0
+        for hoja, row, sub, col in cs:
+            r = self.base.q('SELECT * FROM celdas WHERE hoja=? AND row=? AND sub IS ? AND col=?', (hoja, row, sub, col))
+            if not r or not r[0]['es_json'] or r[0]['estado'] != 'verde': omitidas += 1; continue
+            reg = dict(r[0])
+            try:
+                c = m.contexto(hoja, row, sub, col)
+                es0 = json.loads(reg['es_json']); es1 = es0
+                if modo != 'suavizar':
+                    es1 = m.sin_saltos(c, es0)
+                    if es1 is None:
+                        if m._unir(' '.join(es0) if isinstance(es0, list) else es0) != (' '.join(es0) if isinstance(es0, list) else es0): no_admite += 1
+                        else: sin += 1
+                        continue
+                antes = m.es_a_texto(c, es0)
+                ev = m.evaluar(c, m.es_a_texto(c, es1), 'masc', modo != 'sin_saltos')
+            except Exception: omitidas += 1; continue
+            if ev['errores'] or ev['es'] is None: omitidas += 1; continue
+            if json.dumps(ev['es'], ensure_ascii=False) == json.dumps(es0, ensure_ascii=False): sin += 1; continue
+            if not self._solo_saltos(es0, ev['es']): descartadas += 1; continue   # cambiaria algo mas que saltos/espacios (p. ej. normalizacion de signos)
+            cambios.append({'id': reg['id'], 'hoja': hoja, 'row': row, 'sub': sub, 'col': col, 'antes': antes, 'despues': ev['texto'], 'es_antes': es0, 'es_despues': ev['es']})
+        return cambios, sin, omitidas, no_admite, trunc, descartadas
+
+    @staticmethod
+    def _solo_saltos(a, b):
+        """True si a y b (str o lista de trozos) tienen el mismo n. de trozos y la misma secuencia plana de palabras (uniendo trozos)"""
+        la = a if isinstance(a, list) else [a]; lb = b if isinstance(b, list) else [b]
+        if len(la) != len(lb) or isinstance(a, list) != isinstance(b, list): return False
+        quitar = lambda l: [w for x in l if isinstance(x, str) for w in re.sub(r'<NewLine(?:#\d+)?>', ' ', x).split()]   # secuencia PLANA de palabras: acepta mover palabras entre trozos vecinos, no fusionar/partir/reordenar
+        if quitar(la) != quitar(lb) or [not isinstance(x, str) for x in la] != [not isinstance(x, str) for x in lb]: return False
+        def macros(x):   # multiconjunto de macros (todo <...> salvo NewLine) del trozo: ninguna macro puede cambiar de trozo ni partirse
+            return sorted(t for t in re.findall(r'<[^<>]*>', x) if not re.fullmatch(r'<NewLine(?:#\d+)?>', t)) if isinstance(x, str) else None
+        if [macros(x) for x in la] != [macros(x) for x in lb]: return False
+        return [bool(quitar([x])) if isinstance(x, str) else None for x in la] == [bool(quitar([x])) if isinstance(x, str) else None for x in lb]   # trozo vacio <-> no vacio
+
+    def sin_saltos_texto(self, id_, texto, resuavizar=False):
+        """celda actual: aplica «eliminar saltos» (y opcionalmente re-suaviza) al TEXTO del editor sin guardar -> {texto, cambia, motivo}"""
+        reg = indexer.obtener(self.base, id_)
+        m = self.motor(); c = m.contexto(reg['hoja'], reg['row'], reg['sub'], reg['col'])
+        try: es0 = m.texto_a_es(c, texto)
+        except ValueError as x: return {'texto': texto, 'cambia': False, 'motivo': 'estructura: %s' % x}
+        es1 = m.sin_saltos(c, es0)
+        if es1 is None:
+            quedan = m._unir(' '.join(es0) if isinstance(es0, list) else es0) != (' '.join(es0) if isinstance(es0, list) else es0)
+            return {'texto': texto, 'cambia': False, 'motivo': 'esta celda no admite quitar los saltos sin romper el formato; no se toca' if quedan else 'no habia saltos que quitar'}
+        t = m.es_a_texto(c, es1)
+        if resuavizar:
+            ev = m.evaluar(c, t, 'masc', True)
+            if not ev['errores'] and ev['es'] is not None: t = ev['texto']
+        return {'texto': t, 'cambia': t != texto, 'motivo': ''}
+
+    def suavizar_previa(self, b):
+        cambios, sin, omitidas, no_admite, trunc, desc = self._suavizar_candidatas(b)
+        return {'n_cambios': len(cambios), 'sin_cambio': sin, 'omitidas': omitidas, 'no_admite': no_admite, 'descartadas_por_texto': desc, 'truncado': trunc, 'maximo': self.MAX_SUAVIZAR,
+                'cambios': [{k: v for k, v in x.items() if not k.startswith('es_')} for x in cambios[:100]]}
+
+    def _ruta_deshacer(self): return os.path.join(self.cfg.home, 'suavizado_deshacer.json')
+
+    def suavizar_aplicar(self, b):
+        cambios, sin, omitidas, no_admite, trunc, desc = self._suavizar_candidatas(b)
+        m = self.motor(); items = []; por_id = {}
+        for x in cambios:
+            c = m.contexto(x['hoja'], x['row'], x['sub'], x['col']); items.append((c, x['es_despues'])); por_id[c.k, c.hoja] = x
+        hechos, fallos = edits.guardar_lote(self.base, self.cfg.ediciones_dir, m.R, items)
+        reg = []
+        for h in hechos:
+            c = h['c']; x = por_id[c.k, c.hoja]
+            if self._indice is not None: self._indice.actualizar(x['id'], edits_plano(x['es_despues']), 'verde')
+            reg.append({'hoja': c.hoja, 'row': c.row, 'sub': c.sub, 'col': c.col, 'previa': h['previa'], 'db': h['db'], 'es_despues': x['es_despues']})
+        if reg:
+            lote = (self._leer('suavizado_deshacer.json') or [])[-19:]
+            lote.append({'fecha': time.strftime('%Y-%m-%d %H:%M:%S'), 'celdas': reg})
+            with open(self._ruta_deshacer(), 'w', encoding='utf-8') as f: json.dump(lote, f, ensure_ascii=False)
+        return {'aplicadas': len(reg), 'sin_cambio': sin, 'omitidas': omitidas + len(fallos), 'no_admite': no_admite, 'descartadas_por_texto': desc, 'truncado': trunc}
+
+    def suavizar_deshacer(self):
+        """restaura el ultimo lote: devuelve cada celda a su texto, origen y fila de ediciones anteriores. Las celdas cambiadas despues de la tanda NO se tocan y se reportan"""
+        lote = self._leer('suavizado_deshacer.json') or []
+        if not lote: raise ValueError('no hay nada que deshacer')
+        ult = lote.pop(); ok = []; cambiadas = []; incompatibles = 0
+        for x in (ult.get('celdas') or []) if isinstance(ult, dict) else []:
+            if not isinstance(x, dict) or 'es_despues' not in x or not isinstance(x.get('db'), dict) or not all(k in x for k in ('hoja', 'row', 'sub', 'col')):
+                incompatibles += 1; continue   # formato antiguo: se salta y no queda pegada en el fichero
+            r = self.base.q('SELECT id,es_json FROM celdas WHERE hoja=? AND row=? AND sub IS ? AND col=?', (x['hoja'], x['row'], x['sub'], x['col']))
+            try: actual = json.loads(r[0]['es_json']) if r and r[0]['es_json'] else None
+            except ValueError: actual = None
+            if actual != x['es_despues']: cambiadas.append({k: x[k] for k in ('hoja', 'row', 'sub', 'col')}); continue
+            ok.append(x)
+        edits.restaurar_lote(self.base, self.cfg.ediciones_dir, ok)
+        if self._indice is not None:
+            for x in ok:
+                r = self.base.q('SELECT id,es FROM celdas WHERE hoja=? AND row=? AND sub IS ? AND col=?', (x['hoja'], x['row'], x['sub'], x['col']))
+                if r: self._indice.actualizar(r[0]['id'], r[0]['es'] or '', 'verde' if x['db']['estado'] == 'verde' else x['db']['estado'])
+        with open(self._ruta_deshacer(), 'w', encoding='utf-8') as f: json.dump(lote, f, ensure_ascii=False)
+        return {'restauradas': len(ok), 'cambiadas_despues': len(cambiadas), 'cambiadas': cambiadas[:50], 'incompatibles': incompatibles, 'fecha': ult.get('fecha') if isinstance(ult, dict) else None, 'quedan': len(lote)}
+
+    # ------------------------------------------------------------ modo contexto: misiones / escenas / hojas
+    def _orden_expansion(self):
+        """{hoja: (n. de expansion, posicion)} de trabajo/informes/expansion_historia.tsv (si existe); el orden de expansion es el de primera aparicion"""
+        ruta = os.path.join(self.cfg.repo_dir, 'trabajo', 'informes', 'expansion_historia.tsv')
+        if getattr(self, '_exp_cache', (None,))[0] == ruta and os.path.exists(ruta) and self._exp_cache[1] == os.path.getmtime(ruta): return self._exp_cache[2]
+        d = {}; exps = {}
+        try:
+            import csv
+            with open(ruta, encoding='utf-8', newline='') as f:
+                for i, r in enumerate(csv.DictReader(f, delimiter='\t')):
+                    e = r.get('expansion') or ''; exps.setdefault(e, len(exps)); d[r['hoja']] = (e, exps[e], i)
+            self._exp_cache = (ruta, os.path.getmtime(ruta), d)
+        except (OSError, KeyError): d = {}
+        return d
+
+    def misiones(self, q=None, clase=None, expansion=None, solo_flujo=None, limite=3000):
+        """lista de hojas (misiones/escenas/hojas) con contador de celdas, de Por hacer y de Hecho, ordenada por expansion (si hay tabla) y luego por nombre"""
+        orden = self._orden_expansion(); ph = {}; he = {}
+        with self.flujo.lock: items = list(self.flujo.datos.items())
+        existentes = {}   # solo cuentan las claves que existen en el indice (las marcas huerfanas no suman)
+        for k, v in items:
+            h = k.rsplit('|', 3)[0]
+            if h not in existentes:
+                existentes[h] = {flujo.clave(r['hoja'], r['row'], r['sub'], r['col']) for r in self.base.q('SELECT hoja,row,sub,col FROM celdas WHERE hoja=?', (h,))}
+            if k in existentes[h]: (ph if v == 'por_hacer' else he)[h] = (ph if v == 'por_hacer' else he).get(h, 0) + 1
+        res = []; ql = (q or '').lower()
+        for r in indexer.hojas_resumen(self.base, None):
+            h = r['hoja']
+            if clase and clases.clase_de(h) != clase: continue
+            if ql and ql not in h.lower(): continue
+            e = orden.get(h)
+            if expansion and (not e or e[0] != expansion): continue
+            x = {'hoja': h, 'total': r['total'], 'rojo': r['rojo'], 'naranja': r['naranja'], 'verde': r['verde'], 'blanco': r['blanco'],
+                 'por_hacer': ph.get(h, 0), 'hecho': he.get(h, 0), 'expansion': e[0] if e else '', 'clase': clases.clase_de(h), '_o': (e[1], e[2]) if e else (999, 0)}
+            if solo_flujo == 'por_hacer' and not x['por_hacer']: continue
+            if solo_flujo == 'hecho' and x['hecho'] < x['total']: continue
+            res.append(x)
+        res.sort(key=lambda x: (x['_o'], x['hoja']))
+        for x in res: del x['_o']
+        exps = sorted({v[0] for v in orden.values()}, key=lambda e: next(v[1] for v in orden.values() if v[0] == e)) if orden else []
+        return {'total': len(res), 'misiones': res[:limite], 'expansiones': exps}
+
+    def hoja_celdas(self, hoja, limite=4000):
+        """todas las celdas de una hoja en el orden de traduccion (fila, sub, col) con hablante, para leerla como conversacion continua"""
+        rs = self.base.q('SELECT id,row,sub,col,estado,substr(ja,1,400) ja,substr(fr,1,400) fr,substr(es,1,400) es,editada FROM celdas WHERE hoja=? ORDER BY row, COALESCE(sub,-1), col LIMIT ?', (hoja, limite))
+        out = []
+        for r in rs:
+            d = dict(r); t = (d['es'] or d['ja'] or '')
+            m = celda.HABLANTE_RE.match(d['es'] or '') or celda.HABLANTE_RE.match(d['ja'] or '')
+            d['hablante'] = m.group(1) if m else None
+            d['flujo'] = self.flujo.estado(hoja, d['row'], d['sub'], d['col'])
+            out.append(d)
+        return {'hoja': hoja, 'celdas': out, 'truncado': len(out) >= limite}
+
+    def _ruta_segura(self, p):
+        """acepta solo rutas absolutas sin '..' dentro de la carpeta de datos del editor o de la carpeta elegida con el dialogo (carpeta_dat); -> ruta real"""
+        if not isinstance(p, str) or not p or '\x00' in p: raise ValueError('ruta no valida')
+        if '..' in re.split(r'[\\/]', p): raise ValueError('ruta no permitida: contiene ..')
+        if not os.path.isabs(p): raise ValueError('ruta no permitida: debe ser absoluta')
+        real = os.path.realpath(p); nc = os.path.normcase
+        raices = [os.path.realpath(self.cfg.home)] + ([os.path.realpath(self.cfg['carpeta_dat'])] if self.cfg['carpeta_dat'] else [])
+        if not any(nc(real) == nc(r) or nc(real).startswith(nc(r).rstrip(os.sep) + os.sep) for r in raices): raise ValueError('ruta fuera de la carpeta de datos del editor o de la carpeta elegida')
+        return real
+
+    def flujo_exportar(self, destino=None):
+        destino = self._ruta_segura(destino or self.cfg['carpeta_dat'] or self.cfg.sub('exportado'))
+        os.makedirs(destino, exist_ok=True)
+        ruta = os.path.join(destino, 'flujo_%s.tsv' % time.strftime('%Y%m%d-%H%M%S'))
+        return {'ruta': ruta, 'filas': self.flujo.exportar_tsv(ruta)}
+
+    def flujo_importar(self, contenido=None, reemplazar=False, ruta=None):
+        """contenido = texto TSV (el fichero elegido en la UI) o ruta a un TSV"""
+        if contenido is not None: n, ign = self.flujo.importar_texto(contenido, bool(reemplazar))
+        elif ruta and os.path.isfile(self._ruta_segura(ruta)): n, ign = self.flujo.importar_tsv(self._ruta_segura(ruta), bool(reemplazar))
+        else: raise ValueError('indica el contenido o un fichero existente')
+        return {'importadas': n, 'ignoradas': ign, 'totales': self.flujo.totales()}
 
     # ------------------------------------------------------------ tareas
     def _indexar(self, log):

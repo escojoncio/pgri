@@ -8,6 +8,7 @@ GEN_RE = re.compile(r'<Gender>(.*?)<GenderElse>(.*?)<GenderEnd>', re.S)
 TOK_RE = re.compile(r'<[A-Za-z][A-Za-z0-9]*(?:#[0-9]+)?(?::[0-9A-Fa-f]+)?>')
 NL_RE = re.compile(r'<NewLine(?:#[0-9]+)?>')
 ABRE_C, CIERRA_C, ICONO_C = '\x01', '\x02', '\x03'   # centinelas de la vista previa: abre color, cierra color, icono (2 columnas)
+HABLANTE_RE = re.compile(r'^\(-(.+?)-\)')
 PUNT = re.compile(r'[.,;:!?…»”\)]$')
 
 
@@ -117,6 +118,36 @@ class Motor(object):
         try: C.evaluar_cadena(c.text, c.raw, self._fila(c, es)); return True
         except C.Rechazo: return False
 
+    SALTO_RE = re.compile(r'[ ]*(?:<NewLine(?:#[0-9]+)?>|\r?\n)[ ]*')
+
+    @classmethod
+    def _unir(cls, x):
+        """quita TODOS los saltos de x (los une con un espacio; sin espacio en los extremos)"""
+        return cls.SALTO_RE.sub(lambda m: '' if (m.start() == 0 or m.end() == len(x)) else ' ', x)
+
+    @classmethod
+    def _sin_uno(cls, x, m):
+        return x[:m.start()] + ('' if (m.start() == 0 or m.end() == len(x)) else ' ') + x[m.end():]
+
+    def sin_saltos(self, c, es):
+        """quita los saltos de presentacion que el contrato de construir_dat deja quitar: UNO A UNO, de atras adelante, conservando solo los que la validacion admite.
+        Los <NewLine> que el japones exige (separadores entre trozos y tokens del original) NO se pueden borrar: se quedan (el suavizado del .dat los convierte en espacio con la marca).
+        -> nuevo es, o None si no cambia nada"""
+        if isinstance(es, list): act = list(es)
+        elif isinstance(es, str) and c.tipo != 'simple': act = es
+        else: return None
+        def trozos(a): return list(enumerate(a)) if isinstance(a, list) else [(None, a)]
+        for idx, x in reversed(trozos(act)):
+            if not isinstance(x, str): continue
+            for m in reversed(list(self.SALTO_RE.finditer(x))):
+                y = self._sin_uno(x, m)
+                cand = act[:idx] + [y] + act[idx + 1:] if idx is not None else y
+                if self._validar(c, cand): act = cand; x = y
+        if act == es: return None
+        try: act = self.R.SS.normalizar(act)
+        except Exception: pass
+        return act if self._validar(c, act) else None
+
     def evaluar(self, c, texto, genero='masc', reflujo=True, es_actual=None):
         """-> dict(errores, avisos, es (lo que se guardaria), texto (editor, tras reflujo), vista). No escribe nada."""
         R = self.R; S, C, RL, SS, NC = R.S, R.C, R.RL, R.SS, R.NC
@@ -124,41 +155,56 @@ class Motor(object):
         res = {'errores': errores, 'avisos': avisos, 'es': None, 'texto': texto, 'vista': None, 'ok': False}
         try: es0 = self.texto_a_es(c, texto)
         except ValueError as x:
-            errores.append(('ESTRUCTURA', str(x))); res['vista'] = self.vista_texto(c, texto, genero); return res
+            errores.append(('ESTRUCTURA', str(x))); self._poner_vistas(res, self.vista_texto, c, texto, genero); return res
         es1 = SS.normalizar(es0)
         if es1 != es0: avisos.append(('AUTOCORREGIDO', 'signos japoneses, «…» o puntos suspensivos corregidos automaticamente'))
         try: C.evaluar_cadena(c.text, c.raw, self._fila(c, es1))
         except C.Rechazo as r:
             errores.append(('RECHAZO_' + r.motivo, r.detalle))
-            res['vista'] = self.vista_texto(c, self.es_a_texto(c, es1) if self.tokenizada(c, es1) is not None else texto, genero)
+            self._poner_vistas(res, self.vista_texto, c, self.es_a_texto(c, es1) if self.tokenizada(c, es1) is not None else texto, genero)
             self._comprobaciones(c, es1, errores, avisos)
             return res
         es2 = es1
+        info = res['suavizado'] = {'reflujo': 'desactivado' if not reflujo else ('no_aplica' if not c.reflujo_W else 'sin_cambios'), 'suavizado': 'no_aplica', 'motivo': ''}
         if reflujo and c.reflujo_W:
             RL.CFG.paginar = True; RL.CFG.macros = True; RL.CFG.maxwin = 4; RL.CFG.solo = False
             try:
                 st, a, b = RL.procesar_celda(c.text, c.raw, self._fila(c, es1), c.reflujo_W, c.creador, c.clave)
             except Exception as x:
                 st, a, b = 'excepcion', 'error_interno', '%s: %s' % (type(x).__name__, x)
-            if st == 'cambiada': es2 = a
-            elif st == 'excepcion': avisos.append(('REFLUJO_NO_APLICADO', '%s %s' % (a, b)))
+            if st == 'cambiada': es2 = a; info['reflujo'] = 'cambiada'
+            elif st == 'excepcion': info['reflujo'] = 'error'; avisos.append(('REFLUJO_NO_APLICADO', '%s %s' % (a, b)))
         modo, cap = SS.modo_de(c.pf, c.fr_text)
+        info['modo'] = modo
         es3 = es2
         if modo is not None:
             try:
                 n, motivo = SS.suavizar_celda(es2, c.tok, c.raw, modo, cap, lambda cand: self._validar(c, cand), c.fr_text)
-                if n is not None: es3 = n
+                if n is not None: es3 = n; info['suavizado'] = 'aplicado'
+                else: info['suavizado'] = 'cumplia'; info['motivo'] = str(motivo or '')
             except Exception as x:
                 avisos.append(('SUAVIZADO_NO_APLICADO', '%s: %s' % (type(x).__name__, x)))
         res['es'] = es2   # se guarda SIN marcas: el suavizado se aplica al generar el .dat (igual que el flujo del repo)
         res['texto'] = self.es_a_texto(c, es2)
         self._comprobaciones(c, es2, errores, avisos)
         s_juego = R.S.aplicar_marcas(self.tokenizada(c, es3) or '')
-        res['vista'] = self.vista(c, s_juego, genero)
+        self._poner_vistas(res, self.vista, c, s_juego, genero)
         for cod in self.vista_problemas(c, self.tokenizada(c, es2) or ''):   # como la auditoria del repo: sobre las lineas duras (sin marcas)
             avisos.append(('CAJA_' + cod, self.TXT_CAJA.get(cod, cod)))
         res['ok'] = not errores
         return res
+
+    @staticmethod
+    def tiene_genero(s):
+        return bool(GEN_RE.search(s or ''))
+
+    def _poner_vistas(self, res, fn, c, s, genero):
+        """res['vista'] = vista del genero pedido (compatibilidad); res['variantes'] = {'fem': vista, 'masc': vista} si el texto lleva macro <Gender>, si no None"""
+        if self.tiene_genero(s):
+            res['variantes'] = {g: fn(c, s, g) for g in ('fem', 'masc')}
+            res['vista'] = res['variantes'].get(genero if genero in ('fem', 'masc') else 'masc')
+        else:
+            res['variantes'] = None; res['vista'] = fn(c, s, genero)
 
     TXT_CAJA = {'PALABRA_SUELTA': 'ventana o linea final huerfana (<= 2 palabras)', 'LINEA_EXCEDE': 'linea mas ancha que la caja', 'MACRO_NO_CONTADA': 'la expansion de una macro desborda la caja',
                 'SUBTITULO_EXCEDE': 'subtitulo demasiado ancho o con demasiadas lineas', 'ALTO_EXCEDE': 'mas lineas que el frances', 'CAJA_DESCONOCIDA': 'linea ancha en caja sin medir', 'FR_EXCEDE': 'mas ancho que el frances'}
@@ -229,6 +275,7 @@ class Motor(object):
     def vista(self, c, s, genero='masc', envolver=True):
         """cadena tokenizada (con NewLine/LF y ya sin marcas) -> {ventanas: [[lineas]], ...}. Colores con centinelas \\x01 \\x02; iconos \\x03."""
         R = self.R; RL, NC = R.RL, R.NC; pf = c.pf
+        hm = HABLANTE_RE.match(s); hablante = hm.group(1) if hm else None
         s = s[RL.prefijo_len(s):]
         s = GEN_RE.sub(lambda m: m.group(1) if genero == 'fem' else m.group(2), s)
         lineas = []; activo = [False]
@@ -240,7 +287,7 @@ class Motor(object):
             lineas += partes
         n = pf.lineas if (pf.lineas and pf.envuelve) else (0 if pf.tipo in ('subtitulo', 'hud_fijo') else 4)
         vent = [lineas[i:i + n] for i in range(0, len(lineas), n)] if n else [lineas]
-        return {'ventanas': vent, 'genero': genero, 'nlineas': len(lineas), 'nventanas': len(vent),
+        return {'ventanas': vent, 'genero': genero, 'nlineas': len(lineas), 'nventanas': len(vent), 'hablante': hablante,
                 'caja': {'tipo': pf.tipo, 'seguro': pf.seguro, 'duro': pf.duro, 'lineas': pf.lineas or 4}}
 
     def _envolver(self, txt, pf):

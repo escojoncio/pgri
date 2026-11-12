@@ -5,7 +5,7 @@ Programa de escritorio (un solo `.exe`) para editar cualquier texto del juego en
 esta, abre el navegador por defecto).
 
 ## Obtener el .exe
-En `escojoncio/pgri`: GitHub > Actions > workflow **editor** (se lanza solo al tocar `editor/` o a mano con *Run workflow*) > ultima ejecucion > artefacto `GridaniaEditor-win64` (se genera en `windows-latest` con PyInstaller).
+GitHub > Actions > workflow **editor** > ultima ejecucion > artefacto `GridaniaEditor-win64` (se genera en `windows-latest` con PyInstaller).
 Requiere el runtime WebView2 de Windows 10/11 (ya instalado normalmente). Sin el, usa `GridaniaEditor.exe --navegador`.
 
 ## Uso
@@ -34,6 +34,15 @@ Requiere el runtime WebView2 de Windows 10/11 (ya instalado normalmente). Sin el
    Es lento (decenas de minutos; no se ejecuta en paralelo en Windows).
 8. **Exportar cambios**: copia tus ediciones (jsonl por hoja, mismas rutas que `traducciones/`) a `cambios_<fecha>/` para subirlas al repo
    (la subida por API queda para mas adelante).
+
+## Funciones de la interfaz (resumen; dentro del programa, boton **Ayuda** y tooltips en cada control)
+- **Vista «como en el juego»**: ventana oscura con borde, hablante `(-Nombre-)` como etiqueta, colores del juego, `▼` de continuar (`■` en la ultima), ventana N/M, lineas y ancho por linea (`usados/seguros`; amarillo = pasa del recomendado, rojo = supera el duro), `↵` discreto por salto. Avisa de mas de 4 lineas por ventana, linea mas ancha que la caja y ventana final huerfana. Indica si la celda se **suavizo** o **ya cumplia**.
+- **♀/♂ automatico**: si el ES lleva `<Gender>...<GenderElse>...<GenderEnd>` se ven las dos variantes a la vez; sin macro, una vista. (`/api/preview` devuelve `variantes` = `{fem, masc}` o `null`; `vista` sigue siendo la del genero pedido, por compatibilidad.)
+- **Clase de texto** (`gridania_editor/clases.py`, unico sitio del mapeo; `Otros` por defecto): filtro en la tabla, la busqueda global y la lista de misiones.
+- **Estado de trabajo Por hacer / Hecho / Sin clasificar** (independiente del color): por celda (Alt+1/2/0), en bloque sobre los resultados filtrados (tabla o busqueda), filtro y contadores. Se guarda en `flujo.json` de la carpeta de datos del editor (nunca en el repo ni en `traducciones/`); exportar/importar TSV (`hoja,row,sub,col,estado`).
+- **Suavizar saltos** (espaciado corregido, `reflujar_lineas` + `suavizar_saltos` del repo, sin reimplementar): en la celda (antes/despues + deshacer) y en bloque (tabla, busqueda, mision) con vista previa y **Deshacer suavizado** (journal `suavizado_deshacer.json`, ultimos 20 lotes; maximo 3000 celdas por vez; solo celdas verdes). Nunca cambia palabras, macros ni el numero de trozos. Al **Generar translations.dat** se aplica el mismo suavizado (suavizar_saltos -> mezcla -> construir_dat).
+- **Eliminar saltos / Eliminar y suavizar**: quita uno a uno los saltos de presentacion que `construir_dat` admite quitar (los extra); los que exige el japones se conservan. Si no se puede quitar ninguno, avisa y no toca la celda.
+- **Por mision / hoja**: lista de hojas (orden por `trabajo/informes/expansion_historia.tsv` si existe, si no por nombre) con celdas, Por hacer, Hecho, rojas/naranjas; busqueda por nombre/ID; conversacion en orden (fila, sub, col); navegacion celda/mision (Alt+flechas), «Guardar y siguiente», «Marcar mision Hecho».
 
 ## Desarrollo
 ```

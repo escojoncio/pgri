@@ -4,6 +4,7 @@ NARANJA = japones cambiado (hash `h` de la traduccion != hash del ja actual) con
 VERDE   = traducida con hash vigente (origen de la lista blanca, estado traducida/revisada).
 BLANCO  = ya existia (mismo japones que el repo importado) pero sin traduccion vigente."""
 import json, os, re, sqlite3, threading, time
+from . import clases
 
 ESTADOS = ('rojo', 'naranja', 'verde', 'blanco')
 ORIGENES_VALIDOS = ('fr-ja-retrad', 'reutilizada', 'fr-media', 'sesion', 'previo-ja')
@@ -24,6 +25,12 @@ class Base(object):
         self.con = sqlite3.connect(ruta, check_same_thread=False)
         self.con.row_factory = sqlite3.Row
         with self.lock: self.con.executescript(ESQUEMA); self.con.commit()
+        self.con.create_function('clase', 1, clases.clase_de, deterministic=True)
+        self.registrar_flujo(lambda hoja, row, sub, col: 'sin')
+
+    def registrar_flujo(self, fn):
+        """fn(hoja,row,sub,col) -> 'por_hacer' | 'hecho' | 'sin'; disponible en SQL como flujo(hoja,row,sub,col)"""
+        with self.lock: self.con.create_function('flujo', 4, fn)
 
     def q(self, sql, args=()):
         with self.lock: return self.con.execute(sql, args).fetchall()
@@ -118,10 +125,37 @@ def meta(base, k='indexado'):
     return json.loads(r[0]['v']) if r else None
 
 
-def contadores(base, hoja=None):
-    sql = 'SELECT estado, COUNT(*) n FROM celdas' + (' WHERE hoja=?' if hoja else '') + ' GROUP BY estado'
+def _donde(hoja=None, estados=None, q=None, solo_editadas=False, clase=None, flujo=None):
+    w = []; a = []
+    if hoja: w.append('hoja=?'); a.append(hoja)
+    if clase: w.append('clase(hoja)=?'); a.append(clase)
+    if flujo: w.append('flujo(hoja,row,sub,col)=?'); a.append(flujo)
+    if estados: w.append('estado IN (%s)' % ','.join('?' * len(estados))); a += list(estados)
+    if q:
+        w.append("(ja LIKE ? ESCAPE '\\' OR es LIKE ? ESCAPE '\\')"); a += ['%' + _esc(q) + '%'] * 2
+    if solo_editadas: w.append('editada=1')
+    return ((' WHERE ' + ' AND '.join(w)) if w else ''), a
+
+
+def contadores(base, hoja=None, clase=None, flujo=None):
+    cond, a = _donde(hoja, clase=clase, flujo=flujo)
     d = {e: 0 for e in ESTADOS}
-    for r in base.q(sql, (hoja,) if hoja else ()): d[r['estado']] = r['n']
+    for r in base.q('SELECT estado, COUNT(*) n FROM celdas' + cond + ' GROUP BY estado', a): d[r['estado']] = r['n']
+    return d
+
+
+def contadores_flujo(base, hoja=None, estados=None, q=None, solo_editadas=False, clase=None):
+    """celdas por estado de flujo con los demas filtros aplicados (sin filtrar por flujo)"""
+    cond, a = _donde(hoja, estados, q, solo_editadas, clase)
+    d = {'por_hacer': 0, 'hecho': 0, 'sin': 0}
+    for r in base.q('SELECT flujo(hoja,row,sub,col) f, COUNT(*) n FROM celdas' + cond + ' GROUP BY f', a): d[r['f']] = r['n']
+    return d
+
+
+def contadores_clase(base, hoja=None, estados=None, q=None, solo_editadas=False, flujo=None):
+    cond, a = _donde(hoja, estados, q, solo_editadas, None, flujo)
+    d = {c: 0 for c in clases.CLASES}
+    for r in base.q('SELECT clase(hoja) c, COUNT(*) n FROM celdas' + cond + ' GROUP BY c', a): d[r['c']] = r['n']
     return d
 
 
@@ -137,17 +171,17 @@ def _esc(s):
     return s.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
 
 
-def listar(base, hoja=None, estados=None, q=None, offset=0, limite=100, solo_editadas=False):
-    w = []; a = []
-    if hoja: w.append('hoja=?'); a.append(hoja)
-    if estados: w.append('estado IN (%s)' % ','.join('?' * len(estados))); a += list(estados)
-    if q:
-        w.append("(ja LIKE ? ESCAPE '\\' OR es LIKE ? ESCAPE '\\')"); a += ['%' + _esc(q) + '%'] * 2
-    if solo_editadas: w.append('editada=1')
-    cond = (' WHERE ' + ' AND '.join(w)) if w else ''
+def listar(base, hoja=None, estados=None, q=None, offset=0, limite=100, solo_editadas=False, clase=None, flujo=None):
+    cond, a = _donde(hoja, estados, q, solo_editadas, clase, flujo)
     total = base.q('SELECT COUNT(*) n FROM celdas' + cond, a)[0]['n']
-    filas = base.q('SELECT id,hoja,row,sub,col,estado,substr(ja,1,120) ja,substr(es,1,120) es,origen,editada FROM celdas' + cond + ' ORDER BY id LIMIT ? OFFSET ?', a + [limite, offset])
+    filas = base.q('SELECT id,hoja,row,sub,col,estado,substr(ja,1,120) ja,substr(es,1,120) es,origen,editada,clase(hoja) clase,flujo(hoja,row,sub,col) flujo FROM celdas' + cond + ' ORDER BY id LIMIT ? OFFSET ?', a + [limite, offset])
     return total, [dict(r) for r in filas]
+
+
+def celdas_filtradas(base, hoja=None, estados=None, q=None, solo_editadas=False, clase=None, flujo=None):
+    """todas las celdas (hoja,row,sub,col) que cumplen el filtro (para marcar en bloque)"""
+    cond, a = _donde(hoja, estados, q, solo_editadas, clase, flujo)
+    return [(r['hoja'], r['row'], r['sub'], r['col']) for r in base.q('SELECT hoja,row,sub,col FROM celdas' + cond + ' ORDER BY id', a)]
 
 
 def obtener(base, id_):
