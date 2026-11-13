@@ -106,7 +106,7 @@ def test_migracion_de_editor_db_antigua(tmp_path):
     from gridania_editor.aplicacion import Aplicacion
     home = tmp_path / 'home'; home.mkdir(); crear_base_antigua(str(home / 'editor.db'))
     json.dump({'quest/000/Q1|2||0': 'por_hacer', 'ENpcResident|1|0|0': 'hecho', 'huerfana|1||0': 'hecho'}, open(home / 'flujo.json', 'w'))
-    a = Aplicacion(str(home), repo_override=str(tmp_path / 'sin_repo'), diferir=True)
+    a = Aplicacion(str(home), repo_override=str(tmp_path / 'sin_repo'), diferir=True); a.abrir_base()
     assert set(a.base.migrados) == {'clase', 'flujo'} and not a.arranque['listo']
     a.base.migrar_datos(); a.base.vincular_flujo(a.flujo)          # lo que hace arrancar_fondo()
     filas = {(r['hoja'], r['row']): r for r in a.base.q('SELECT * FROM celdas')}
@@ -241,7 +241,7 @@ def test_migracion_interrumpida_se_rehace_en_el_siguiente_arranque(tmp_path):
 def test_estado_responde_durante_la_migracion(tmp_path):
     from gridania_editor.aplicacion import Aplicacion
     home = tmp_path / 'home'; home.mkdir(); crear_base_antigua(str(home / 'editor.db'))
-    a = Aplicacion(str(home), repo_override=str(tmp_path / 'sin_repo'), diferir=True)
+    a = Aplicacion(str(home), repo_override=str(tmp_path / 'sin_repo'), diferir=True); a.abrir_base()
     vistos = []
     def av(fase, hecho=0, total=0):
         a.arranque.update(fase=fase, hecho=hecho, total=total)

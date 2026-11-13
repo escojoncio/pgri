@@ -180,6 +180,8 @@ mark{background:#ffd24d;color:#111} .res{border-bottom:1px solid #333;padding:3p
  <p style="display:flex;gap:8px"><button id="suAplicar" title="Escribe los cambios (solo cambian los saltos de linea, nunca las palabras ni el numero de trozos).">Aplicar</button><button class="sec" id="suCerrar" title="Cierra sin cambiar nada.">Cancelar</button></p></dialog>
 <dialog id="dAyuda" class="grande"><h3>Ayuda</h3>
 <p><button id="aLogs" class="sec" title="Abre la carpeta de datos (junto al programa): editor.log, faulthandler.log, ediciones, ajustes.">Abrir carpeta de datos y registros</button> <span id="aLogRuta" style="font-size:12px;color:#9aa"></span></p>
+<p id="aSeguridad" style="font-size:12px;color:#ffd24d"></p>
+<p style="font-size:12px;color:#9aa">No ejecutes el editor desde una carpeta sincronizada con OneDrive (o similar): editor.db pesa unos 400 MB, OneDrive lo bloquea al sincronizar y el arranque o el guardado pueden colgarse. Usa una carpeta local (p. ej. C:\GridaniaEditor).</p>
 <h4>Cabecera</h4><dl>
 <dt>Actualizar desde GitHub</dt><dd>Baja del repositorio la traduccion, los glosarios y los textos japones y frances. Antes rellena repo y token en Ajustes.</dd>
 <dt>Extraer del juego</dt><dd>Lee el japones y el frances del juego instalado, para ver que ha cambiado tras una actualizacion.</dd>
@@ -392,7 +394,7 @@ $('bSync').onclick=()=>lanzar('/api/sync');$('bIdx').onclick=e=>{$('bannerIdx').
 $('bTar').onclick=()=>{$('tareas').style.display='flex';tareaDesde=0;$('log').textContent='';tareaLog()};$('tCerrar').onclick=()=>$('tareas').style.display='none';
 $('bExp').onclick=async()=>{try{const r=await api('/api/exportar',{});alert(`Exportadas ${r.filas} filas de ${r.hojas} hojas a:\n${r.carpeta}`)}catch(e){alert(e.message)}};
 $('bSalir').onclick=async()=>{await api('/api/salir',{});document.body.innerHTML='<p style="padding:20px">Editor cerrado. Puedes cerrar esta pestana.</p>'};
-$('bAyuda').onclick=()=>$('dAyuda').showModal();$('aLogs').onclick=async()=>{try{const r=await api('/api/abrir_registros',{});$('aLogRuta').textContent=r.ruta}catch(e){$('aLogRuta').textContent=e.message}};$('aCerrar').onclick=()=>$('dAyuda').close();
+$('bAyuda').onclick=async()=>{try{const e=await api('/api/estado');const c=e.config||{};$('aSeguridad').textContent=c.aviso_token||(c.token_proteccion==='claro'?'El token de GitHub esta guardado SIN cifrar en config.json (este sistema no tiene DPAPI): no compartas ni sincronices esa carpeta.':(c.token_proteccion==='dpapi'?'El token de GitHub esta cifrado con DPAPI (solo este usuario de Windows puede leerlo).':''))}catch(x){}$('dAyuda').showModal()};$('aLogs').onclick=async()=>{try{const r=await api('/api/abrir_registros',{});$('aLogRuta').textContent=r.ruta}catch(e){$('aLogRuta').textContent=e.message}};$('aCerrar').onclick=()=>$('dAyuda').close();
 // ---------- ajustes
 $('bCfg').onclick=async()=>{const e=await api('/api/estado');const c=e.config;$('cRepo').value=c.repo;$('cRama').value=c.rama;$('cToken').value='';$('cToken').placeholder=c.token_guardado?'(guardado; deja vacio para conservarlo)':'ghp_...';
  $('cJuego').value=c.ruta_juego;$('cDat').value=c.carpeta_dat;$('cMin').value=c.min_entradas;$('cMax').value=c.max_rechazos;$('dCfg').showModal()};

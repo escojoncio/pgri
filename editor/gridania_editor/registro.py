@@ -76,28 +76,39 @@ def fase(nombre):
     lg.info('fase %s: %.2f s', nombre, time.time() - t)
 
 
-_fh = {'f': None}
+_fh = {'f': None, 'abierto': None, 'timer': None}
+FAULTHANDLER_MAX_BYTES = 1000000
 
 
-def activar_faulthandler(home, cada=30):
-    """faulthandler a editor-faulthandler.log: ante un cuelgue duro vuelca las pilas de TODOS los hilos cada `cada` s (se cancela con parar_faulthandler)"""
+def activar_faulthandler(home, cada=30, max_minutos=5, max_bytes=None):
+    """faulthandler a faulthandler.log: ante un cuelgue duro vuelca las pilas de TODOS los hilos cada `cada` s, SOLO mientras la UI no cargue (parar_faulthandler lo cancela)
+    y, si nunca carga, se para solo a los `max_minutos` min. El fichero se trunca al arrancar si supera `max_bytes` (1 MB). Con el volcado periodico parado queda activo el
+    volcado ante fallo fatal (segfault)."""
+    max_bytes = FAULTHANDLER_MAX_BYTES if max_bytes is None else max_bytes
     try:
-        f = open(os.path.join(home, 'faulthandler.log'), 'a', encoding='utf-8'); f.write('--- %s pid=%d\n' % (time.strftime('%Y-%m-%d %H:%M:%S'), os.getpid())); f.flush()
+        ruta = os.path.join(home, 'faulthandler.log')
+        try: grande = os.path.getsize(ruta) > max_bytes
+        except OSError: grande = False
+        f = open(ruta, 'w' if grande else 'a', encoding='utf-8'); f.write('--- %s pid=%d\n' % (time.strftime('%Y-%m-%d %H:%M:%S'), os.getpid())); f.flush()
         faulthandler.enable(file=f, all_threads=True); faulthandler.dump_traceback_later(cada, repeat=True, file=f)
-        _fh['f'] = f
-        logging.getLogger('gridania').info('faulthandler activo (volcado cada %d s en faulthandler.log)', cada)
+        _fh['f'] = f; _fh['abierto'] = f      # 'abierto' mantiene el fichero vivo para el volcado ante fallo fatal
+        if max_minutos:
+            t = threading.Timer(max_minutos * 60, lambda: parar_faulthandler('tope de %s min' % max_minutos)); t.daemon = True; t.start(); _fh['timer'] = t
+        logging.getLogger('gridania').info('faulthandler activo (volcado cada %d s hasta que cargue la UI o %s min, en faulthandler.log)', cada, max_minutos)
         return f
     except Exception as x:
         logging.getLogger('gridania').warning('faulthandler no disponible: %s', x); return None
 
 
-def parar_faulthandler():
+def parar_faulthandler(motivo='arranque completo'):
     f = _fh['f']
+    t = _fh.get('timer'); _fh['timer'] = None
+    if t is not None: t.cancel()
     if f is None: return
     try: faulthandler.cancel_dump_traceback_later()
     except Exception: pass
     _fh['f'] = None
-    logging.getLogger('gridania').info('faulthandler: volcados periodicos cancelados (arranque completo)')
+    logging.getLogger('gridania').info('faulthandler: volcados periodicos cancelados (%s)', motivo)
 
 
 def vigilar_arranque(listo, paso=10.0):

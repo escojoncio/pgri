@@ -100,7 +100,7 @@ class Servidor(object):
         if ruta == '/api/hoja_celdas': return a.hoja_celdas(q['hoja'])
         if ruta == '/api/celda': return a.celda(int(q['id']))
         if ruta == '/api/tarea': return a.tarea.ver(int(q.get('desde') or 0))
-        if ruta == '/api/arranque': return {'arranque': dict(a.arranque, ocupada=a.base.motivo), 'indice_estado': a.vigencia, 'aviso': a.aviso}
+        if ruta == '/api/arranque': return {'arranque': dict(a.arranque, ocupada=a.motivo_base()), 'indice_estado': a.vigencia, 'aviso': a.aviso}
         raise KeyError(ruta)
 
     def post(self, ruta, b):

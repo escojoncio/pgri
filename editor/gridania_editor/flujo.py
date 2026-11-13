@@ -22,10 +22,14 @@ class Flujo(object):
     def __init__(self, ruta):
         self.ruta = ruta; self.lock = threading.RLock(); self.datos = {}
         self.alcambiar = None   # callback(cambios|None) -> mantiene la columna materializada `flujo` de la BD (None = resincronizar todo)
+        self.recargar()
+
+    def recargar(self):
         try:
-            with open(ruta, encoding='utf-8') as f:
+            with open(self.ruta, encoding='utf-8') as f:
                 d = json.load(f)
-            if isinstance(d, dict): self.datos = {k: v for k, v in d.items() if v in (POR_HACER, HECHO)}
+            if isinstance(d, dict):
+                with self.lock: self.datos = {k: v for k, v in d.items() if v in (POR_HACER, HECHO)}
         except (OSError, ValueError):
             pass
 

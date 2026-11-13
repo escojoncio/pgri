@@ -345,3 +345,14 @@ def test_ui_escapa_comillas_y_apostrofes():
     ui = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'gridania_editor', 'ui', 'index.html')
     linea = [l for l in open(ui, encoding='utf-8') if l.startswith('function esc(')][0]
     assert '&quot;' in linea and '&#39;' in linea and '&lt;' in linea
+
+
+def test_ruta_segura_con_carpeta_dat(app, tmp_path):
+    dat = tmp_path / 'salida_dat'; dat.mkdir()
+    fuera = tmp_path / 'otra'; fuera.mkdir()
+    with pytest.raises(ValueError): app._ruta_segura(str(dat / 'x.tsv'))               # sin carpeta_dat configurada
+    app.cfg.actualizar({'carpeta_dat': str(dat)})
+    assert app._ruta_segura(str(dat / 'x.tsv')) and app._ruta_segura(str(dat))
+    with pytest.raises(ValueError): app._ruta_segura(str(fuera / 'x.tsv'))
+    with pytest.raises(ValueError): app._ruta_segura(str(dat / '..' / 'otra' / 'x.tsv'))
+    with pytest.raises(ValueError): app._ruta_segura(str(tmp_path / 'salida_dat_hermana' / 'x.tsv'))   # prefijo comun no cuenta

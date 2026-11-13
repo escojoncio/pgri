@@ -57,7 +57,7 @@ class Aplicacion(object):
     def __init__(self, home=None, repo_override=None, diferir=False):
         """diferir=True: no migra la BD ni vincula el flujo aqui (lo hace arrancar_fondo() en un hilo, para que la ventana salga ya)"""
         self.cfg = config.Config(home, repo_override)
-        self.base = indexer.Base(self.cfg.db_ruta)
+        self._base = None; self._base_ev = threading.Event()      # con diferir=True la BD se abre en el hilo de arranque (puede bloquearse: OneDrive, disco lento)
         self.tarea = Tarea(self.cfg)
         self.flujo = flujo.Flujo(os.path.join(self.cfg.home, 'flujo.json'))   # estados Por hacer / Hecho: solo en la carpeta de datos del editor
         self._R = None; self._motor = None; self._indice = None
@@ -68,14 +68,34 @@ class Aplicacion(object):
         if diferir: self.arranque['listo'] = False
         else: self._preparar_base()
 
+    @property
+    def base(self):
+        if self._base is None and not self._base_ev.wait(30): raise RuntimeError('La base de datos se esta preparando; espera unos segundos.')
+        if self._base is None: raise RuntimeError('La base de datos no esta disponible; mira el registro (Ayuda > Abrir carpeta de datos y registros).')
+        return self._base
+
+    def abrir_base(self):
+        """abre editor.db (con diferir=True lo hace el hilo de arranque; puede tardar). Idempotente."""
+        if self._base is None:
+            self.arranque.update(fase='abriendo la base de datos')
+            try:
+                with registro.fase('apertura de la base'): self._base = indexer.Base(self.cfg.db_ruta)
+            finally: self._base_ev.set()
+        return self._base
+
+    def motivo_base(self):
+        return self._base.motivo if self._base is not None else ''
+
     def _preparar_base(self):
         def av(fase, hecho=0, total=0): self.arranque.update(fase=fase, hecho=hecho, total=total)
+        self.abrir_base()
         with registro.fase('migracion de la base'): self.base.migrar_datos(av)
         with registro.fase('flujo -> columna'): self.base.vincular_flujo(self.flujo)
 
-    def arrancar_fondo(self, ui_cargada=None):
+    def arrancar_fondo(self, ui_cargada=None, tras_ui=None):
         """IDEMPOTENTE. Migracion de editor.db antigua + flujo (hilo 'arranque': la UI muestra «Cargando...» con la fase y el editor sigue usable) y, en OTRO hilo de baja
-        prioridad, la comprobacion de si el indice sigue vigente: espera a que la UI haya cargado (maximo 60 s) para no competir con la ventana por el disco."""
+        prioridad, la comprobacion de si el indice sigue vigente: espera a que la UI haya cargado (maximo 60 s) para no competir con la ventana por el disco.
+        `tras_ui` (migracion de la carpeta antigua, copytree) corre en ese mismo hilo, DESPUES de ui_cargada; si copia algo se recargan ajustes y flujo."""
         with self.lock:
             if self._fondo: return
             self._fondo = True
@@ -89,6 +109,14 @@ class Aplicacion(object):
         def v():
             if ui_cargada is not None:
                 with registro.fase('espera de la UI para comprobar la vigencia'): ui_cargada.wait(60)
+            if tras_ui is not None:
+                try:
+                    with registro.fase('migracion de la carpeta antigua'): copiados = tras_ui()
+                    if copiados:
+                        self.cfg.recargar(); self.flujo.recargar()
+                        while not self.arranque.get('listo'): time.sleep(0.2)
+                        if self._base is not None: self._base.vincular_flujo(self.flujo)
+                except BaseException: log.error('migracion de la carpeta antigua', exc_info=True)
             while not self.arranque.get('listo'): time.sleep(0.2)
             try:
                 with registro.fase('vigencia del indice'): self.refrescar_vigencia()
@@ -132,13 +160,15 @@ class Aplicacion(object):
         try: j = json.load(open(os.path.join(self.cfg.juego_dir, 'info.json'), encoding='utf-8'))
         except (OSError, ValueError): pass
         if j: j = {k: v for k, v in j.items() if k != 'no_leidas'}
-        try: indice = indexer.meta(self.base); contadores = indexer.contadores(self.base)
+        try:
+            if self._base is None: raise sqlite3.Error('base aun no abierta')
+            indice = indexer.meta(self.base); contadores = indexer.contadores(self.base)
         except sqlite3.Error as x:      # /api/estado responde SIEMPRE (con arranque.fase y progreso) aunque la BD este ocupada
             log.warning('estado: base no disponible: %s', x); indice = None; contadores = {e: 0 for e in indexer.ESTADOS}
         return {'config': self.cfg.publico(), 'sync': self._leer('sync_info.json'), 'juego': j, 'indice': indice, 'contadores': contadores,
                 'ediciones': edits.contar(self.cfg.ediciones_dir), 'repo_ok': repo_env.hay_repo(self.cfg.repo_dir), 'tarea': self.tarea.ver(10 ** 9),
                 'version_recomendada': self._recomendada(), 'clases': clases.CLASES, 'flujo': self.flujo.totales(),
-                'arranque': dict(self.arranque, ocupada=self.base.motivo), 'indice_estado': self.vigencia, 'aviso': self.aviso, 'registro': registro.ruta_log(self.cfg.home)}
+                'arranque': dict(self.arranque, ocupada=self.motivo_base()), 'indice_estado': self.vigencia, 'aviso': self.aviso, 'registro': registro.ruta_log(self.cfg.home)}
 
     def _recomendada(self):
         try: return open(os.path.join(self.cfg.repo_dir, 'data', 'recommended-game-version.txt'), encoding='utf-8').read().strip()

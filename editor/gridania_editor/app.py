@@ -6,7 +6,9 @@ from . import stdlib_para_scripts  # noqa: F401  (declara la stdlib que usan los
 from .aplicacion import Aplicacion
 from .servidor import Servidor
 
-ESPERA_UI_S = 15    # si la UI no pide la pagina en este tiempo tras empezar a crear la ventana, se abre el navegador por defecto (el servidor sigue vivo)
+ESPERA_UI_S = 30    # si la UI no pide la pagina en este tiempo (arranque en frio), se abre el navegador por defecto (el servidor sigue vivo)
+AMPLIACION_S = 30   # con senal de vida (create_window ya devolvio la ventana) el plazo se amplia a «momento de la senal + AMPLIACION_S»...
+TOPE_UI_S = 90      # ...sin pasar nunca de este total
 
 
 def _decir(texto, nivel=logging.WARNING):
@@ -39,14 +41,19 @@ def main(argv=None):
     lg = registro.iniciar(home, __version__)
     registro.activar_faulthandler(home)
     if config.AVISO_CARPETA: _decir(config.AVISO_CARPETA); _caja('Editor de traducciones Gridania', config.AVISO_CARPETA)
+    avisos = [config.AVISO_CARPETA] if config.AVISO_CARPETA else []
+    nube = config.ruta_sincronizada(home)
+    if nube:
+        av = config.AVISO_ONEDRIVE % home; avisos.append(av); _decir(av)
+        threading.Thread(target=_caja, args=('Editor de traducciones Gridania', av), daemon=True, name='aviso-onedrive').start()    # sin bloquear el arranque
     cerrojo = instancia.adquirir(home)
     if cerrojo is None:
         cerrojo = _recuperar_obsoleta(home, lg)
     if cerrojo is None:
         return _ya_abierto(home, lg)
     try:
-        if por_defecto and cerrojo is not None: config.migrar_antigua(home, log=lg)
-        return _principal(a, lg)
+        tras_ui = (lambda: config.migrar_antigua(home, log=lg)) if por_defecto else None     # copytree: en un hilo, DESPUES de que la UI cargue
+        return _principal(a, lg, tras_ui, ' '.join(avisos))
     except BaseException as x:
         if isinstance(x, (KeyboardInterrupt, SystemExit)): raise
         lg.critical('fallo fatal en el arranque', exc_info=True)
@@ -100,56 +107,98 @@ def terminar(codigo):
     os._exit(codigo or 0)
 
 
-def _vigilar_ui(srv, app, estado, url, espera=None, paso=0.5, abrir=None):
+class _Cancelada(Exception):
+    """la ventana propia pierde la carrera contra el navegador (o no hay runtime): no es un fallo"""
+
+
+def _sin_runtime():
+    """Windows sin WebView2 Runtime segun el registro (no se espera 30 s para saberlo)"""
+    return sys.platform.startswith('win') and webview2_instalado() is None
+
+
+def _destruir_en_hilo(win, espera=3.0):
+    """win.destroy() puede bloquearse si el hilo de la GUI esta colgado: hilo aparte con timeout; nunca bloquea al llamador mas de `espera` s"""
+    t = threading.Thread(target=lambda: _intentar(win.destroy), daemon=True, name='destruir-ventana'); t.start(); t.join(espera)
+    if t.is_alive(): logging.getLogger('gridania').warning('win.destroy() no ha vuelto en %.0f s (hilo de la GUI colgado); se sigue sin esperar', espera)
+
+
+def _intentar(f):
+    try: f()
+    except Exception: pass
+
+
+def _pasar_a_navegador(srv, app, estado, url, abrir, aviso=None, forzar=False):
+    """UNICO ganador: si la ventana ya cargo (salvo `forzar`) o el navegador ya se abrio, no hace nada. Si no: ABRE EL NAVEGADOR PRIMERO, luego destruye la ventana (en un hilo con timeout).
+    El servidor NO se cierra. -> True si abrio el navegador."""
+    with estado['lock']:
+        if estado['navegador'] or (not forzar and srv.ui_cargada.is_set()): return False
+        estado['navegador'] = True
+    if aviso: app.aviso = aviso; _decir(aviso)
+    try: abrir(url)
+    except Exception: logging.getLogger('gridania').warning('no se pudo abrir el navegador', exc_info=True)
+    instancia.publicar(app.cfg.home, url, 'navegador', getattr(srv, 'clave', None))
+    if estado.get('arrancar'): estado['arrancar']()           # la base se prepara aunque la ventana nunca llegue a pedirse (idempotente)
+    win = estado.get('win')
+    if win is not None: _destruir_en_hilo(win)
+    return True
+
+
+def _vigilar_ui(srv, app, estado, url, espera=None, paso=0.5, abrir=None, ampliacion=None, tope=None):
     """Si la UI no pide la pagina en `espera` s (WebView2 ausente/roto/colgado, import de webview bloqueado...) se abre el navegador por defecto con la URL y se avisa.
-    El servidor NO se cierra. Si hay ventana propia se intenta cerrar (una sola UI); si el usuario la cerro antes, no se abre nada."""
+    Senal de vida (estado['vida'] = instante en que create_window devolvio la ventana): el plazo pasa a max(plazo, vida + ampliacion) sin superar `tope` desde el inicio.
+    Si el usuario cerro la ventana antes, no se abre nada."""
     espera = ESPERA_UI_S if espera is None else espera; abrir = abrir or webbrowser.open
+    ampliacion = AMPLIACION_S if ampliacion is None else ampliacion; tope = max(TOPE_UI_S, espera) if tope is None else tope
+    estado.setdefault('lock', threading.Lock())
     t0 = time.time()
-    while time.time() - t0 < espera:
+    while True:
+        plazo = t0 + espera
+        if estado.get('vida'): plazo = min(t0 + tope, max(plazo, estado['vida'] + ampliacion))
+        if time.time() >= plazo: break
         if srv.ui_cargada.wait(paso) or srv.salir.is_set(): return
         win = estado.get('win')
         try:
             if win is not None and win.events.closed.is_set(): return          # la cerro el usuario: no se abre nada
         except AttributeError: pass
-    estado['navegador'] = True
-    app.aviso = 'La ventana propia no ha cargado en %d s (etapa: %s); se ha abierto el navegador. Instala/repara el WebView2 Runtime de Microsoft para usar la ventana propia.' % (espera, estado.get('etapa') or '?')
-    _decir(app.aviso)
-    win = estado.get('win')
-    if win is not None:
-        try: win.destroy()
-        except Exception: pass
-    instancia.publicar(app.cfg.home, url, 'navegador', getattr(srv, 'clave', None))
-    abrir(url)
+    _pasar_a_navegador(srv, app, estado, url, abrir, 'La ventana propia no ha cargado en %d s (etapa: %s); se ha abierto el navegador. Instala/repara el WebView2 Runtime de Microsoft para usar la ventana propia.' % (time.time() - t0, estado.get('etapa') or '?'))
 
 
-def _principal(a, lg):
+def _principal(a, lg, tras_ui=None, aviso=''):
     with registro.fase('aplicacion'):
-        app = Aplicacion(a.carpeta, diferir=True)
-    if config.AVISO_CARPETA: app.aviso = config.AVISO_CARPETA
+        app = Aplicacion(a.carpeta, diferir=True)      # solo ajustes y flujo.json: la BD se abre en el hilo de arranque
+    if aviso: app.aviso = aviso
     try:
-        return _servir(a, lg, app)
+        return _servir(a, lg, app, tras_ui)
     finally:
         cerrar_trabajo(app)
 
 
 def _abrir_ventana(srv, app, url, estado):
-    """import webview + create_window + start en el hilo principal, cada paso registrado. Lo primero tras arrancar el servidor; la preparacion de la base va aparte (hilos)."""
+    """import webview + create_window (cada paso registrado). Antes de cada paso lento y al volver se comprueba estado['navegador'] (con el cerrojo): si el navegador ya gano, la
+    ventana se cancela (_Cancelada) y la creada tarde se destruye. No arranca el bucle de la GUI: eso lo hace _servir justo tras comprobar de nuevo."""
+    def perdida():
+        with estado['lock']: return estado['navegador']
     registro.etapa('import webview'); estado['etapa'] = 'import webview'
     with registro.fase('import webview'):
         import webview
+    if perdida(): raise _Cancelada('el navegador ya se abrio (import tardio)')
     registro.etapa('deteccion WebView2'); estado['etapa'] = 'deteccion WebView2'
     with registro.fase('deteccion WebView2'):
-        lg = logging.getLogger('gridania'); lg.info('WebView2 en el registro: %s', webview2_instalado())
+        logging.getLogger('gridania').info('WebView2 en el registro: %s', webview2_instalado())
+    if _sin_runtime():
+        _pasar_a_navegador(srv, app, estado, url, estado['abrir'], 'No se ha encontrado el WebView2 Runtime de Microsoft; se ha abierto el navegador. Instalalo para usar la ventana propia.', forzar=True)
+        raise _Cancelada('sin WebView2 Runtime')
+    if perdida(): raise _Cancelada('el navegador ya se abrio')
     registro.etapa('create_window'); estado['etapa'] = 'create_window'
     with registro.fase('create_window'):
         win = webview.create_window('Editor de traducciones Gridania', url, width=1400, height=900)
-    estado['win'] = win
-    lg = logging.getLogger('gridania')
+    estado['win'] = win; estado['vida'] = time.time()
+    if perdida():
+        _destruir_en_hilo(win); raise _Cancelada('ventana creada tarde: el navegador ya se abrio')
     for nombre in ('loaded', 'shown', 'closed'):
         try: getattr(win.events, nombre).__iadd__(lambda *x, n=nombre: registro.etapa('evento de ventana: ' + n))
         except Exception: pass
-    instancia.publicar(app.cfg.home, url, 'ventana', srv.clave)
-    threading.Thread(target=lambda: (srv.salir.wait(), win.destroy()), daemon=True, name='cierre').start()
+    threading.Thread(target=lambda: (srv.salir.wait(), _intentar(win.destroy)), daemon=True, name='cierre').start()
     return webview
 
 
@@ -169,38 +218,44 @@ def webview2_instalado():
     return None
 
 
-def _servir(a, lg, app):
+def _servir(a, lg, app, tras_ui=None):
     with registro.fase('servidor'):
         srv = Servidor(app, a.puerto); srv.arrancar()
     url = srv.url
     _decir('Editor Gridania en %s' % url, logging.INFO)
     registro.vigilar_arranque(srv.ui_cargada.is_set)
+    arrancar = lambda: app.arrancar_fondo(srv.ui_cargada, tras_ui)       # idempotente: BD + migracion + vigencia, siempre en hilos
     if a.sin_abrir:
-        app.arrancar_fondo(srv.ui_cargada)
+        arrancar()
         instancia.publicar(app.cfg.home, url, 'navegador', srv.clave)
         srv.salir.wait(); srv.parar(); return _salida(srv)
-    usado = False; estado = {'navegador': False, 'win': None, 'etapa': ''}
+    usado = False; estado = {'navegador': False, 'win': None, 'etapa': '', 'lock': threading.Lock(), 'vida': 0, 'arrancar': arrancar, 'abrir': webbrowser.open}
     srv.al_pedir_pagina = lambda: (registro.etapa('primera peticion GET / de la UI'), registro.parar_faulthandler())
     if not a.navegador:
-        threading.Thread(target=_vigilar_ui, args=(srv, app, estado, url), daemon=True, name='vigilante-ui').start()
+        with registro.fase('vigilante'):
+            threading.Thread(target=_vigilar_ui, args=(srv, app, estado, url), kwargs={'abrir': lambda u: estado['abrir'](u)}, daemon=True, name='vigilante-ui').start()
         try:
             webview = _abrir_ventana(srv, app, url, estado)
-            app.arrancar_fondo(srv.ui_cargada)      # DESPUES de pedir la ventana: la base se prepara en hilos y nunca retrasa su aparicion
+            instancia.publicar(app.cfg.home, url, 'ventana', srv.clave)
+            arrancar()                                  # tras pedir la ventana; en hilos, nunca la retrasa
             t0 = time.time()
+            with estado['lock']:
+                if estado['navegador']: raise _Cancelada('el navegador gano justo antes de start')
             registro.etapa('webview.start (bucle de la GUI)'); estado['etapa'] = 'webview.start'
             webview.start(lambda: registro.etapa('GUI iniciada (func de start)'))
             registro.etapa('webview.start ha vuelto')
             usado = (srv.ui_cargada.is_set() or time.time() - t0 > 3) and not estado['navegador']
             if not usado and not estado['navegador']:
                 app.aviso = 'La ventana propia se cerro al abrirse; se usa el navegador.'; _decir(app.aviso)
+        except _Cancelada as x:
+            lg.info('ventana propia cancelada: %s', x)
         except Exception as x:
             lg.warning('ventana propia no disponible', exc_info=True)
             app.aviso = 'No se pudo abrir la ventana propia (%s: %s); se usa el navegador. Detalles en el registro.' % (type(x).__name__, x)
             _decir(app.aviso)
-    app.arrancar_fondo(srv.ui_cargada)              # idempotente (navegador / fallo de la ventana)
+    arrancar()
     if not usado:
-        if not estado['navegador']:
-            instancia.publicar(app.cfg.home, url, 'navegador', srv.clave); webbrowser.open(url)
+        _pasar_a_navegador(srv, app, estado, url, estado['abrir'], forzar=True)          # no hace nada si el navegador ya se abrio
         try: srv.salir.wait()
         except KeyboardInterrupt: pass
     srv.parar(); return _salida(srv)

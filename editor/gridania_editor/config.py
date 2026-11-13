@@ -1,9 +1,48 @@
-"""Ajustes locales. El token personal se guarda SOLO aqui (config.json en la carpeta de trabajo del usuario), nunca en el repo ni en logs."""
-import json, os, sys, threading
+"""Ajustes locales. El token personal se guarda SOLO aqui (config.json en la carpeta de trabajo del usuario), nunca en el repo ni en logs.
+En Windows se cifra con DPAPI (ligado al usuario de Windows); si no hay DPAPI se guarda en claro (permisos 0600) y la Ayuda lo avisa."""
+import base64, json, os, sys, threading
 
 DEFECTO = {'repo': 'escojoncio/gridania', 'rama': 'main', 'token': '', 'ruta_juego': '', 'carpeta_dat': '', 'min_entradas': 757594, 'max_rechazos': 43}
 _lock = threading.Lock()
 
+
+PREFIJO_DPAPI = 'dpapi:'
+
+
+def dpapi_disponible():
+    return sys.platform.startswith('win')
+
+
+def _dpapi(datos, proteger):
+    import ctypes
+    from ctypes import wintypes
+    class BLOB(ctypes.Structure): _fields_ = [('cbData', wintypes.DWORD), ('pbData', ctypes.POINTER(ctypes.c_char))]
+    buf = ctypes.create_string_buffer(datos, len(datos))
+    ent = BLOB(len(datos), ctypes.cast(buf, ctypes.POINTER(ctypes.c_char))); sal = BLOB()
+    f = ctypes.windll.crypt32.CryptProtectData if proteger else ctypes.windll.crypt32.CryptUnprotectData
+    if not f(ctypes.byref(ent), None, None, None, None, 0, ctypes.byref(sal)): raise OSError('DPAPI fallo')
+    try: return ctypes.string_at(sal.pbData, sal.cbData)
+    finally: ctypes.windll.kernel32.LocalFree(sal.pbData)
+
+
+def dpapi_proteger(texto):
+    """-> 'dpapi:<base64>' (cifrado para el usuario de Windows actual)"""
+    return PREFIJO_DPAPI + base64.b64encode(_dpapi(texto.encode('utf-8'), True)).decode('ascii')
+
+
+def dpapi_desproteger(valor):
+    return _dpapi(base64.b64decode(valor[len(PREFIJO_DPAPI):]), False).decode('utf-8')
+
+
+def ruta_sincronizada(ruta):
+    """-> 'OneDrive' si la ruta esta en una carpeta con 'OneDrive' en el nombre (sincronizada en la nube), si no ''"""
+    for parte in os.path.abspath(ruta).replace('\\', '/').split('/'):
+        if 'onedrive' in parte.lower(): return 'OneDrive'
+    return ''
+
+
+AVISO_ONEDRIVE = ('El editor esta en una carpeta sincronizada con OneDrive (%s). editor.db pesa unos 400 MB y OneDrive lo bloquea al sincronizar: el arranque y el guardado pueden quedarse '
+                  'colgados. Mueve el programa a una carpeta local (p. ej. C:\\GridaniaEditor) o excluye la carpeta datos de la sincronizacion.')
 
 AVISO_CARPETA = ''     # se rellena si la carpeta junto al ejecutable no es escribible (la UI/arranque lo muestran)
 
@@ -74,12 +113,31 @@ class Config(object):
         self.home = os.path.abspath(home or carpeta_trabajo())
         os.makedirs(self.home, exist_ok=True)
         self.ruta = os.path.join(self.home, 'config.json')
-        self.datos = dict(DEFECTO)
+        self.datos = dict(DEFECTO); self.proteccion = 'sin_token'; self.aviso_token = ''
+        self.recargar()
+
+    def recargar(self):
+        """(re)lee config.json; descifra el token (DPAPI) y, si estaba en claro y hay DPAPI, lo reescribe cifrado"""
+        nuevo = dict(DEFECTO)
         if os.path.exists(self.ruta):
             try:
-                with open(self.ruta, encoding='utf-8') as f: self.datos.update(json.load(f))
+                with open(self.ruta, encoding='utf-8') as f: nuevo.update(json.load(f))
             except (OSError, ValueError):
                 pass
+        t = nuevo.get('token') or ''; self.aviso_token = ''
+        if t.startswith(PREFIJO_DPAPI):
+            try: nuevo['token'] = dpapi_desproteger(t); self.proteccion = 'dpapi'
+            except Exception:
+                nuevo['token'] = ''; self.proteccion = 'sin_token'
+                self.aviso_token = 'El token guardado no se pudo descifrar (otro usuario o equipo de Windows): vuelve a introducirlo en Ajustes.'
+        elif t:
+            self.proteccion = 'claro'
+        else:
+            self.proteccion = 'sin_token'
+        self.datos = nuevo
+        if self.proteccion == 'claro' and dpapi_disponible():
+            try: self.guardar()
+            except Exception: pass
 
     # rutas derivadas
     def sub(self, *p):
@@ -114,14 +172,19 @@ class Config(object):
     def guardar(self):
         tmp = self.ruta + '.tmp'
         fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-        with os.fdopen(fd, 'w', encoding='utf-8') as f: json.dump(self.datos, f, ensure_ascii=False, indent=1)
+        d = dict(self.datos); t = d.get('token') or ''
+        self.proteccion = 'sin_token' if not t else 'claro'
+        if t and dpapi_disponible():
+            try: d['token'] = dpapi_proteger(t); self.proteccion = 'dpapi'
+            except Exception: pass                      # sin DPAPI utilizable: en claro (la Ayuda lo avisa)
+        with os.fdopen(fd, 'w', encoding='utf-8') as f: json.dump(d, f, ensure_ascii=False, indent=1)
         os.replace(tmp, self.ruta)
         try: os.chmod(self.ruta, 0o600)
         except OSError: pass
 
     def publico(self):
         d = {k: v for k, v in self.datos.items() if k != 'token'}
-        d['token_guardado'] = bool(self.datos.get('token')); d['home'] = self.home
+        d['token_guardado'] = bool(self.datos.get('token')); d['home'] = self.home; d['token_proteccion'] = self.proteccion; d['aviso_token'] = self.aviso_token
         return d
 
     def redactar(self, texto):
