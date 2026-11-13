@@ -52,12 +52,18 @@ def dir_perfil(home, env=None):
     return os.path.join(base, 'GridaniaEditor', 'perfil-ventana') if base else os.path.join(home, 'perfil-ventana')
 
 
-def perfil_libre(home, env=None):
+def perfil_libre(home, env=None, pid_vivo=None, hay_ventana=None):
     """el navegador de la ventana ya no usa el perfil: True libre, False ocupado, None no comprobable (no Windows).
     Chromium mantiene `lockfile` abierto en exclusiva mientras alguno de sus procesos vive con ese perfil."""
     if not sys.platform.startswith('win'): return None
     lock = os.path.join(dir_perfil(home, env), 'lockfile')
-    if not os.path.exists(lock): return True
+    if not os.path.exists(lock):
+        # lockfile ausente con el navegador vivo (p. ej. aun no creado o perfil movido) NO es 'libre': el pid de la ventana o una ventana con el titulo lo desmienten
+        try:
+            if pid_vivo and pid_vivo(): return False
+            if hay_ventana and hay_ventana(): return False
+        except Exception: return False
+        return True
     try:
         with open(lock, 'rb'): pass
         os.rename(lock, lock)

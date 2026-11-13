@@ -13,6 +13,10 @@ GRACIA_CIERRE_S = 10        # tras /api/cierre (sendBeacon) sin latido ni GET / 
 UMBRAL_LATIDO_S = 180       # sin latido tanto tiempo desde la primera carga Y perfil de la ventana libre -> cierre (180 s por el throttling de pestañas ocultas/minimizadas)
 UMBRAL_SIN_LOCK_S = 300     # igual sin poder comprobar el perfil (no Windows)
 PASO_VIGILANTE_S = 0.5
+MIN_LATIDOS = 2            # latidos recibidos en la sesion antes de poder cerrar por la rama de 180 s
+HUECO_SUSPENSION_S = 5     # hueco entre iteraciones del vigilante que delata suspension/hibernacion del equipo
+MARGEN_DESPERTAR_S = 30    # tras despertar: nada se cierra hasta un latido nuevo o este margen
+UMBRAL_ZOMBI_S = 900       # perfil bloqueado pero SIN ventana visible con el titulo y sin latido: se cierra (Edge zombi)
 AVISO_NAVEGADOR = ' En el navegador el editor NO se cierra solo al cerrar la pestaña: usa el boton Salir.'
 
 
@@ -155,28 +159,39 @@ def _principal(a, lg, tras_ui=None, aviso=''):
         cerrar_trabajo(app)
 
 
-def motivo_cierre(srv, ahora, libre, gracia=None, umbral=None, umbral_sin_lock=None):
+def motivo_cierre(srv, ahora, libre, gracia=None, umbral=None, umbral_sin_lock=None, ventana_visible=None, umbral_zombi=None, min_latidos=None):
     """decide si hay que cerrar (funcion pura sobre las marcas de tiempo de `srv`, en time.monotonic()). -> texto del motivo o None.
-    libre: perfil de la ventana libre (True/False/None=no comprobable). Un latido o un GET / posterior a /api/cierre lo anula (era una recarga)."""
+    libre: perfil de la ventana libre (True/False/None=no comprobable). ventana_visible: hay ventana con el titulo (True/False/None).
+    Un latido o un GET / posterior a /api/cierre lo anula (era una recarga). Tras suspender (t_despertar) no se cierra nada hasta un latido nuevo o MARGEN_DESPERTAR_S."""
     gracia = GRACIA_CIERRE_S if gracia is None else gracia
     umbral = UMBRAL_LATIDO_S if umbral is None else umbral; umbral_sin_lock = UMBRAL_SIN_LOCK_S if umbral_sin_lock is None else umbral_sin_lock
+    umbral_zombi = UMBRAL_ZOMBI_S if umbral_zombi is None else umbral_zombi; min_latidos = MIN_LATIDOS if min_latidos is None else min_latidos
     actividad = max([t for t in (srv.t_latido, srv.t_get) if t is not None] or [None], key=lambda t: -1 if t is None else t)
+    desp = getattr(srv, 't_despertar', None)
+    if desp is not None and (actividad is None or actividad <= desp) and ahora - desp < MARGEN_DESPERTAR_S: return None
     if srv.t_cierre is not None:
         if actividad is not None and actividad > srv.t_cierre: srv.t_cierre = None           # recarga (F5): la pagina volvio
-        elif ahora - srv.t_cierre >= gracia: return 'cierre explicito de la ventana y %s s sin latido ni GET /' % gracia
+        else:
+            t = srv.t_cierre if desp is None else max(srv.t_cierre, desp)                    # la gracia se reinicia al despertar
+            if ahora - t >= gracia: return 'cierre explicito de la ventana y %s s sin latido ni GET /' % gracia
     if srv.ui_cargada.is_set() and actividad is not None:
+        sin = ahora - actividad
+        if libre is False and ventana_visible is False and sin >= umbral_zombi: return '%s s sin latido, perfil bloqueado y sin ventana visible (Edge zombi)' % umbral_zombi
         limite = umbral_sin_lock if libre is None else umbral
-        if libre is not False and ahora - actividad >= limite: return '%s s sin latido y perfil de la ventana %s' % (limite, 'libre' if libre else 'no comprobable')
+        if getattr(srv, 'n_latidos', 0) >= min_latidos and libre is not False and sin >= limite: return '%s s sin latido y perfil de la ventana %s' % (limite, 'libre' if libre else 'no comprobable')
     return None
 
 
-def _vigilar_cierre(srv, estado, libre, paso=None):
+def _vigilar_cierre(srv, estado, libre, paso=None, reloj=None, ventana_visible=None):
     """hilo de la ventana propia: cierra el editor por latido (NUNCA porque el Popen terminase). Se detiene al salir o si el navegador toma el relevo (sin cierre por latido, solo Salir)."""
-    paso = PASO_VIGILANTE_S if paso is None else paso
+    paso = PASO_VIGILANTE_S if paso is None else paso; reloj = reloj or time.monotonic; ultimo = reloj()
     while not srv.salir.wait(paso):
+        ahora = reloj(); hueco = ahora - ultimo; ultimo = ahora
+        if hueco > HUECO_SUSPENSION_S:           # el equipo estuvo suspendido/hibernado: los relojes saltaron, no hubo latidos reales
+            srv.t_despertar = ahora; logging.getLogger('gridania').info('hueco de %.0f s en el vigilante (suspension): se reinicia la gracia', hueco); continue
         with estado['lock']:
             if estado['navegador']: return
-        try: motivo = motivo_cierre(srv, time.monotonic(), libre())
+        try: motivo = motivo_cierre(srv, ahora, libre(), ventana_visible=ventana_visible() if ventana_visible else None)
         except Exception:
             logging.getLogger('gridania').warning('vigilante de cierre', exc_info=True); continue
         if motivo:
@@ -220,7 +235,7 @@ def _servir(a, lg, app, tras_ui=None):
         with estado['lock']: instancia.publicar(app.cfg.home, url, 'ventana', srv.clave)
         with registro.fase('vigilante'):
             threading.Thread(target=_vigilar_ui, args=(srv, app, estado, url), kwargs={'abrir': lambda u: estado['abrir'](u)}, daemon=True, name='vigilante-ui').start()
-            threading.Thread(target=_vigilar_cierre, args=(srv, estado, lambda: ventana.perfil_libre(app.cfg.home)), daemon=True, name='vigilante-cierre').start()
+            threading.Thread(target=_vigilar_cierre, args=(srv, estado, lambda: ventana.perfil_libre(app.cfg.home, pid_vivo=lambda: proc.poll() is None, hay_ventana=instancia.hay_ventana)), kwargs={'ventana_visible': instancia.hay_ventana}, daemon=True, name='vigilante-cierre').start()
         registro.etapa('esperando el cierre de la ventana por latido (pid %s, solo pista)' % getattr(proc, 'pid', '?'))
         try: res = _esperar_ventana(srv, estado)
         except KeyboardInterrupt: res = 'salir'

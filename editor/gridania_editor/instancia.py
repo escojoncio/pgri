@@ -46,22 +46,54 @@ def liberar(home, f):
     except OSError: pass
 
 
-def traer_al_frente(titulo=TITULO):
+def _user32():
+    import ctypes
+    from ctypes import wintypes
+    u = ctypes.WinDLL('user32', use_last_error=True)
+    return u
+
+
+def _tipar(u, CB):
+    """tipos explicitos (sin ellos ctypes trunca HWND a 32 bits en 64 bits)"""
+    from ctypes import wintypes
+    import ctypes
+    for nombre, args, res in (('EnumWindows', [CB, wintypes.LPARAM], wintypes.BOOL), ('IsWindowVisible', [wintypes.HWND], wintypes.BOOL),
+                              ('GetWindowTextLengthW', [wintypes.HWND], ctypes.c_int), ('GetWindowTextW', [wintypes.HWND, wintypes.LPWSTR, ctypes.c_int], ctypes.c_int),
+                              ('ShowWindow', [wintypes.HWND, ctypes.c_int], wintypes.BOOL), ('SetForegroundWindow', [wintypes.HWND], wintypes.BOOL)):
+        f = getattr(u, nombre)
+        try: f.argtypes = args; f.restype = res
+        except AttributeError: pass            # solo un user32 falso de pruebas puede no admitir atributos
+
+
+def _ventanas(titulo, u):
+    import ctypes
+    from ctypes import wintypes
+    hallada = []; clave = titulo.lower()
+    CB = getattr(ctypes, 'WINFUNCTYPE', ctypes.CFUNCTYPE)(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+    _tipar(u, CB)
+    def cb(h, _):
+        if not u.IsWindowVisible(h): return True
+        n = u.GetWindowTextLengthW(h)
+        if n <= 0: return True
+        buf = ctypes.create_unicode_buffer(n + 1); u.GetWindowTextW(h, buf, n + 1)
+        if clave in buf.value.lower(): hallada.append(h)
+        return True
+    u.EnumWindows(CB(cb), 0)
+    return hallada
+
+
+def hay_ventana(titulo=TITULO, user32=None):
+    """Windows: hay alguna ventana visible cuyo titulo CONTIENE `titulo` -> True/False; None si no se puede comprobar"""
+    if user32 is None and not sys.platform.startswith('win'): return None
+    try: return bool(_ventanas(titulo, user32 or _user32()))
+    except Exception: return None
+
+
+def traer_al_frente(titulo=TITULO, user32=None):
     """Windows: restaura y enfoca la ventana del editor ya abierta (EnumWindows: titulo que CONTIENE `titulo`; Edge puede anadir texto al titulo) -> bool"""
-    if not sys.platform.startswith('win'): return False
+    if user32 is None and not sys.platform.startswith('win'): return False
     try:
-        import ctypes
-        from ctypes import wintypes
-        u = ctypes.windll.user32; hallada = []; clave = titulo.lower()
-        CB = ctypes.WINFUNCTYPE(ctypes.c_bool, wintypes.HWND, wintypes.LPARAM)
-        def cb(h, _):
-            if not u.IsWindowVisible(h): return True
-            n = u.GetWindowTextLengthW(h)
-            if n <= 0: return True
-            buf = ctypes.create_unicode_buffer(n + 1); u.GetWindowTextW(h, buf, n + 1)
-            if clave in buf.value.lower(): hallada.append(h); return False
-            return True
-        u.EnumWindows(CB(cb), 0)
+        u = user32 or _user32(); hallada = _ventanas(titulo, u)
         if not hallada: return False
         h = hallada[0]; u.ShowWindow(h, 9); u.SetForegroundWindow(h); return True
     except Exception: return False

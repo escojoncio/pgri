@@ -18,7 +18,7 @@ def dir_ui():
 class Servidor(object):
     def __init__(self, app, puerto=0):
         self.app = app; self.clave = secrets.token_urlsafe(16); self.salir = threading.Event(); self.ui_cargada = threading.Event(); self.fallo = None; self.al_pedir_pagina = None; self.url_navegador = None
-        self.t_latido = None; self.t_get = None; self.t_cierre = None      # time.monotonic() del ultimo latido / GET / / aviso de cierre (sendBeacon)
+        self.t_latido = None; self.t_get = None; self.t_cierre = None; self.n_latidos = 0; self.t_despertar = None      # time.monotonic() del ultimo latido / GET / / aviso de cierre (sendBeacon)
         servidor = self
         class H(BaseHTTPRequestHandler):
             protocol_version = 'HTTP/1.1'
@@ -34,8 +34,8 @@ class Servidor(object):
                 dt = time.time() - t0
                 if dt > 1.0: log.warning('peticion lenta %s: %.1f s', ruta, dt)
             def _auth(self, q=None):
-                if self.headers.get('X-K') == servidor.clave: return True
-                return bool(q) and secrets.compare_digest(str(q.get('k') or ''), servidor.clave)      # sendBeacon no puede poner cabeceras: la clave va en ?k=
+                if secrets.compare_digest((self.headers.get('X-K') or '').encode('utf-8'), servidor.clave.encode('utf-8')): return True
+                return bool(q) and secrets.compare_digest(str(q.get('k') or '').encode('utf-8'), servidor.clave.encode('utf-8'))      # sendBeacon no puede poner cabeceras: la clave va en ?k=
             def do_GET(self):
                 if not self._host_ok(): return self._err(403, 'host no permitido')
                 u = urllib.parse.urlparse(self.path); q = {k: v[0] for k, v in urllib.parse.parse_qs(u.query).items()}
@@ -84,7 +84,33 @@ class Servidor(object):
                 self.salir.set()
         self.hilo = threading.Thread(target=servir, daemon=True, name='http'); self.hilo.start()
 
-    def registrar_latido(self): self.t_latido = time.monotonic()
+    def registrar_latido(self): self.t_latido = time.monotonic(); self.n_latidos += 1
+
+    def reabrir(self):
+        """la pagina vuelve de bfcache/suspension: anula un aviso de cierre pendiente. Si el editor ya esta cerrando -> ok False."""
+        if self.salir.is_set(): return {'ok': False, 'cerrado': True}
+        self.t_cierre = None; self.registrar_latido(); return {'ok': True}
+
+    # borrador del texto sin guardar: fichero en la carpeta de datos (NUNCA en traducciones)
+    def _ruta_borrador(self): return os.path.join(self.app.cfg.home, 'borrador.json')
+
+    def leer_borrador(self):
+        try:
+            with open(self._ruta_borrador(), encoding='utf-8') as f: d = json.load(f)
+            return d if isinstance(d, dict) and isinstance(d.get('texto'), str) else {}
+        except (OSError, ValueError): return {}
+
+    def guardar_borrador(self, b):
+        texto = str(b.get('texto', ''))
+        if len(texto) > 2000000: raise ValueError('borrador demasiado grande')
+        ruta = self._ruta_borrador(); tmp = ruta + '.tmp'
+        with open(tmp, 'w', encoding='utf-8') as f: json.dump({'id': int(b['id']), 'texto': texto, 'base': str(b.get('base', '')), 'fecha': time.time()}, f, ensure_ascii=False)
+        os.replace(tmp, ruta); return {'ok': True}
+
+    def borrar_borrador(self):
+        try: os.remove(self._ruta_borrador())
+        except OSError: pass
+        return {'ok': True}
 
     def pedir_cierre(self): self.t_cierre = time.monotonic()
 
@@ -109,6 +135,7 @@ class Servidor(object):
         if ruta == '/api/hoja_celdas': return a.hoja_celdas(q['hoja'])
         if ruta == '/api/celda': return a.celda(int(q['id']))
         if ruta == '/api/tarea': return a.tarea.ver(int(q.get('desde') or 0))
+        if ruta == '/api/borrador': return self.leer_borrador()
         if ruta == '/api/arranque': return {'arranque': dict(a.arranque, ocupada=a.motivo_base()), 'indice_estado': a.vigencia, 'aviso': a.aviso}
         raise KeyError(ruta)
 
@@ -139,6 +166,9 @@ class Servidor(object):
             if self.url_navegador: self.url_navegador()
             else: import webbrowser; webbrowser.open(self.url)
             return {'ok': True}
+        if ruta == '/api/borrador': return self.guardar_borrador(b)
+        if ruta == '/api/borrador_borrar': return self.borrar_borrador()
+        if ruta == '/api/reabrir': return self.reabrir()
         if ruta == '/api/latido': self.registrar_latido(); return {'ok': True}
         if ruta == '/api/cierre': self.pedir_cierre(); return {'ok': True}        # la UI se descarga (cerrar ventana o F5): el vigilante decide pasado el plazo
         if ruta == '/api/salir': self.salir.set(); return {'ok': True}

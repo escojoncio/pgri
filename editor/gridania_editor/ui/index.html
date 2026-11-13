@@ -241,11 +241,34 @@ const $=id=>document.getElementById(id);
 /* Latido: el servidor cierra el editor cuando la ventana propia deja de dar señales. Al descargarse la pagina (cerrar la ventana o F5) avisa con sendBeacon; el servidor espera 10 s por si es una recarga. */
 function latido(){fetch('/api/latido',{headers:{'X-K':K},cache:'no-store'}).catch(()=>{})}
 latido();setInterval(latido,5000);
+/*LOGICA_INI*/
+let guardadoTxt='',selId=null;
+function sinGuardar(actual,guardado,id){return id!=null&&actual!==guardado}
+function manejarBeforeUnload(e,sucio){if(!sucio)return undefined;e.preventDefault();e.returnValue='';return ''}
+function manejarPageHide(e,enviar){enviar()}
+function manejarPageShow(e,reabrir){if(e&&e.persisted){reabrir();return true}return false}
+/*LOGICA_FIN*/
 function avisoCierre(){try{navigator.sendBeacon('/api/cierre?k='+encodeURIComponent(K))}catch(e){}}
-addEventListener('pagehide',avisoCierre);addEventListener('beforeunload',avisoCierre);
+function sucio(){const t=document.getElementById('es');return !!t&&sinGuardar(t.value,guardadoTxt,selId)}
+addEventListener('beforeunload',e=>manejarBeforeUnload(e,sucio()));
+addEventListener('pagehide',e=>manejarPageHide(e,avisoCierre));
+function bannerSesion(t,error){let b=document.getElementById('bSesion');if(!b){b=document.createElement('div');b.id='bSesion';b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;padding:8px 12px;text-align:center;font:14px sans-serif';document.body.appendChild(b)}
+ b.textContent=t;b.style.background=error?'#7a1f1f':'#1f5a2e';b.style.color='#fff';if(!error)setTimeout(()=>{b.style.display='none'},6000);else b.style.display='block'}
+async function reabrirSesion(){try{const r=await fetch('/api/reabrir',{method:'POST',headers:{'X-K':K},cache:'no-store'});const j=await r.json();
+ if(r.ok&&j.ok){bannerSesion('Sesión reabierta');return}}catch(e){}bannerSesion('El editor se cerró, ábrelo de nuevo',true)}
+addEventListener('pageshow',e=>manejarPageShow(e,reabrirSesion));
+/* Borrador local: cada pocos segundos el texto sin guardar se manda al servidor (fichero en la carpeta de datos, no en traducciones). */
+let borEnviado=null;
+async function guardarBorrador(){try{const t=document.getElementById('es');if(!t)return;
+ if(sucio()){if(borEnviado!==t.value+'\u0000'+selId){await api('/api/borrador',{id:selId,texto:t.value,base:guardadoTxt});borEnviado=t.value+'\u0000'+selId}}
+ else if(borEnviado!==null){await api('/api/borrador_borrar',{});borEnviado=null}}catch(e){}}
+setInterval(guardarBorrador,4000);
+async function recuperarBorrador(){try{const b=await api('/api/borrador');if(!b||b.id==null||typeof b.texto!=='string')return;
+ await abrir(b.id);if($('es').value===b.texto){await api('/api/borrador_borrar',{});return}
+ $('es').value=b.texto;previa();$('msg').textContent='Recuperado un borrador sin guardar (de la sesión anterior). Revísalo y pulsa Guardar.';bannerSesion('Borrador sin guardar recuperado',false)}catch(e){}}
 async function api(ruta,cuerpo){const o={headers:{'X-K':K}};if(cuerpo!==undefined){o.method='POST';o.headers['Content-Type']='application/json';o.body=JSON.stringify(cuerpo)}
  const r=await fetch(ruta,o);const j=await r.json();if(!r.ok)throw new Error(j.error||r.status);return j}
-const ESTADOS=['rojo','naranja','verde','blanco'];let activos=new Set(['rojo','naranja']);let off=0,total=0,LIM=100,selId=null,timer=null,tareaDesde=0,sondeo=null,modoVista='tabla';
+const ESTADOS=['rojo','naranja','verde','blanco'];let activos=new Set(['rojo','naranja']);let off=0,total=0,LIM=100,timer=null,tareaDesde=0,sondeo=null,modoVista='tabla';
 const FL={por_hacer:'Por hacer',hecho:'Hecho',sin:'Sin clasificar'};const FLM={por_hacer:'\u25CB',hecho:'\u2714',sin:''};
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
 function qs(o){return new URLSearchParams(o).toString()}
@@ -289,7 +312,7 @@ async function abrir(id){selId=id;const d=await api('/api/celda?id='+id);$('vaci
  $('titulo').textContent=`${d.hoja}  fila ${d.row}${d.sub!=null?'.'+d.sub:''} col ${d.col}`;$('meta').textContent=`${d.clase} | ${d.estado} | ${d.tipo} | origen ${d.origen||'-'} | h ${d.h}${d.h_es&&d.h_es!==d.h?' (traduccion con h '+d.h_es+')':''}${d.reflujo?'':' | sin reflujo automatico'}`;
  $('ja').textContent=d.ja;$('fr').textContent=d.fr||'(sin frances)';vistaFuente(d.vista_ja,'vja');vistaFuente(d.vista_fr,'vfr');flActual(d.flujo);
  const h=d.hablante;$('hablante').textContent=h?'Hablante: '+Object.entries(h).map(([k,v])=>k+': '+v).join(' | '):'';ctx(d.contexto);$('bloquePrevio').style.display=d.ja_previo?'block':'none';$('jaPrevio').textContent=d.ja_previo;
- $('es').value=d.es_texto;$('msg').textContent=d.sin_traduccion?'Sin traduccion: plantilla con la estructura del original.':'';$('bSuaveDesh').style.display='none';
+ $('es').value=d.es_texto;guardadoTxt=$('es').value;$('msg').textContent=d.sin_traduccion?'Sin traduccion: plantilla con la estructura del original.':'';$('bSuaveDesh').style.display='none';
  document.querySelectorAll('#filas tr').forEach(t=>t.classList.toggle('sel',+t.dataset.id===id));marcaMision();
  if(d.evaluacion)pintar(d.evaluacion);else{$('vista').innerHTML='';$('estSuave').innerHTML='';$('avisos').innerHTML='';$('bGuardar').disabled=false;previa()}}
 function ctx(c){for(const [k,el] of [['anterior','ctxPrev'],['siguiente','ctxSig']]){const x=c[k];const e=$(el);if(!x){e.textContent='(ninguna)';e.onclick=null;continue}
@@ -298,7 +321,7 @@ async function previa(){if(selId==null)return;try{const r=await api('/api/previe
 $('es').oninput=()=>{clearTimeout(timer);timer=setTimeout(previa,300)};$('cReflujo').onchange=previa;
 $('bReflujo').onclick=()=>{if(ultimoTexto){$('es').value=ultimoTexto;previa()}};
 async function guardar(){if(selId==null)return false;try{const r=await api('/api/guardar',{id:selId,texto:$('es').value});pintar(r.evaluacion);
- if(r.guardado){$('es').value=r.evaluacion.texto;$('msg').textContent='Guardado (origen sesion).';cargar();refrescarMision();return true}else $('msg').textContent='No se guarda: hay errores.'}catch(e){$('msg').textContent=e.message}return false}
+ if(r.guardado){$('es').value=r.evaluacion.texto;guardadoTxt=$('es').value;$('msg').textContent='Guardado (origen sesion).';cargar();refrescarMision();return true}else $('msg').textContent='No se guarda: hay errores.'}catch(e){$('msg').textContent=e.message}return false}
 $('bGuardar').onclick=guardar;
 // ---------- estado de trabajo
 async function marcarActual(est){if(selId==null)return;await api('/api/flujo_marcar',{estado:est,ids:[selId]});flActual(est);$('msg').textContent='Marcada: '+FL[est];cargar();refrescarMision()}
@@ -437,5 +460,5 @@ async function ofrecerIndice(motivo){
  else if(!(e.indice&&e.indice.celdas>0)){const ok=await ofrecerIndice('El editor aun no tiene indice de celdas para este repo.');if(ok)e=await api('/api/estado');cgOcultar()}
  else{cgOcultar();const v=e.indice_estado;if(v&&v.vigente===false&&v.hojas_cambiadas>0){const sf=v.motivo==='sin_firmas';$('bannerIdxT').textContent=sf?'El indice viene de una version anterior del editor: funciona, pero conviene actualizarlo una vez.':`El repo, el juego o tus ediciones han cambiado desde el ultimo indice (${v.hojas_cambiadas.toLocaleString('es')} hojas).`;$('bannerIdx').classList.add('on')}}
  $('bannerIdxIr').onclick=()=>$('bIdx').click();$('bannerIdxNo').onclick=()=>$('bannerIdx').classList.remove('on');
- await cargar();hojas()})();
+ await cargar();hojas();recuperarBorrador()})();
 </script></body></html>
