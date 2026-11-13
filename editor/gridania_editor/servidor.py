@@ -191,6 +191,10 @@ class Servidor(object):
                     'contadores_flujo': indexer.contadores_flujo(a.base, hoja, est or None, txt, ed, cl),
                     'contadores_clase': indexer.contadores_clase(a.base, hoja, est or None, txt, ed, fl)}
         if ruta == '/api/misiones': return a.misiones(q.get('q'), q.get('clase') or None, q.get('expansion') or None, q.get('flujo') or None)
+        if ruta == '/api/parches': return a.parches()
+        if ruta == '/api/parche': return a.parche_hojas(q.get('version') or None, q.get('tipo') or None, q.get('q') or None)
+        if ruta == '/api/parche_hoja': return a.parche_hoja(q.get('version') or None, q['hoja'], q.get('filtro') or None)
+        if ruta == '/api/parche_movidas': return a.parche_movidas(q.get('version') or None, q.get('hoja') or None)
         if ruta == '/api/hoja_celdas': return a.hoja_celdas(q['hoja'])
         if ruta == '/api/celda': return a.celda(int(q['id']))
         if ruta == '/api/tarea': return a.tarea.ver(int(q.get('desde') or 0))
@@ -206,6 +210,8 @@ class Servidor(object):
         if ruta == '/api/borrar_token': a.cfg.borrar_token(); return a.cfg.publico()
         if ruta == '/api/sync': a.tarea_sync(); return {'ok': True}
         if ruta == '/api/extraer': a.tarea_extraer(b.get('ruta') or None); return {'ok': True}
+        if ruta == '/api/parche_importar': a.tarea_extraer(b.get('ruta') or None); return {'ok': True}      # = /api/extraer («Importar parche»)
+        if ruta == '/api/parche_arrastrar': return a.parche_arrastrar(b.get('version') or None, b.get('hoja') or None, b.get('destinos') or None)
         if ruta == '/api/indexar': a.tarea_indexar(bool(b.get('forzar'))); return {'ok': True}
         if ruta == '/api/tarea_cancelar': return a.tarea_cancelar()
         if ruta == '/api/abrir_registros': return a.abrir_registros()

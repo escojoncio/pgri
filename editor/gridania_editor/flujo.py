@@ -21,6 +21,7 @@ def partir_clave(k):
 class Flujo(object):
     def __init__(self, ruta):
         self.ruta = ruta; self.lock = threading.RLock(); self.datos = {}
+        self.ruta_et = os.path.splitext(ruta)[0] + '_parche.json'; self.etiquetas = {}   # clave -> 'version|tipo' (parche que dejo la celda en Por hacer)
         self.alcambiar = None   # callback(cambios|None) -> mantiene la columna materializada `flujo` de la BD (None = resincronizar todo)
         self.recargar()
 
@@ -32,6 +33,26 @@ class Flujo(object):
                 with self.lock: self.datos = {k: v for k, v in d.items() if v in (POR_HACER, HECHO)}
         except (OSError, ValueError):
             pass
+        try:
+            with open(self.ruta_et, encoding='utf-8') as f:
+                d = json.load(f)
+            if isinstance(d, dict):
+                with self.lock: self.etiquetas = {k: v for k, v in d.items() if isinstance(v, str)}
+        except (OSError, ValueError):
+            pass
+
+    def etiquetar(self, celdas, version, tipo):
+        """marca las celdas como novedad de un parche (solo informativo; fichero local flujo_parche.json)"""
+        with self.lock:
+            for c in celdas: self.etiquetas[clave(*c)] = '%s|%s' % (version, tipo)
+            os.makedirs(os.path.dirname(os.path.abspath(self.ruta_et)), exist_ok=True)
+            tmp = self.ruta_et + '.tmp'
+            with open(tmp, 'w', encoding='utf-8') as f: json.dump(self.etiquetas, f, ensure_ascii=False, indent=0)
+            os.replace(tmp, self.ruta_et)
+
+    def etiqueta(self, hoja, row, sub, col):
+        e = self.etiquetas.get(clave(hoja, row, sub, col))
+        return dict(zip(('version', 'tipo'), e.split('|', 1))) if e else None
 
     def estado(self, hoja, row, sub, col):
         return self.datos.get(clave(hoja, row, sub, col), SIN)

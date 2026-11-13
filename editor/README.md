@@ -25,10 +25,16 @@ Si la UI no pide la pagina en 30 s se abre el navegador por defecto con la URL (
    `<carpeta del programa>\datos\config.json`; nunca en el repo ni en logs), carpeta `sqpack/ffxiv` del juego y carpeta de destino del `.dat`.
 2. **Actualizar desde GitHub**: baja `traducciones/`, `data/`, `textos/ja`, `textos/fr`, `tools/py` y unas tablas de `trabajo/informes`
    (API de GitHub, sin git; la primera vez usa el zip del commit, luego solo lo que cambia por sha). Reindexa.
-3. **Extraer del juego** (tras una actualizacion del juego): extrae ja y fr con `tools/py/extract_ja.py` y clasifica cada celda comparando el
-   hash `h` de la traduccion con el del japones nuevo:
+3. **Importar parche** (boton antes «Extraer del juego»; tras una actualizacion del juego): extrae ja y fr con `tools/py/extract_ja.py` a `datos/juego/_extrayendo` y,
+   solo si termina bien, lo cambia de forma atomica por `datos/juego/textos` (la anterior se mueve a `datos/copias/<fecha>_<version>/`, se conservan las 3 ultimas; si algo
+   falla `textos/` queda intacto). La version del juego (`ffxivgame.ver`) queda en `datos/juego/info.json`. Calcula el informe de novedades
+   (`datos/parches/<version>.json`): **nuevas**, **cambiadas** (el es se conserva; naranja), **borradas** (con su es) y **movidas** (mismo ja que una borrada de la misma hoja:
+   se propone arrastrar la traduccion, solo con Aceptar). Nuevas y cambiadas pasan a «Por hacer» con etiqueta de version (`flujo_parche.json`). Ninguna parte de la
+   importacion escribe `traducciones/`, `ediciones/` ni el `es`. Flujo: **Importar parche → Novedades → traducir → Exportar cambios**.
+   La clasificacion por color compara el hash `h` de la traduccion con el del japones nuevo:
    **ROJO** nueva o con japones cambiado y sin traduccion vigente; **NARANJA** japones cambiado con traduccion antigua conservada (revisar);
    **VERDE** traducida con hash vigente; **BLANCO** ya existia pero sin traducir. Sin extraccion se compara contra el japones del repo.
+   API: `GET /api/parches`, `/api/parche?version&tipo&q`, `/api/parche_hoja?version&hoja&filtro`, `/api/parche_movidas?version&hoja`; `POST /api/parche_importar` (= `/api/extraer`), `/api/parche_arrastrar {version,hoja?,destinos?}`.
 4. **Tabla** (izquierda): contadores por estado (clic para filtrar), filtro por hoja, busqueda de texto, solo editadas.
 5. **Editor** (derecha): tres paneles JP | FR | ES con las macros resueltas (colores, saltos, genero) y filas anterior/siguiente + hablante.
    Vista previa en tiempo real «como en el juego»: reflujo automatico (`reflujar_lineas`, 58 car., maximo 4 lineas por ventana), suavizado

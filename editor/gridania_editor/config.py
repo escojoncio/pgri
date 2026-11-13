@@ -160,6 +160,10 @@ class Config(object):
     @property
     def ediciones_dir(self): return self.sub('ediciones')
     @property
+    def copias_dir(self): return self.sub('copias')        # copias automaticas de textos/ anteriores (3 ultimas) al importar un parche
+    @property
+    def parches_dir(self): return self.sub('parches')      # informes de novedades por parche: <version>.json
+    @property
     def db_ruta(self): return self.sub('editor.db')
 
     def __getitem__(self, k): return self.datos.get(k, DEFECTO.get(k))
