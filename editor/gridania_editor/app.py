@@ -17,6 +17,10 @@ MIN_LATIDOS = 2            # latidos recibidos en la sesion antes de poder cerra
 HUECO_SUSPENSION_S = 5     # hueco entre iteraciones del vigilante que delata suspension/hibernacion del equipo
 MARGEN_DESPERTAR_S = 30    # tras despertar: nada se cierra hasta un latido nuevo o este margen
 UMBRAL_ZOMBI_S = 900       # perfil bloqueado pero SIN ventana visible con el titulo y sin latido: se cierra (Edge zombi)
+UMBRAL_POCOS_LATIDOS_S = 300   # con menos de MIN_LATIDOS latidos (pagina que apenas llego a latir) la rama de latido espera este tiempo en vez de bloquear el cierre para siempre
+UMBRAL_SIN_VENTANA_S = 30      # ventana ausente de forma sostenida: cierre SIN mirar perfil_libre si ademas hay este tiempo sin latido
+INTERVALO_VENTANA_S = 5        # separacion entre comprobaciones de hay_ventana (EnumWindows)
+COMPROBACIONES_SIN_VENTANA = 3 # comprobaciones consecutivas sin ventana para darla por ausente
 AVISO_NAVEGADOR = ' En el navegador el editor NO se cierra solo al cerrar la pestaña: usa el boton Salir.'
 
 
@@ -159,7 +163,7 @@ def _principal(a, lg, tras_ui=None, aviso=''):
         cerrar_trabajo(app)
 
 
-def motivo_cierre(srv, ahora, libre, gracia=None, umbral=None, umbral_sin_lock=None, ventana_visible=None, umbral_zombi=None, min_latidos=None):
+def motivo_cierre(srv, ahora, libre, gracia=None, umbral=None, umbral_sin_lock=None, ventana_visible=None, umbral_zombi=None, min_latidos=None, ventana_ausente=False, umbral_sin_ventana=None):
     """decide si hay que cerrar (funcion pura sobre las marcas de tiempo de `srv`, en time.monotonic()). -> texto del motivo o None.
     libre: perfil de la ventana libre (True/False/None=no comprobable). ventana_visible: hay ventana con el titulo (True/False/None).
     Un latido o un GET / posterior a /api/cierre lo anula (era una recarga). Tras suspender (t_despertar) no se cierra nada hasta un latido nuevo o MARGEN_DESPERTAR_S."""
@@ -177,21 +181,40 @@ def motivo_cierre(srv, ahora, libre, gracia=None, umbral=None, umbral_sin_lock=N
     if srv.ui_cargada.is_set() and actividad is not None:
         sin = ahora - actividad
         if libre is False and ventana_visible is False and sin >= umbral_zombi: return '%s s sin latido, perfil bloqueado y sin ventana visible (Edge zombi)' % umbral_zombi
+        umbral_sin_ventana = UMBRAL_SIN_VENTANA_S if umbral_sin_ventana is None else umbral_sin_ventana
+        if ventana_ausente and sin >= umbral_sin_ventana: return '%s s sin latido y ventana ausente de forma sostenida (perfil %s)' % (umbral_sin_ventana, {True: 'libre', False: 'ocupado', None: 'no comprobable'}[libre])
         limite = umbral_sin_lock if libre is None else umbral
-        if getattr(srv, 'n_latidos', 0) >= min_latidos and libre is not False and sin >= limite: return '%s s sin latido y perfil de la ventana %s' % (limite, 'libre' if libre else 'no comprobable')
+        if getattr(srv, 'n_latidos', 0) < min_latidos: limite = max(limite, UMBRAL_POCOS_LATIDOS_S)       # pocos latidos: umbral largo, no bloqueo eterno
+        if libre is not False and sin >= limite: return '%s s sin latido y perfil de la ventana %s' % (limite, 'libre' if libre else 'no comprobable')
     return None
+
+
+class SeguimientoVentana:
+    """hay_ventana() como mucho cada `intervalo` s; `ausente` = `minimo` comprobaciones consecutivas con False (None/True reinician la cuenta)."""
+    def __init__(self, f, intervalo=None, minimo=None):
+        self.f = f; self.intervalo = INTERVALO_VENTANA_S if intervalo is None else intervalo; self.minimo = COMPROBACIONES_SIN_VENTANA if minimo is None else minimo
+        self.t = None; self.visible = None; self.n = 0
+
+    def reiniciar(self): self.t = None; self.visible = None; self.n = 0
+
+    def actualizar(self, ahora):
+        if self.f is None: return None, False
+        if self.t is None or ahora - self.t >= self.intervalo:
+            self.t = ahora; self.visible = self.f(); self.n = self.n + 1 if self.visible is False else 0
+        return self.visible, self.n >= self.minimo
 
 
 def _vigilar_cierre(srv, estado, libre, paso=None, reloj=None, ventana_visible=None):
     """hilo de la ventana propia: cierra el editor por latido (NUNCA porque el Popen terminase). Se detiene al salir o si el navegador toma el relevo (sin cierre por latido, solo Salir)."""
-    paso = PASO_VIGILANTE_S if paso is None else paso; reloj = reloj or time.monotonic; ultimo = reloj()
+    paso = PASO_VIGILANTE_S if paso is None else paso; reloj = reloj or time.monotonic; ultimo = reloj(); seg = SeguimientoVentana(ventana_visible)
     while not srv.salir.wait(paso):
         ahora = reloj(); hueco = ahora - ultimo; ultimo = ahora
         if hueco > HUECO_SUSPENSION_S:           # el equipo estuvo suspendido/hibernado: los relojes saltaron, no hubo latidos reales
-            srv.t_despertar = ahora; logging.getLogger('gridania').info('hueco de %.0f s en el vigilante (suspension): se reinicia la gracia', hueco); continue
+            srv.t_despertar = ahora; seg.reiniciar(); logging.getLogger('gridania').info('hueco de %.0f s en el vigilante (suspension): se reinicia la gracia', hueco); continue
         with estado['lock']:
             if estado['navegador']: return
-        try: motivo = motivo_cierre(srv, ahora, libre(), ventana_visible=ventana_visible() if ventana_visible else None)
+        try:
+            visible, ausente = seg.actualizar(ahora); motivo = motivo_cierre(srv, ahora, libre(), ventana_visible=visible, ventana_ausente=ausente)
         except Exception:
             logging.getLogger('gridania').warning('vigilante de cierre', exc_info=True); continue
         if motivo:

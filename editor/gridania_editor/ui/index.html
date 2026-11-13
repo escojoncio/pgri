@@ -65,6 +65,8 @@ mark{background:#ffd24d;color:#111} .res{border-bottom:1px solid #333;padding:3p
 #cargando{position:fixed;inset:0;background:#1e1f24;z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:20px;text-align:center}
 #cargando progress,#tProg{width:min(440px,90vw);height:14px} #cgM{max-width:640px;color:#cfd3da;overflow-wrap:anywhere}
 .banner{display:none;gap:8px;align-items:center;padding:6px 10px;background:#4a4220;color:#ffe9a6;flex:none;flex-wrap:wrap} .banner.on{display:flex}
+.bor td:nth-child(2)::after,.mc.bor .idx::after{content:' \u270E';color:#e8b04a}
+#dBorDif{max-height:50vh;overflow:auto;font:12px monospace;white-space:pre-wrap;border:1px solid #444;padding:4px}.df-{background:#5a2020}.df\+{background:#1f4a2a}
 </style></head><body>
 <div id="cargando"><h2 id="cgT">Cargando...</h2><div id="cgM">Preparando el editor.</div><progress id="cgP"></progress>
  <div style="display:flex;gap:8px"><button id="cgIr" style="display:none" title="Construye el indice de celdas (una sola vez; despues solo se reindexan las hojas que cambian). Puedes cancelarlo.">Construir indice ahora</button><button class="sec" id="cgNo" style="display:none" title="Abre el editor sin indice (la tabla estara vacia).">Ahora no</button><button class="sec" id="cgCancel" style="display:none" title="Cancela el indexado y conserva el indice anterior.">Cancelar</button></div></div>
@@ -159,7 +161,7 @@ mark{background:#ffd24d;color:#111} .res{border-bottom:1px solid #333;padding:3p
    <div class="col"><h4>Espanol (editable)</h4>
     <textarea id="es" spellcheck="false" title="Aqui escribes la traduccion. Cada salto de linea es un salto del original (el numero debe coincidir)."></textarea>
     <div style="margin:6px 0;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-     <button id="bGuardar" title="Guarda la traduccion en tus ediciones (Ctrl+S). Solo si no hay errores.">Guardar (Ctrl+S)</button><button id="bReflujo" class="sec" title="Pone en el cuadro el texto con los saltos de linea reajustados al ancho de la caja (58 car., max. 4 lineas por ventana). No cambia palabras.">Usar texto con reflujo</button>
+     <button id="bBorDesc" class="sec" style="display:none" title="Borra el borrador de esta celda y vuelve al texto guardado.">Descartar borrador</button><button id="bGuardar" title="Guarda la traduccion en tus ediciones (Ctrl+S). Solo si no hay errores.">Guardar (Ctrl+S)</button><button id="bReflujo" class="sec" title="Pone en el cuadro el texto con los saltos de linea reajustados al ancho de la caja (58 car., max. 4 lineas por ventana). No cambia palabras.">Usar texto con reflujo</button>
      <button id="bSuaveCelda" class="sec" title="Muestra el antes y el despues del espaciado corregido (saltos de linea) de esta celda y, si aceptas, lo pone en el cuadro. Puedes deshacerlo.">Suavizar saltos</button><button id="bNoNL" class="sec" title="Quita los saltos de linea de presentacion de esta celda (los une con un espacio). Muestra antes/despues. No pierde palabras, macros ni separadores del original; si la celda no lo admite, avisa.">Eliminar saltos</button><button id="bNoNLS" class="sec" title="Quita todos los saltos y despues vuelve a suavizar (espaciado corregido).">Eliminar y suavizar</button><button id="bGuardarSig" title="Guarda esta celda y abre la siguiente de la mision (Por mision / hoja).">Guardar y siguiente</button><button id="bSuaveDesh" class="sec" style="display:none" title="Devuelve el cuadro al texto que tenia antes de suavizar.">Deshacer</button>
      <label title="Si esta activo, la vista previa reajusta los saltos de linea automaticamente."><input type="checkbox" id="cReflujo" checked> reflujo</label><span id="msg"></span></div>
     <div class="lbl">Vista previa «como en el juego» <span id="cajaInfo"></span></div><div id="estSuave"></div><div id="vista" class="vgrid"></div>
@@ -169,6 +171,9 @@ mark{background:#ffd24d;color:#111} .res{border-bottom:1px solid #333;padding:3p
  </div></section>
 </main>
 <div id="tareas"><div style="display:flex;padding:4px 8px;background:#2a2c33"><b id="tNombre" style="flex:1">Tarea</b><button class="sec mini" id="tCancel" style="display:none" title="Cancela la tarea (solo el indexado).">Cancelar</button><button class="sec" id="tCerrar" title="Oculta el registro.">x</button></div><div style="padding:4px 8px"><progress id="tProg" style="display:none"></progress> <span id="tFase" style="font-size:12px;color:#9aa"></span></div><div id="log"></div></div>
+<dialog id="dBor" class="grande"><h3>Borrador sin guardar distinto de la celda</h3><div id="dBorMot"></div>
+<p>Diff (- traduccion guardada ahora, + borrador):</p><div id="dBorDif"></div>
+<form method="dialog"><button value="borrador">Usar el borrador</button> <button value="actual" class="sec">Descartar el borrador (usar lo guardado)</button> <button value="luego" class="sec">Decidir luego</button></form></dialog>
 <dialog id="dCfg"><h3>Ajustes</h3>
  <label>Repositorio (propietario/nombre)</label><input id="cRepo"><label>Rama</label><input id="cRama">
  <label>Token personal de GitHub (se guarda solo en este PC)</label><input id="cToken" type="password" autocomplete="off">
@@ -242,7 +247,17 @@ const $=id=>document.getElementById(id);
 function latido(){fetch('/api/latido',{headers:{'X-K':K},cache:'no-store'}).catch(()=>{})}
 latido();setInterval(latido,5000);
 /*LOGICA_INI*/
-let guardadoTxt='',selId=null;
+let guardadoTxt='',selId=null,selCelda=null;
+function claveCelda(c){return [c.hoja,c.row,c.sub==null?'':c.sub,c.col].join('|')}
+/* b: borrador {h,texto,base}; d: celda abierta {h,es_texto}. ninguno | igual (nada que restaurar) | aplicar (borrador mas reciente y la celda no cambio) | conflicto (h distinto o la traduccion guardada cambio) */
+function decidirBorrador(b,d){if(!b)return 'ninguno';if(b.texto===d.es_texto)return 'igual';if(String(b.h)===String(d.h)&&b.base===d.es_texto)return 'aplicar';return 'conflicto'}
+function puedeEnviarBorrador(st){return !st.cargando&&st.celda!=null&&st.texto!==st.base}
+/* cargas de celda: cada abrir() toma un testigo; solo la ultima aplica su resultado y mientras haya alguna pendiente no se envian borradores */
+function crearCarga(){let seq=0,pend=0;return {iniciar(){seq++;pend++;return seq},vigente(t){return t===seq},fin(){pend--},cargando(){return pend>0}}}
+function diffLineas(a,b){const x=String(a).split('\n'),y=String(b).split('\n');const n=x.length,m=y.length;const L=[];for(let i=0;i<=n;i++)L.push(new Array(m+1).fill(0));
+ for(let i=n-1;i>=0;i--)for(let j=m-1;j>=0;j--)L[i][j]=x[i]===y[j]?L[i+1][j+1]+1:Math.max(L[i+1][j],L[i][j+1]);
+ const r=[];let i=0,j=0;while(i<n&&j<m){if(x[i]===y[j]){r.push({t:'=',s:x[i]});i++;j++}else if(L[i+1][j]>=L[i][j+1]){r.push({t:'-',s:x[i++]})}else r.push({t:'+',s:y[j++]})}
+ while(i<n)r.push({t:'-',s:x[i++]});while(j<m)r.push({t:'+',s:y[j++]});return r}
 function sinGuardar(actual,guardado,id){return id!=null&&actual!==guardado}
 function manejarBeforeUnload(e,sucio){if(!sucio)return undefined;e.preventDefault();e.returnValue='';return ''}
 function manejarPageHide(e,enviar){enviar()}
@@ -257,15 +272,25 @@ function bannerSesion(t,error){let b=document.getElementById('bSesion');if(!b){b
 async function reabrirSesion(){try{const r=await fetch('/api/reabrir',{method:'POST',headers:{'X-K':K},cache:'no-store'});const j=await r.json();
  if(r.ok&&j.ok){bannerSesion('Sesión reabierta');return}}catch(e){}bannerSesion('El editor se cerró, ábrelo de nuevo',true)}
 addEventListener('pageshow',e=>manejarPageShow(e,reabrirSesion));
-/* Borrador local: cada pocos segundos el texto sin guardar se manda al servidor (fichero en la carpeta de datos, no en traducciones). */
-let borEnviado=null;
-async function guardarBorrador(){try{const t=document.getElementById('es');if(!t)return;
- if(sucio()){if(borEnviado!==t.value+'\u0000'+selId){await api('/api/borrador',{id:selId,texto:t.value,base:guardadoTxt});borEnviado=t.value+'\u0000'+selId}}
- else if(borEnviado!==null){await api('/api/borrador_borrar',{});borEnviado=null}}catch(e){}}
+/* Borradores por celda (clave hoja|row|sub|col + h) en el servidor (datos/borradores.json, no en traducciones). Se borran solo al guardar la celda o al descartarlos. */
+let borr={},borEnviado=null;const carga=crearCarga();
+const cuerpoBor=c=>({hoja:c.hoja,row:c.row,sub:c.sub,col:c.col});
+async function guardarBorradorDe(c,texto){await api('/api/borrador',Object.assign(cuerpoBor(c),{h:c.h,texto:texto,base:c.base}));borr[claveCelda(c)]=Object.assign(cuerpoBor(c),{h:c.h,texto:texto,base:c.base});marcarBorradores()}
+async function borrarBorradorDe(c){const k=claveCelda(c);if(!borr[k])return;await api('/api/borrador_borrar',cuerpoBor(c));delete borr[k];marcarBorradores()}
+function marcarBorradores(){document.querySelectorAll('#filas tr[data-k],#mCeldas .mc[data-k]').forEach(x=>x.classList.toggle('bor',!!borr[x.dataset.k]));
+ const b=$('bBorDesc');if(b)b.style.display=selCelda&&borr[claveCelda(selCelda)]?'':'none'}
+async function guardarBorrador(){const t=document.getElementById('es');if(!t)return;
+ const c=selCelda,texto=t.value;                                  /* instantanea: celda, texto y base van juntos */
+ if(!puedeEnviarBorrador({cargando:carga.cargando(),celda:c,texto:texto,base:guardadoTxt}))return;
+ const k=claveCelda(c)+'\u0000'+texto;if(borEnviado===k)return;
+ try{await guardarBorradorDe(c,texto);borEnviado=k}catch(e){$('msg').textContent='No se pudo guardar el borrador: '+e.message}}
 setInterval(guardarBorrador,4000);
-async function recuperarBorrador(){try{const b=await api('/api/borrador');if(!b||b.id==null||typeof b.texto!=='string')return;
- await abrir(b.id);if($('es').value===b.texto){await api('/api/borrador_borrar',{});return}
- $('es').value=b.texto;previa();$('msg').textContent='Recuperado un borrador sin guardar (de la sesión anterior). Revísalo y pulsa Guardar.';bannerSesion('Borrador sin guardar recuperado',false)}catch(e){}}
+async function recuperarBorrador(){try{const d=await api('/api/borradores');borr={};for(const b of d.borradores||[])borr[claveCelda(b)]=b;
+ const n=Object.keys(borr).length;marcarBorradores();if(n)bannerSesion(n+(n===1?' celda tiene un borrador sin guardar':' celdas tienen borradores sin guardar')+' (marcadas con \u270E). Abre la celda para restaurarlo.',false)}catch(e){bannerSesion('No se pudieron leer los borradores: '+e.message,true)}}
+function pedirDecision(b,d){return new Promise(res=>{const dl=$('dBor');
+ $('dBorMot').textContent=String(b.h)!==String(d.h)?'El japones de la celda ha cambiado desde que se hizo el borrador.':'La traduccion guardada ha cambiado desde que se hizo el borrador.';
+ $('dBorDif').innerHTML=diffLineas(d.es_texto,b.texto).map(x=>`<div class="df${x.t}">${x.t==='='?'  ':x.t+' '}${esc(x.s)}</div>`).join('');
+ dl.returnValue='luego';dl.onclose=()=>res(dl.returnValue||'luego');dl.showModal()})}
 async function api(ruta,cuerpo){const o={headers:{'X-K':K}};if(cuerpo!==undefined){o.method='POST';o.headers['Content-Type']='application/json';o.body=JSON.stringify(cuerpo)}
  const r=await fetch(ruta,o);const j=await r.json();if(!r.ok)throw new Error(j.error||r.status);return j}
 const ESTADOS=['rojo','naranja','verde','blanco'];let activos=new Set(['rojo','naranja']);let off=0,total=0,LIM=100,timer=null,tareaDesde=0,sondeo=null,modoVista='tabla';
@@ -281,8 +306,8 @@ async function cargar(){const f=filtroTabla();const p=new URLSearchParams({estad
  const d=await api('/api/celdas?'+p);total=d.total;chips(d.contadores);
  opciones($('fClase'),'Clase: todas',CLASES,d.contadores_clase);
  opciones($('fFlujo'),'Estado: todos',[['por_hacer','Por hacer'],['hecho','Hecho'],['sin','Sin clasificar']],d.contadores_flujo,true);
- $('filas').innerHTML=d.filas.map(f=>`<tr data-id="${f.id}" class="${f.id===selId?'sel':''}" title="Clase: ${esc(f.clase)}"><td class="${f.estado}">${esc(f.hoja)}</td><td class="${f.estado}" title="${f.editada?'Editada por ti':''}">${f.row}${f.sub!=null?'.'+f.sub:''}:${f.col}${f.editada?' *':''}</td><td class="${f.estado} fl ${f.flujo}" title="${FL[f.flujo]}">${FLM[f.flujo]}</td><td class="${f.estado}">${esc(f.ja||'')}</td><td class="${f.estado}">${esc(f.es||'')}</td></tr>`).join('');
- document.querySelectorAll('#filas tr').forEach(t=>t.onclick=()=>abrir(+t.dataset.id));
+ $('filas').innerHTML=d.filas.map(f=>`<tr data-id="${f.id}" data-k="${esc(claveCelda(f))}" class="${f.id===selId?'sel':''}" title="Clase: ${esc(f.clase)}"><td class="${f.estado}">${esc(f.hoja)}</td><td class="${f.estado}" title="${f.editada?'Editada por ti':''}">${f.row}${f.sub!=null?'.'+f.sub:''}:${f.col}${f.editada?' *':''}</td><td class="${f.estado} fl ${f.flujo}" title="${FL[f.flujo]}">${FLM[f.flujo]}</td><td class="${f.estado}">${esc(f.ja||'')}</td><td class="${f.estado}">${esc(f.es||'')}</td></tr>`).join('');
+ document.querySelectorAll('#filas tr').forEach(t=>t.onclick=()=>abrir(+t.dataset.id));marcarBorradores();
  $('pInfo').textContent=`${total?off+1:0}-${Math.min(off+LIM,total)} de ${total.toLocaleString('es')}`}
 async function hojas(){const d=await api('/api/hojas');$('hojas').innerHTML=d.hojas.map(h=>`<option value="${esc(h.hoja)}">`).join('')}
 // ---------- vista ingame
@@ -308,21 +333,39 @@ function pintar(r){vistaES(r);ultimoTexto=r.texto;if(r.vista_ja!==undefined){vis
  const li=[...r.errores.map(e=>`<li class="err">ERROR ${esc(e[0])}: ${esc(e[1])}</li>`),...r.avisos.map(e=>`<li class="avi">${esc(e[0])}: ${esc(e[1])}</li>`)];
  $('avisos').innerHTML=li.join('')||'<li>sin avisos</li>';$('bGuardar').disabled=r.errores.length>0}
 function flActual(f){$('flActual').textContent=FL[f]||'';$('flActual').style.color=f==='hecho'?'#8fd68f':(f==='por_hacer'?'#ff9a9a':'#9aa')}
-async function abrir(id){selId=id;const d=await api('/api/celda?id='+id);$('vacio').style.display='none';$('ed').style.display='block';
+async function abrir(id){const tok=carga.iniciar();
+ try{
+ const prev=selCelda,textoPrev=$('es').value;                    /* con texto sin guardar: se guarda como borrador de ESA celda antes de cambiar */
+ if(prev&&sinGuardar(textoPrev,guardadoTxt,selId)){try{await guardarBorradorDe(prev,textoPrev);borEnviado=claveCelda(prev)+'\u0000'+textoPrev}catch(e){if(!confirm('No se pudo guardar el borrador de la celda actual ('+e.message+'). ¿Descartar el texto sin guardar y abrir la otra celda?'))return}}
+ const d=await api('/api/celda?id='+id);if(!carga.vigente(tok))return;
+ /* a partir de aqui todo es sincrono: selId, selCelda, guardadoTxt y el texto cargado cambian a la vez */
+ $('vacio').style.display='none';$('ed').style.display='block';
  $('titulo').textContent=`${d.hoja}  fila ${d.row}${d.sub!=null?'.'+d.sub:''} col ${d.col}`;$('meta').textContent=`${d.clase} | ${d.estado} | ${d.tipo} | origen ${d.origen||'-'} | h ${d.h}${d.h_es&&d.h_es!==d.h?' (traduccion con h '+d.h_es+')':''}${d.reflujo?'':' | sin reflujo automatico'}`;
  $('ja').textContent=d.ja;$('fr').textContent=d.fr||'(sin frances)';vistaFuente(d.vista_ja,'vja');vistaFuente(d.vista_fr,'vfr');flActual(d.flujo);
  const h=d.hablante;$('hablante').textContent=h?'Hablante: '+Object.entries(h).map(([k,v])=>k+': '+v).join(' | '):'';ctx(d.contexto);$('bloquePrevio').style.display=d.ja_previo?'block':'none';$('jaPrevio').textContent=d.ja_previo;
- $('es').value=d.es_texto;guardadoTxt=$('es').value;$('msg').textContent=d.sin_traduccion?'Sin traduccion: plantilla con la estructura del original.':'';$('bSuaveDesh').style.display='none';
+ $('es').value=d.es_texto;guardadoTxt=$('es').value;selId=id;selCelda={id:id,hoja:d.hoja,row:d.row,sub:d.sub,col:d.col,h:d.h,base:guardadoTxt};
+ $('msg').textContent=d.sin_traduccion?'Sin traduccion: plantilla con la estructura del original.':'';$('bSuaveDesh').style.display='none';
  document.querySelectorAll('#filas tr').forEach(t=>t.classList.toggle('sel',+t.dataset.id===id));marcaMision();
- if(d.evaluacion)pintar(d.evaluacion);else{$('vista').innerHTML='';$('estSuave').innerHTML='';$('avisos').innerHTML='';$('bGuardar').disabled=false;previa()}}
+ if(d.evaluacion)pintar(d.evaluacion);else{$('vista').innerHTML='';$('estSuave').innerHTML='';$('avisos').innerHTML='';$('bGuardar').disabled=false;previa()}
+ const b=borr[claveCelda(selCelda)],dec=decidirBorrador(b,d);
+ if(dec==='igual'){await borrarBorradorDe(selCelda)}
+ else if(dec==='aplicar'){$('es').value=b.texto;previa();$('msg').textContent='Restaurado el borrador sin guardar de esta celda ('+new Date(b.fecha*1000).toLocaleString('es')+'). Revisalo y pulsa Guardar, o «Descartar borrador».'}
+ else if(dec==='conflicto'){const r=await pedirDecision(b,d);if(!carga.vigente(tok))return;
+  if(r==='borrador'){$('es').value=b.texto;previa();$('msg').textContent='Borrador restaurado (la celda habia cambiado). Revisalo y pulsa Guardar.'}
+  else if(r==='actual'){await borrarBorradorDe(selCelda);$('msg').textContent='Borrador descartado.'}
+  else $('msg').textContent='Esta celda tiene un borrador pendiente de decidir (se conserva).'}
+ marcarBorradores();
+ }catch(e){if(carga.vigente(tok)){$('msg').textContent='Error al abrir la celda: '+e.message;bannerSesion('Error al abrir la celda '+id+': '+e.message,true)}}
+ finally{carga.fin()}}
 function ctx(c){for(const [k,el] of [['anterior','ctxPrev'],['siguiente','ctxSig']]){const x=c[k];const e=$(el);if(!x){e.textContent='(ninguna)';e.onclick=null;continue}
  e.textContent=`[${x.estado}] fila ${x.row}:${x.col}\nJP: ${x.ja||''}\nFR: ${x.fr||''}\nES: ${x.es||''}`;e.onclick=()=>abrir(x.id)}}
 async function previa(){if(selId==null)return;try{const r=await api('/api/preview',{id:selId,texto:$('es').value,reflujo:$('cReflujo').checked});pintar(r)}catch(e){$('avisos').innerHTML=`<li class="err">${esc(e.message)}</li>`}}
 $('es').oninput=()=>{clearTimeout(timer);timer=setTimeout(previa,300)};$('cReflujo').onchange=previa;
 $('bReflujo').onclick=()=>{if(ultimoTexto){$('es').value=ultimoTexto;previa()}};
 async function guardar(){if(selId==null)return false;try{const r=await api('/api/guardar',{id:selId,texto:$('es').value});pintar(r.evaluacion);
- if(r.guardado){$('es').value=r.evaluacion.texto;guardadoTxt=$('es').value;$('msg').textContent='Guardado (origen sesion).';cargar();refrescarMision();return true}else $('msg').textContent='No se guarda: hay errores.'}catch(e){$('msg').textContent=e.message}return false}
+ if(r.guardado){$('es').value=r.evaluacion.texto;guardadoTxt=$('es').value;if(selCelda)selCelda.base=guardadoTxt;try{await borrarBorradorDe(selCelda)}catch(e){}$('msg').textContent='Guardado (origen sesion).';cargar();refrescarMision();return true}else $('msg').textContent='No se guarda: hay errores.'}catch(e){$('msg').textContent=e.message}return false}
 $('bGuardar').onclick=guardar;
+$('bBorDesc').onclick=async()=>{if(!selCelda||!confirm('¿Descartar el borrador de esta celda y volver al texto guardado?'))return;try{await borrarBorradorDe(selCelda);$('es').value=guardadoTxt;previa();$('msg').textContent='Borrador descartado.'}catch(e){$('msg').textContent=e.message}};
 // ---------- estado de trabajo
 async function marcarActual(est){if(selId==null)return;await api('/api/flujo_marcar',{estado:est,ids:[selId]});flActual(est);$('msg').textContent='Marcada: '+FL[est];cargar();refrescarMision()}
 $('fcPor').onclick=()=>marcarActual('por_hacer');$('fcHecho').onclick=()=>marcarActual('hecho');$('fcSin').onclick=()=>marcarActual('sin');
@@ -371,8 +414,8 @@ async function cargarMisiones(){try{const d=await api('/api/misiones?'+qs({q:$('
 async function abrirMision(hoja,irA,sinAbrir){misSel=hoja;const d=await api('/api/hoja_celdas?'+qs({hoja}));celL=d.celdas;pintaCeldas();
  document.querySelectorAll('#mLista .mi').forEach(x=>{x.classList.toggle('sel',x.dataset.h===hoja);if(x.dataset.h===hoja&&!sinAbrir)x.scrollIntoView({block:'nearest'})});
  $('mTitulo').textContent=hoja;if(sinAbrir)return;const id=irA||(celL.find(c=>c.estado==='rojo'||c.estado==='naranja')||celL[0]||{}).id;if(id!=null)abrir(id)}
-function pintaCeldas(){const sc=$('mCeldas').scrollTop;$('mCeldas').innerHTML=celL.map((c,i)=>`<div class="mc ${c.estado} ${c.id===selId?'sel':''}" data-id="${c.id}" title="Celda ${i+1} de ${celL.length}. Clic para abrirla."><span class="fl ${c.flujo}" title="${FL[c.flujo]}">${FLM[c.flujo]||'\u00B7'}</span><span class="idx">${c.row}${c.sub!=null?'.'+c.sub:''}:${c.col}${c.editada?' *':''}</span>${c.hablante?`<b class="hb">${esc(c.hablante)}</b>`:''}<span class="tx">${esc((c.es||c.ja||'').replace(/^\(-.+?-\)/,'').trim())}</span></div>`).join('');
- document.querySelectorAll('#mCeldas .mc').forEach(x=>x.onclick=()=>abrir(+x.dataset.id));$('mCeldas').scrollTop=sc;
+function pintaCeldas(){const sc=$('mCeldas').scrollTop;$('mCeldas').innerHTML=celL.map((c,i)=>`<div class="mc ${c.estado} ${c.id===selId?'sel':''}" data-id="${c.id}" data-k="${esc(claveCelda({hoja:misSel,row:c.row,sub:c.sub,col:c.col}))}" title="Celda ${i+1} de ${celL.length}. Clic para abrirla."><span class="fl ${c.flujo}" title="${FL[c.flujo]}">${FLM[c.flujo]||'\u00B7'}</span><span class="idx">${c.row}${c.sub!=null?'.'+c.sub:''}:${c.col}${c.editada?' *':''}</span>${c.hablante?`<b class="hb">${esc(c.hablante)}</b>`:''}<span class="tx">${esc((c.es||c.ja||'').replace(/^\(-.+?-\)/,'').trim())}</span></div>`).join('');
+ document.querySelectorAll('#mCeldas .mc').forEach(x=>x.onclick=()=>abrir(+x.dataset.id));marcarBorradores();$('mCeldas').scrollTop=sc;
  const h=celL.filter(c=>c.flujo==='hecho').length,p=celL.filter(c=>c.flujo==='por_hacer').length;$('mInfo').textContent=`${celL.length} celdas \u00B7 \u25CB Por hacer ${p} \u00B7 \u2714 Hecho ${h}`}
 function marcaMision(){document.querySelectorAll('#mCeldas .mc').forEach(x=>x.classList.toggle('sel',+x.dataset.id===selId));const s=document.querySelector('#mCeldas .mc.sel');if(s)s.scrollIntoView({block:'nearest'})}
 async function refrescarMision(){if(modoVista!=='mis'||!misSel)return;await abrirMision(misSel,null,true);clearTimeout(tM);tM=setTimeout(cargarMisiones,200)}

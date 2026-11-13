@@ -18,7 +18,7 @@ def dir_ui():
 class Servidor(object):
     def __init__(self, app, puerto=0):
         self.app = app; self.clave = secrets.token_urlsafe(16); self.salir = threading.Event(); self.ui_cargada = threading.Event(); self.fallo = None; self.al_pedir_pagina = None; self.url_navegador = None
-        self.t_latido = None; self.t_get = None; self.t_cierre = None; self.n_latidos = 0; self.t_despertar = None      # time.monotonic() del ultimo latido / GET / / aviso de cierre (sendBeacon)
+        self.t_latido = None; self.t_get = None; self.t_cierre = None; self.n_latidos = 0; self.t_despertar = None; self._lock_bor = threading.Lock()      # time.monotonic() del ultimo latido / GET / / aviso de cierre (sendBeacon)
         servidor = self
         class H(BaseHTTPRequestHandler):
             protocol_version = 'HTTP/1.1'
@@ -91,25 +91,51 @@ class Servidor(object):
         if self.salir.is_set(): return {'ok': False, 'cerrado': True}
         self.t_cierre = None; self.registrar_latido(); return {'ok': True}
 
-    # borrador del texto sin guardar: fichero en la carpeta de datos (NUNCA en traducciones)
-    def _ruta_borrador(self): return os.path.join(self.app.cfg.home, 'borrador.json')
+    # borradores del texto sin guardar: UNO POR CELDA (clave hoja|row|sub|col, con h) en datos/borradores.json (NUNCA en traducciones)
+    def _ruta_borradores(self): return os.path.join(self.app.cfg.home, 'borradores.json')
 
-    def leer_borrador(self):
+    @staticmethod
+    def clave_borrador(b):
+        sub = b.get('sub')
+        return '%s|%d|%s|%d' % (str(b['hoja']), int(b['row']), '' if sub is None else int(sub), int(b['col']))
+
+    def _leer_borradores(self):
         try:
-            with open(self._ruta_borrador(), encoding='utf-8') as f: d = json.load(f)
-            return d if isinstance(d, dict) and isinstance(d.get('texto'), str) else {}
+            with open(self._ruta_borradores(), encoding='utf-8') as f: d = json.load(f)
+            return d if isinstance(d, dict) else {}
         except (OSError, ValueError): return {}
+
+    def _escribir_borradores(self, d):
+        ruta = self._ruta_borradores(); tmp = ruta + '.tmp'
+        with open(tmp, 'w', encoding='utf-8') as f: json.dump(d, f, ensure_ascii=False)
+        os.replace(tmp, ruta)
+
+    def leer_borradores(self):
+        with self._lock_bor: d = self._leer_borradores()
+        return {'borradores': [v for v in d.values() if isinstance(v, dict) and isinstance(v.get('texto'), str)]}
 
     def guardar_borrador(self, b):
         texto = str(b.get('texto', ''))
         if len(texto) > 2000000: raise ValueError('borrador demasiado grande')
-        ruta = self._ruta_borrador(); tmp = ruta + '.tmp'
-        with open(tmp, 'w', encoding='utf-8') as f: json.dump({'id': int(b['id']), 'texto': texto, 'base': str(b.get('base', '')), 'fecha': time.time()}, f, ensure_ascii=False)
-        os.replace(tmp, ruta); return {'ok': True}
+        clave = self.clave_borrador(b)
+        reg = {'hoja': str(b['hoja']), 'row': int(b['row']), 'sub': None if b.get('sub') is None else int(b['sub']), 'col': int(b['col']),
+               'h': str(b.get('h', '')), 'texto': texto, 'base': str(b.get('base', '')), 'fecha': time.time()}
+        with self._lock_bor:
+            d = self._leer_borradores()
+            if clave not in d and len(d) >= 2000: raise ValueError('demasiados borradores')
+            d[clave] = reg; self._escribir_borradores(d)
+        return {'ok': True}
 
-    def borrar_borrador(self):
-        try: os.remove(self._ruta_borrador())
-        except OSError: pass
+    def borrar_borrador(self, b):
+        clave = self.clave_borrador(b)
+        with self._lock_bor:
+            d = self._leer_borradores()
+            if clave in d:
+                del d[clave]
+                if d: self._escribir_borradores(d)
+                else:
+                    try: os.remove(self._ruta_borradores())
+                    except OSError: pass
         return {'ok': True}
 
     def pedir_cierre(self): self.t_cierre = time.monotonic()
@@ -135,7 +161,7 @@ class Servidor(object):
         if ruta == '/api/hoja_celdas': return a.hoja_celdas(q['hoja'])
         if ruta == '/api/celda': return a.celda(int(q['id']))
         if ruta == '/api/tarea': return a.tarea.ver(int(q.get('desde') or 0))
-        if ruta == '/api/borrador': return self.leer_borrador()
+        if ruta == '/api/borradores': return self.leer_borradores()
         if ruta == '/api/arranque': return {'arranque': dict(a.arranque, ocupada=a.motivo_base()), 'indice_estado': a.vigencia, 'aviso': a.aviso}
         raise KeyError(ruta)
 
@@ -167,7 +193,7 @@ class Servidor(object):
             else: import webbrowser; webbrowser.open(self.url)
             return {'ok': True}
         if ruta == '/api/borrador': return self.guardar_borrador(b)
-        if ruta == '/api/borrador_borrar': return self.borrar_borrador()
+        if ruta == '/api/borrador_borrar': return self.borrar_borrador(b)
         if ruta == '/api/reabrir': return self.reabrir()
         if ruta == '/api/latido': self.registrar_latido(); return {'ok': True}
         if ruta == '/api/cierre': self.pedir_cierre(); return {'ok': True}        # la UI se descarga (cerrar ventana o F5): el vigilante decide pasado el plazo
