@@ -287,8 +287,14 @@ class Motor(object):
             lineas += partes
         n = pf.lineas if (pf.lineas and pf.envuelve) else (0 if pf.tipo in ('subtitulo', 'hud_fijo') else 4)
         vent = [lineas[i:i + n] for i in range(0, len(lineas), n)] if n else [lineas]
+        seguro, duro = pf.seguro, pf.duro
+        if pf.tipo == 'subtitulo':   # tope RELATIVO AL FRANCES por celda (como nucleo.problemas y suavizar_saltos.modo_de), no el 58 base del perfil
+            try:
+                tope = NC.tope_ancho_subtitulo(pf, NC.medida_fr(c.fr_text, pf) if c.fr_text else None)
+                if tope: seguro = duro = tope
+            except Exception: pass
         return {'ventanas': vent, 'genero': genero, 'nlineas': len(lineas), 'nventanas': len(vent), 'hablante': hablante,
-                'caja': {'tipo': pf.tipo, 'seguro': pf.seguro, 'duro': pf.duro, 'lineas': pf.lineas or 4}}
+                'caja': {'tipo': pf.tipo, 'seguro': seguro, 'duro': duro, 'lineas': pf.lineas or 4}}
 
     def _envolver(self, txt, pf):
         return self.R.NC.envolver(txt, pf) if pf.envuelve else [txt]
