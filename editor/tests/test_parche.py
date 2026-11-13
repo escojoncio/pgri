@@ -30,7 +30,11 @@ class Falla(BaseException):
 
 class FakeX(object):
     def __init__(self, R, juego, falla_en=None):
-        self.write_sheet = R.X.write_sheet; self.juego = juego; self.falla_en = falla_en; self.n = 0
+        self.juego = juego; self.falla_en = falla_en; self.n = 0       # R no se usa: el juego falso no necesita tools/py (los tests corren tambien en CI)
+
+    def write_sheet(self, out, hoja, rows, lang_dir='ja'):
+        escribir_ja(os.path.dirname(out), hoja, {(r, s, c): t for (r, s), cols in rows.items() for c, (t, _) in cols.items()}, lang_dir)
+        return [], sum(len(c) for c in rows.values())
 
     def Pack(self, ruta):
         exl = ('EXL,2\n' + '\n'.join('%s,0' % h for h in sorted(self.juego))).encode()
@@ -48,7 +52,8 @@ class FakeX(object):
 
 class PR(object):
     def __init__(self, R, X): self._R = R; self.X = X
-    def __getattr__(self, k): return getattr(self._R, k)
+    def __getattr__(self, k): return getattr(self._R, k)       # sin R (CI sin tools/py): solo .X
+
 
 
 def crear_pack(tmp_path, nombre, version):
@@ -62,48 +67,48 @@ def juego_simple(n, extra=()):
 
 
 # ------------------------------------------------------------------ extraccion segura
-def test_extraer_correcto_cambia_textos_copia_y_guarda_version(tmp_path, R):
+def test_extraer_correcto_cambia_textos_copia_y_guarda_version(tmp_path):
     dest = str(tmp_path / 'juego'); copias = str(tmp_path / 'copias'); ruta = crear_pack(tmp_path, 'g', '2026.11.01.0000.0000')
-    i1 = extractor.extraer(PR(R, FakeX(R, juego_simple(5))), ruta, dest, copias_dir=copias)
+    i1 = extractor.extraer(PR(None, FakeX(None, juego_simple(5))), ruta, dest, copias_dir=copias)
     assert i1['version'] == '2026.11.01.0000.0000' and json.load(open(os.path.join(dest, 'info.json')))['version'] == i1['version']
     assert not os.path.exists(os.path.join(dest, '_extrayendo')) and i1['copia_anterior'] == ''
     (tmp_path / 'g' / 'game' / 'ffxivgame.ver').write_text('2026.11.20.0000.0000')
     antes = hash_arbol(os.path.join(dest, 'textos'))
-    i2 = extractor.extraer(PR(R, FakeX(R, juego_simple(6))), ruta, dest, copias_dir=copias)
+    i2 = extractor.extraer(PR(None, FakeX(None, juego_simple(6))), ruta, dest, copias_dir=copias)
     assert i2['version'] == '2026.11.20.0000.0000' and os.path.isdir(i2['copia_anterior']) and i2['copia_anterior'].endswith('_2026.11.01.0000.0000')
     assert hash_arbol(os.path.join(i2['copia_anterior'], 'textos')) == antes                     # la copia es la extraccion anterior intacta
     assert json.load(open(os.path.join(i2['copia_anterior'], 'info.json')))['version'] == '2026.11.01.0000.0000'
 
 
-def test_copias_se_conservan_las_3_ultimas(tmp_path, R):
+def test_copias_se_conservan_las_3_ultimas(tmp_path):
     dest = str(tmp_path / 'juego'); copias = str(tmp_path / 'copias'); ruta = crear_pack(tmp_path, 'g', 'v00')
     for i in range(6):
         (tmp_path / 'g' / 'game' / 'ffxivgame.ver').write_text('v%02d' % i)
-        extractor.extraer(PR(R, FakeX(R, juego_simple(5 + i))), ruta, dest, copias_dir=copias)
+        extractor.extraer(PR(None, FakeX(None, juego_simple(5 + i))), ruta, dest, copias_dir=copias)
     nombres = sorted(os.listdir(copias))
     assert len(nombres) == 3 and [n.split('_')[1] for n in nombres] == ['v02', 'v03', 'v04']      # copias de las versiones anteriores a la actual (v05)
 
 
 @pytest.mark.parametrize('modo', ['corte', 'sin_celdas', 'incompleta', 'antes'])
-def test_fallo_deja_textos_e_info_intactos(tmp_path, R, modo):
+def test_fallo_deja_textos_e_info_intactos(tmp_path, modo):
     dest = str(tmp_path / 'juego'); copias = str(tmp_path / 'copias'); ruta = crear_pack(tmp_path, 'g', '2026.11.01.0000.0000')
-    extractor.extraer(PR(R, FakeX(R, juego_simple(20))), ruta, dest, copias_dir=copias)
+    extractor.extraer(PR(None, FakeX(None, juego_simple(20))), ruta, dest, copias_dir=copias)
     antes = hash_arbol(dest); (tmp_path / 'g' / 'game' / 'ffxivgame.ver').write_text('2026.12.01.0000.0000')
     cb = None
-    if modo == 'corte': x = FakeX(R, juego_simple(20), falla_en=2); exc = Falla
-    elif modo == 'sin_celdas': x = FakeX(R, {'A/h1': {}}); exc = ValueError
-    elif modo == 'incompleta': x = FakeX(R, juego_simple(2)); exc = ValueError
+    if modo == 'corte': x = FakeX(None, juego_simple(20), falla_en=2); exc = Falla
+    elif modo == 'sin_celdas': x = FakeX(None, {'A/h1': {}}); exc = ValueError
+    elif modo == 'incompleta': x = FakeX(None, juego_simple(2)); exc = ValueError
     else:
-        x = FakeX(R, juego_simple(21)); exc = RuntimeError
+        x = FakeX(None, juego_simple(21)); exc = RuntimeError
         def cb(tn, info): raise RuntimeError('fallo al comparar')
     with pytest.raises(exc):
-        extractor.extraer(PR(R, x), ruta, dest, copias_dir=copias, antes_de_cambiar=cb)
+        extractor.extraer(PR(None, x), ruta, dest, copias_dir=copias, antes_de_cambiar=cb)
     assert hash_arbol(dest) == antes and not os.path.exists(os.path.join(dest, '_extrayendo')) and not os.path.exists(copias)
 
 
-def test_fallo_al_cambiar_deshace(tmp_path, R, monkeypatch):
+def test_fallo_al_cambiar_deshace(tmp_path, monkeypatch):
     dest = str(tmp_path / 'juego'); ruta = crear_pack(tmp_path, 'g', 'v1')
-    extractor.extraer(PR(R, FakeX(R, juego_simple(5))), ruta, dest, copias_dir=str(tmp_path / 'c'))
+    extractor.extraer(PR(None, FakeX(None, juego_simple(5))), ruta, dest, copias_dir=str(tmp_path / 'c'))
     antes = hash_arbol(dest); (tmp_path / 'g' / 'game' / 'ffxivgame.ver').write_text('v2')
     real = os.replace; llamadas = []
     def rota(a, b):
@@ -111,7 +116,7 @@ def test_fallo_al_cambiar_deshace(tmp_path, R, monkeypatch):
         if len(llamadas) == 2: raise OSError('disco lleno')       # 1.º mover textos a la copia, 2.º poner el nuevo
         return real(a, b)
     monkeypatch.setattr(os, 'replace', rota)
-    with pytest.raises(OSError): extractor.extraer(PR(R, FakeX(R, juego_simple(6))), ruta, dest, copias_dir=str(tmp_path / 'c'))
+    with pytest.raises(OSError): extractor.extraer(PR(None, FakeX(None, juego_simple(6))), ruta, dest, copias_dir=str(tmp_path / 'c'))
     monkeypatch.undo()
     assert hash_arbol(dest) == antes and not os.listdir(str(tmp_path / 'c'))
 
@@ -134,10 +139,10 @@ def montar_comparacion(tmp_path):
     return v, n, repo
 
 
-def test_comparar_clasifica_nuevas_cambiadas_borradas_movidas(tmp_path, R):
+def test_comparar_clasifica_nuevas_cambiadas_borradas_movidas(tmp_path):
     v, n, repo = montar_comparacion(tmp_path)
     antes = hash_arbol(repo, v, n)
-    h = parche.comparar(v, n, repo, None, R.G.tiene_cjk, R.G.hash_ja)
+    h = parche.comparar(v, n, repo, None)
     a = h['Q/a']
     assert [x[:3] for x in a['nuevas']] == [[6, None, 1], [7, None, 1]]                 # las claves KEY_* (sin CJK) no cuentan
     assert [(x[:3], x[3]) for x in a['cambiadas']] == [([1, None, 1], '古い文です。')]
@@ -149,25 +154,25 @@ def test_comparar_clasifica_nuevas_cambiadas_borradas_movidas(tmp_path, R):
     assert hash_arbol(repo, v, n) == antes                                                  # solo lectura
 
 
-def test_movida_no_cruza_hojas_ni_pisa_traduccion_propia(tmp_path, R):
+def test_movida_no_cruza_hojas_ni_pisa_traduccion_propia(tmp_path):
     v, n, repo = montar_comparacion(tmp_path)
     escribir_ja(n, 'Q/otra', {(0, None, 1): '消える文です。'})                               # misma frase que la borrada Q/a:2 pero en OTRA hoja: no es movida
     with open(os.path.join(repo, 'traducciones', 'Q', 'a.jsonl'), 'a', encoding='utf-8') as f:
         f.write(json.dumps({'row': 7, 'sub': None, 'col': 1, 'es': 'ya traducida', 'estado': 'traducida', 'h': 'y', 'origen': 'fr-ja-retrad'}) + '\n')
-    h = parche.comparar(v, n, repo, None, R.G.tiene_cjk, R.G.hash_ja)
+    h = parche.comparar(v, n, repo, None)
     assert h['Q/a']['movidas'] == [] and h['Q/otra']['movidas'] == []
 
 
-def test_informe_idempotente_y_conserva_aceptadas(tmp_path, R):
+def test_informe_idempotente_y_conserva_aceptadas(tmp_path):
     v, n, repo = montar_comparacion(tmp_path); d = str(tmp_path / 'parches')
-    inf = parche.crear_informe('2026.11.20', '2026.11.01', parche.comparar(v, n, repo, None, R.G.tiene_cjk, R.G.hash_ja))
+    inf = parche.crear_informe('2026.11.20', '2026.11.01', parche.comparar(v, n, repo, None))
     r, escrito = parche.guardar_informe(d, inf); assert escrito
     ruta = os.path.join(d, '2026.11.20.json'); b1 = open(ruta, 'rb').read()
     vacio = parche.crear_informe('2026.11.20', '2026.11.20', {})
     r2, escrito2 = parche.guardar_informe(d, vacio)
     assert not escrito2 and open(ruta, 'rb').read() == b1 and r2['conteos'] == inf['conteos']        # reimportar el mismo parche no pierde el informe
     inf['hojas']['Q/a']['movidas'][0]['aceptada'] = True; parche.guardar_informe(d, inf)
-    otra = parche.crear_informe('2026.11.20', 'x', parche.comparar(v, n, repo, None, R.G.tiene_cjk, R.G.hash_ja))
+    otra = parche.crear_informe('2026.11.20', 'x', parche.comparar(v, n, repo, None))
     r3, _ = parche.guardar_informe(d, otra); assert r3['hojas']['Q/a']['movidas'][0]['aceptada'] is True
     assert [p['version'] for p in parche.listar_informes(d)] == ['2026.11.20']
 
@@ -216,7 +221,7 @@ def juego_parcheado():
 @necesita_repo
 def test_importar_parche_extremo_a_extremo_idempotente_y_sin_tocar_es(tmp_path, app, mini_repo, R):
     ruta = crear_pack(tmp_path, 'g', '2026.11.20.0000.0000')
-    juego, orig = juego_parcheado(); app._R = PR(R, FakeX(R, juego))
+    juego, orig = juego_parcheado(); app._R = PR(R, FakeX(None, juego))
     ed = app.cfg.ediciones_dir; os.makedirs(ed, exist_ok=True)
     app.flujo.poner([(HOJA, 901, None, 1), (HOJA, 1, None, 1)], 'hecho')            # 901: marca previa «hecho» (se respeta); 1: cambiada «hecho» (vuelve a Por hacer)
     es1 = app.base.q('SELECT es,es_json FROM celdas WHERE hoja=? AND row=1 AND col=1', (HOJA,))[0]
@@ -261,11 +266,11 @@ def test_importar_parche_extremo_a_extremo_idempotente_y_sin_tocar_es(tmp_path, 
 @necesita_repo
 def test_importar_con_fallo_deja_textos_intactos_y_error_claro(tmp_path, app, mini_repo, R):
     ruta = crear_pack(tmp_path, 'g', '2026.11.20.0000.0000')
-    juego, _ = juego_parcheado(); app._R = PR(R, FakeX(R, juego))
+    juego, _ = juego_parcheado(); app._R = PR(R, FakeX(None, juego))
     app.tarea_extraer(ruta); assert esperar(app)['estado'] == 'ok'
     antes = hash_arbol(app.cfg.juego_dir)
     (tmp_path / 'g' / 'game' / 'ffxivgame.ver').write_text('2026.12.01.0000.0000')
-    app._R = PR(R, FakeX(R, juego, falla_en=2))
+    app._R = PR(R, FakeX(None, juego, falla_en=2))
     app.tarea_extraer(ruta); t = esperar(app)
     assert t['estado'] == 'error' and 'corte' in t['error'] and hash_arbol(app.cfg.juego_dir) == antes
     assert parche.listar_informes(app.cfg.parches_dir)[0]['version'] == '2026.11.20.0000.0000' and len(parche.listar_informes(app.cfg.parches_dir)) == 1
