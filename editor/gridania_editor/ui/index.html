@@ -240,7 +240,9 @@ mark{background:#ffd24d;color:#111} .res{border-bottom:1px solid #333;padding:3p
 <dt>Por hacer / Hecho / Quitar y Suavizar saltos</dt><dd>Actuan sobre las casillas marcadas o, si no marcas ninguna, sobre todos los resultados.</dd>
 <dt>Exportar lista</dt><dd>Guarda los resultados en un TSV.</dd></dl>
 <p><button id="aCerrar" title="Cierra la ayuda.">Cerrar</button></p></dialog>
+<script src="/borradores.js"></script>
 <script>
+const {claveCelda,decidirBorrador,puedeEnviarBorrador,crearCarga}=Borradores;
 const K='__CLAVE__';
 const $=id=>document.getElementById(id);
 /* Latido: el servidor cierra el editor cuando la ventana propia deja de dar señales. Al descargarse la pagina (cerrar la ventana o F5) avisa con sendBeacon; el servidor espera 10 s por si es una recarga. */
@@ -248,12 +250,6 @@ function latido(){fetch('/api/latido',{headers:{'X-K':K},cache:'no-store'}).catc
 latido();setInterval(latido,5000);
 /*LOGICA_INI*/
 let guardadoTxt='',selId=null,selCelda=null;
-function claveCelda(c){return [c.hoja,c.row,c.sub==null?'':c.sub,c.col].join('|')}
-/* b: borrador {h,texto,base}; d: celda abierta {h,es_texto}. ninguno | igual (nada que restaurar) | aplicar (borrador mas reciente y la celda no cambio) | conflicto (h distinto o la traduccion guardada cambio) */
-function decidirBorrador(b,d){if(!b)return 'ninguno';if(b.texto===d.es_texto)return 'igual';if(String(b.h)===String(d.h)&&b.base===d.es_texto)return 'aplicar';return 'conflicto'}
-function puedeEnviarBorrador(st){return !st.cargando&&st.celda!=null&&st.texto!==st.base}
-/* cargas de celda: cada abrir() toma un testigo; solo la ultima aplica su resultado y mientras haya alguna pendiente no se envian borradores */
-function crearCarga(){let seq=0,pend=0;return {iniciar(){seq++;pend++;return seq},vigente(t){return t===seq},fin(){pend--},cargando(){return pend>0}}}
 function diffLineas(a,b){const x=String(a).split('\n'),y=String(b).split('\n');const n=x.length,m=y.length;const L=[];for(let i=0;i<=n;i++)L.push(new Array(m+1).fill(0));
  for(let i=n-1;i>=0;i--)for(let j=m-1;j>=0;j--)L[i][j]=x[i]===y[j]?L[i+1][j+1]+1:Math.max(L[i+1][j],L[i][j+1]);
  const r=[];let i=0,j=0;while(i<n&&j<m){if(x[i]===y[j]){r.push({t:'=',s:x[i]});i++;j++}else if(L[i+1][j]>=L[i][j+1]){r.push({t:'-',s:x[i++]})}else r.push({t:'+',s:y[j++]})}
@@ -273,21 +269,16 @@ async function reabrirSesion(){try{const r=await fetch('/api/reabrir',{method:'P
  if(r.ok&&j.ok){bannerSesion('Sesión reabierta');return}}catch(e){}bannerSesion('El editor se cerró, ábrelo de nuevo',true)}
 addEventListener('pageshow',e=>manejarPageShow(e,reabrirSesion));
 /* Borradores por celda (clave hoja|row|sub|col + h) en el servidor (datos/borradores.json, no en traducciones). Se borran solo al guardar la celda o al descartarlos. */
-let borr={},borEnviado=null;const carga=crearCarga();
-const cuerpoBor=c=>({hoja:c.hoja,row:c.row,sub:c.sub,col:c.col});
-async function guardarBorradorDe(c,texto){await api('/api/borrador',Object.assign(cuerpoBor(c),{h:c.h,texto:texto,base:c.base}));borr[claveCelda(c)]=Object.assign(cuerpoBor(c),{h:c.h,texto:texto,base:c.base});marcarBorradores()}
-async function borrarBorradorDe(c){const k=claveCelda(c);if(!borr[k])return;await api('/api/borrador_borrar',cuerpoBor(c));delete borr[k];marcarBorradores()}
-function marcarBorradores(){document.querySelectorAll('#filas tr[data-k],#mCeldas .mc[data-k]').forEach(x=>x.classList.toggle('bor',!!borr[x.dataset.k]));
- const b=$('bBorDesc');if(b)b.style.display=selCelda&&borr[claveCelda(selCelda)]?'':'none'}
+const carga=crearCarga();
+const G=Borradores.crearGestor({api:(r,c)=>api(r,c),mostrar:(b,d)=>mostrarDecision(b,d),normalizar:(c,texto)=>api('/api/preview',{id:c.id,texto:texto,reflujo:true}).then(r=>r.texto),cambio:()=>marcarBorradores()});
+function marcarBorradores(){document.querySelectorAll('#filas tr[data-k],#mCeldas .mc[data-k]').forEach(x=>x.classList.toggle('bor',G.tiene(x.dataset.k)));
+ const b=$('bBorDesc');if(b)b.style.display=selCelda&&G.tiene(claveCelda(selCelda))?'':'none'}
 async function guardarBorrador(){const t=document.getElementById('es');if(!t)return;
- const c=selCelda,texto=t.value;                                  /* instantanea: celda, texto y base van juntos */
- if(!puedeEnviarBorrador({cargando:carga.cargando(),celda:c,texto:texto,base:guardadoTxt}))return;
- const k=claveCelda(c)+'\u0000'+texto;if(borEnviado===k)return;
- try{await guardarBorradorDe(c,texto);borEnviado=k}catch(e){$('msg').textContent='No se pudo guardar el borrador: '+e.message}}
+ try{await G.tick({cargando:carga.cargando(),celda:selCelda,texto:t.value,base:guardadoTxt})}catch(e){$('msg').textContent='No se pudo guardar el borrador: '+e.message}}
 setInterval(guardarBorrador,4000);
-async function recuperarBorrador(){try{const d=await api('/api/borradores');borr={};for(const b of d.borradores||[])borr[claveCelda(b)]=b;
- const n=Object.keys(borr).length;marcarBorradores();if(n)bannerSesion(n+(n===1?' celda tiene un borrador sin guardar':' celdas tienen borradores sin guardar')+' (marcadas con \u270E). Abre la celda para restaurarlo.',false)}catch(e){bannerSesion('No se pudieron leer los borradores: '+e.message,true)}}
-function pedirDecision(b,d){return new Promise(res=>{const dl=$('dBor');
+async function recuperarBorrador(){try{const d=await api('/api/borradores');G.cargar(d.borradores);
+ const n=new Set((d.borradores||[]).map(claveCelda)).size;marcarBorradores();if(n)bannerSesion(n+(n===1?' celda tiene un borrador sin guardar':' celdas tienen borradores sin guardar')+' (marcadas con \u270E). Abre la celda para restaurarlo.',false)}catch(e){bannerSesion('No se pudieron leer los borradores: '+e.message,true)}}
+function mostrarDecision(b,d){return new Promise(res=>{const dl=$('dBor');
  $('dBorMot').textContent=String(b.h)!==String(d.h)?'El japones de la celda ha cambiado desde que se hizo el borrador.':'La traduccion guardada ha cambiado desde que se hizo el borrador.';
  $('dBorDif').innerHTML=diffLineas(d.es_texto,b.texto).map(x=>`<div class="df${x.t}">${x.t==='='?'  ':x.t+' '}${esc(x.s)}</div>`).join('');
  dl.returnValue='luego';dl.onclose=()=>res(dl.returnValue||'luego');dl.showModal()})}
@@ -336,7 +327,7 @@ function flActual(f){$('flActual').textContent=FL[f]||'';$('flActual').style.col
 async function abrir(id){const tok=carga.iniciar();
  try{
  const prev=selCelda,textoPrev=$('es').value;                    /* con texto sin guardar: se guarda como borrador de ESA celda antes de cambiar */
- if(prev&&sinGuardar(textoPrev,guardadoTxt,selId)){try{await guardarBorradorDe(prev,textoPrev);borEnviado=claveCelda(prev)+'\u0000'+textoPrev}catch(e){if(!confirm('No se pudo guardar el borrador de la celda actual ('+e.message+'). ¿Descartar el texto sin guardar y abrir la otra celda?'))return}}
+ if(prev){try{await G.alSalir(prev,textoPrev,guardadoTxt)}catch(e){if(!confirm('No se pudo guardar el borrador de la celda actual ('+e.message+'). ¿Descartar el texto sin guardar y abrir la otra celda?'))return}}
  const d=await api('/api/celda?id='+id);if(!carga.vigente(tok))return;
  /* a partir de aqui todo es sincrono: selId, selCelda, guardadoTxt y el texto cargado cambian a la vez */
  $('vacio').style.display='none';$('ed').style.display='block';
@@ -347,13 +338,7 @@ async function abrir(id){const tok=carga.iniciar();
  $('msg').textContent=d.sin_traduccion?'Sin traduccion: plantilla con la estructura del original.':'';$('bSuaveDesh').style.display='none';
  document.querySelectorAll('#filas tr').forEach(t=>t.classList.toggle('sel',+t.dataset.id===id));marcaMision();
  if(d.evaluacion)pintar(d.evaluacion);else{$('vista').innerHTML='';$('estSuave').innerHTML='';$('avisos').innerHTML='';$('bGuardar').disabled=false;previa()}
- const b=borr[claveCelda(selCelda)],dec=decidirBorrador(b,d);
- if(dec==='igual'){await borrarBorradorDe(selCelda)}
- else if(dec==='aplicar'){$('es').value=b.texto;previa();$('msg').textContent='Restaurado el borrador sin guardar de esta celda ('+new Date(b.fecha*1000).toLocaleString('es')+'). Revisalo y pulsa Guardar, o «Descartar borrador».'}
- else if(dec==='conflicto'){const r=await pedirDecision(b,d);if(!carga.vigente(tok))return;
-  if(r==='borrador'){$('es').value=b.texto;previa();$('msg').textContent='Borrador restaurado (la celda habia cambiado). Revisalo y pulsa Guardar.'}
-  else if(r==='actual'){await borrarBorradorDe(selCelda);$('msg').textContent='Borrador descartado.'}
-  else $('msg').textContent='Esta celda tiene un borrador pendiente de decidir (se conserva).'}
+ await G.resolver(selCelda,d,{vigente:()=>carga.vigente(tok),poner:(x,m)=>{$('es').value=x;previa();$('msg').textContent=m},msg:m=>{$('msg').textContent=m}});
  marcarBorradores();
  }catch(e){if(carga.vigente(tok)){$('msg').textContent='Error al abrir la celda: '+e.message;bannerSesion('Error al abrir la celda '+id+': '+e.message,true)}}
  finally{carga.fin()}}
@@ -363,9 +348,9 @@ async function previa(){if(selId==null)return;try{const r=await api('/api/previe
 $('es').oninput=()=>{clearTimeout(timer);timer=setTimeout(previa,300)};$('cReflujo').onchange=previa;
 $('bReflujo').onclick=()=>{if(ultimoTexto){$('es').value=ultimoTexto;previa()}};
 async function guardar(){if(selId==null)return false;try{const r=await api('/api/guardar',{id:selId,texto:$('es').value});pintar(r.evaluacion);
- if(r.guardado){$('es').value=r.evaluacion.texto;guardadoTxt=$('es').value;if(selCelda)selCelda.base=guardadoTxt;try{await borrarBorradorDe(selCelda)}catch(e){}$('msg').textContent='Guardado (origen sesion).';cargar();refrescarMision();return true}else $('msg').textContent='No se guarda: hay errores.'}catch(e){$('msg').textContent=e.message}return false}
+ if(r.guardado){$('es').value=r.evaluacion.texto;guardadoTxt=$('es').value;if(selCelda)selCelda.base=guardadoTxt;try{await G.borrarBorradorDe(selCelda,'',{archivarSi:guardadoTxt})}catch(e){}$('msg').textContent='Guardado (origen sesion).';cargar();refrescarMision();return true}else $('msg').textContent='No se guarda: hay errores.'}catch(e){$('msg').textContent=e.message}return false}
 $('bGuardar').onclick=guardar;
-$('bBorDesc').onclick=async()=>{if(!selCelda||!confirm('¿Descartar el borrador de esta celda y volver al texto guardado?'))return;try{await borrarBorradorDe(selCelda);$('es').value=guardadoTxt;previa();$('msg').textContent='Borrador descartado.'}catch(e){$('msg').textContent=e.message}};
+$('bBorDesc').onclick=async()=>{if(!selCelda||!confirm('¿Descartar el borrador de esta celda y volver al texto guardado?'))return;try{for(const b of G.borradoresDe(selCelda))await G.borrarBorradorDe(selCelda,b.ver||'');$('es').value=guardadoTxt;previa();$('msg').textContent='Borrador descartado.'}catch(e){$('msg').textContent=e.message}};
 // ---------- estado de trabajo
 async function marcarActual(est){if(selId==null)return;await api('/api/flujo_marcar',{estado:est,ids:[selId]});flActual(est);$('msg').textContent='Marcada: '+FL[est];cargar();refrescarMision()}
 $('fcPor').onclick=()=>marcarActual('por_hacer');$('fcHecho').onclick=()=>marcarActual('hecho');$('fcSin').onclick=()=>marcarActual('sin');

@@ -48,6 +48,10 @@ class Servidor(object):
                         try: servidor.al_pedir_pagina and servidor.al_pedir_pagina()
                         except Exception: log.warning('al_pedir_pagina', exc_info=True)
                     b = html.encode('utf-8'); self.send_response(200); self.send_header('Content-Type', 'text/html; charset=utf-8'); self.send_header('Content-Length', str(len(b))); self.send_header('Cache-Control', 'no-store'); self.end_headers(); self.wfile.write(b); return
+                if u.path == '/borradores.js':                      # codigo estatico de la UI (sin secretos)
+                    try: b = open(os.path.join(dir_ui(), 'borradores.js'), 'rb').read()
+                    except OSError: return self._err(500, 'falta ui/borradores.js')
+                    self.send_response(200); self.send_header('Content-Type', 'text/javascript; charset=utf-8'); self.send_header('Content-Length', str(len(b))); self.send_header('Cache-Control', 'no-store'); self.end_headers(); self.wfile.write(b); return
                 if not u.path.startswith('/api/'): return self._err(404, 'no existe')
                 if not self._auth(): return self._err(401, 'clave invalida')
                 t0 = time.time()
@@ -96,8 +100,8 @@ class Servidor(object):
 
     @staticmethod
     def clave_borrador(b):
-        sub = b.get('sub')
-        return '%s|%d|%s|%d' % (str(b['hoja']), int(b['row']), '' if sub is None else int(sub), int(b['col']))
+        sub = b.get('sub'); ver = ''.join(ch for ch in str(b.get('ver') or '') if ch.isalnum())[:16]      # ver: versiones antiguas conservadas de un borrador pendiente de decidir
+        return '%s|%d|%s|%d%s' % (str(b['hoja']), int(b['row']), '' if sub is None else int(sub), int(b['col']), '#' + ver if ver else '')
 
     def _leer_borradores(self):
         try:
@@ -119,7 +123,7 @@ class Servidor(object):
         if len(texto) > 2000000: raise ValueError('borrador demasiado grande')
         clave = self.clave_borrador(b)
         reg = {'hoja': str(b['hoja']), 'row': int(b['row']), 'sub': None if b.get('sub') is None else int(b['sub']), 'col': int(b['col']),
-               'h': str(b.get('h', '')), 'texto': texto, 'base': str(b.get('base', '')), 'fecha': time.time()}
+               'ver': ''.join(ch for ch in str(b.get('ver') or '') if ch.isalnum())[:16], 'h': str(b.get('h', '')), 'texto': texto, 'base': str(b.get('base', '')), 'fecha': time.time()}
         with self._lock_bor:
             d = self._leer_borradores()
             if clave not in d and len(d) >= 2000: raise ValueError('demasiados borradores')

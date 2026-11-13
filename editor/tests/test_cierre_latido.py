@@ -201,3 +201,21 @@ def test_reabrir_y_borradores_por_celda_en_el_servidor(tmp_path):
         s.post('/api/borrador_borrar', {'hoja': 'Quest', 'row': 4, 'sub': 2, 'col': 1}); assert s.get('/api/borradores', {}) == {'borradores': []} and not (tmp_path / 'borradores.json').exists()
         s.post('/api/borrador_borrar', _bor())                                              # borrar inexistente: ok
     finally: s.httpd.server_close()
+
+
+def test_borradores_versionados_y_servicio_de_borradores_js(tmp_path):
+    import urllib.request
+    from gridania_editor.servidor import Servidor
+    app = types.SimpleNamespace(cfg=types.SimpleNamespace(home=str(tmp_path), redactar=str))
+    s = Servidor(app, 0)
+    try:
+        s.post('/api/borrador', _bor(texto='P')); s.post('/api/borrador', dict(_bor(texto='ANT'), ver='a1'))
+        d = {b['ver']: b['texto'] for b in s.get('/api/borradores', {})['borradores']}
+        assert d == {'': 'P', 'a1': 'ANT'}
+        s.post('/api/borrador_borrar', dict(_bor(), ver='a1'))                             # borra solo la version antigua
+        assert [b['texto'] for b in s.get('/api/borradores', {})['borradores']] == ['P']
+        s.post('/api/borrador_borrar', _bor()); assert s.get('/api/borradores', {}) == {'borradores': []}
+        import threading; threading.Thread(target=s.httpd.serve_forever, daemon=True).start()
+        r = urllib.request.urlopen('http://127.0.0.1:%d/borradores.js' % s.puerto)
+        assert r.status == 200 and 'javascript' in r.headers['Content-Type'] and b'crearGestor' in r.read()
+    finally: s.httpd.shutdown(); s.httpd.server_close()
