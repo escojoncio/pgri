@@ -538,32 +538,34 @@ class Aplicacion(object):
         """version del juego del textos anterior (info.json de la extraccion previa o, si no hay, la recomendada del repo)"""
         return extractor.version_de_info(self.cfg.juego_dir) if os.path.abspath(raiz) == os.path.abspath(self.cfg.juego_dir) else self._recomendada()
 
-    def _informe_parche(self, R, raiz_anterior, textos_nuevos, info, log):
-        """compara el textos/ja anterior con la extraccion nueva (aun sin cambiar) y guarda datos/parches/<version>.json. Solo lectura de traducciones. -> dict"""
+    def _calcular_novedades(self, R, raiz_anterior, textos_nuevos, info, log):
+        """compara el textos/ja anterior con la extraccion nueva (aun sin cambiar). SOLO LECTURA: no escribe nada (el informe se guarda despues del cambio). -> dict"""
         raiz_nuevo = os.path.dirname(textos_nuevos)
-        version = info.get('version') or time.strftime('sin-version-%Y%m%d-%H%M%S')
         log('comparando con la version anterior (%s)...' % (self._version_base(raiz_anterior) or 'repo'))
-        hojas = parche.comparar(raiz_anterior, raiz_nuevo, self.cfg.repo_dir, self.cfg.ediciones_dir, R.G.tiene_cjk, R.G.hash_ja, log)
-        inf, escrito = parche.guardar_informe(self.cfg.parches_dir, parche.crear_informe(version, self._version_base(raiz_anterior), hojas))
-        log('novedades %s: %s%s' % (version, json.dumps(inf['conteos']), '' if escrito else ' (ya importado: se conserva el informe)'))
-        return {'informe': inf, 'escrito': escrito}
+        return parche.comparar(raiz_anterior, raiz_nuevo, self.cfg.repo_dir, self.cfg.ediciones_dir, R.G.tiene_cjk, R.G.hash_ja, log, excluir=info.get('fallidas') or ())
 
-    def tarea_extraer(self, ruta=None):
-        """«Importar parche»: extrae el juego a un temporal, compara con la extraccion anterior (o el repo), guarda el informe de novedades, cambia textos/ de forma atomica
-        (con copia de la anterior), deja lo nuevo/cambiado en «Por hacer» y reindexa. Nada de esto escribe traducciones/ ni ediciones/ ni el es."""
+    def tarea_extraer(self, ruta=None, forzar=False):
+        """«Importar parche»: extrae el juego a un temporal, compara con la extraccion anterior (o el repo), cambia textos/ de forma atomica (con copia de la anterior), guarda el informe
+        de novedades, deja lo nuevo/cambiado en «Por hacer» y reindexa. Nada de esto escribe traducciones/ ni ediciones/ ni el es. forzar=True: acepta una extraccion con menos de la
+        mitad de las celdas de la anterior (la UI lo pide con confirmacion)."""
         cfg = self.cfg
         if ruta: cfg.actualizar({'ruta_juego': ruta})
         game = cfg['ruta_juego']
         extractor.comprobar_ruta(game)
         def fn(log):
-            R = self.R(); ctx = {}
-            anterior = self.raiz_textos()
-            info = extractor.extraer(R, game, cfg.juego_dir, ('ja', 'fr'), log, antes_de_cambiar=lambda tn, inf: ctx.update(self._informe_parche(R, anterior, tn, inf, log)),
-                                     copias_dir=cfg.copias_dir)
-            inf = ctx.get('informe')
-            if inf and ctx.get('escrito'):
-                info['flujo'] = parche.marcar_flujo(self.flujo, inf); log('flujo: %s' % json.dumps(info['flujo']))
-            if inf: info['parche'] = {'version': inf['version'], 'conteos': inf['conteos'], 'ya_importado': not ctx.get('escrito')}
+            R = self.R(); anterior = self.raiz_textos(); ctx = {'_base': self._version_base(anterior)}
+            previo = None
+            if not os.path.isfile(os.path.join(cfg.juego_dir, 'info.json')) or os.path.abspath(anterior) != os.path.abspath(cfg.juego_dir):
+                log('contando las celdas de referencia...'); previo = extractor.contar_celdas(anterior)      # primera importacion: la regla del 50 % frente al repo
+            info = extractor.extraer(R, game, cfg.juego_dir, ('ja', 'fr'), log, antes_de_cambiar=lambda tn, inf: ctx.update(hojas=self._calcular_novedades(R, anterior, tn, inf, log)),
+                                     copias_dir=cfg.copias_dir, respaldo_raiz=anterior, previo_celdas=previo, forzar=bool(forzar))
+            version = info.get('version') or time.strftime('sin-version-%Y%m%d-%H%M%S')
+            # el cambio ya se hizo: ahora se guarda el informe (idempotente) y se completa el flujo (tambien al reimportar, por si un corte dejo algo a medias)
+            inf, escrito = parche.guardar_informe(cfg.parches_dir, parche.crear_informe(version, ctx.get('_base') or self._recomendada(), ctx.get('hojas') or {}, info.get('hojas_conservadas') or []))
+            log('novedades %s: %s%s' % (version, json.dumps(inf['conteos']), '' if escrito else ' (ya importado: se conserva el informe)'))
+            info['flujo'] = parche.marcar_flujo(self.flujo, inf); log('flujo: %s' % json.dumps(info['flujo']))
+            info['parche'] = {'version': inf['version'], 'conteos': inf['conteos'], 'ya_importado': not escrito, 'hojas_conservadas': info.get('hojas_conservadas') or []}
+            if info['hojas_conservadas']: log('AVISO: %d hojas no se pudieron leer y se han conservado como estaban (no se cuentan como borradas)' % len(info['hojas_conservadas']))
             log('reindexando contra el juego extraido...'); info['indice'] = self._indexar(log)
             return info
         self.tarea.iniciar('extraer', fn)
@@ -581,6 +583,7 @@ class Aplicacion(object):
     def parche_hojas(self, version=None, tipo=None, q=None):
         """hojas con novedades en el orden de traduccion (expansion y luego nombre, como el modo mision). tipo: nuevas|cambiadas|borradas|movidas|None (cualquiera)"""
         inf = self._informe(version); orden = self._orden_expansion(); ql = (q or '').lower(); res = []
+        parche.marcar_flujo(self.flujo, inf)       # idempotente: completa lo que un corte dejo a medias (no pisa lo ya procesado)
         pend = {}
         for r in indexer.hojas_resumen_flujo(self.base): pend[r['hoja']] = (r['por_hacer'], r['hecho'])
         for hoja, d in inf['hojas'].items():
@@ -591,29 +594,34 @@ class Aplicacion(object):
                         'clase': clases.clase_de(hoja), 'por_hacer': pend.get(hoja, (0, 0))[0], 'hecho': pend.get(hoja, (0, 0))[1], '_o': (e[1], e[2]) if e else (999, 0)})
         res.sort(key=lambda x: (x['_o'], x['hoja']))
         for x in res: del x['_o']
-        return {'version': inf['version'], 'base_version': inf.get('base_version'), 'fecha': inf.get('fecha'), 'conteos': inf['conteos'], 'total': len(res), 'hojas': res}
+        return {'version': inf['version'], 'base_version': inf.get('base_version'), 'fecha': inf.get('fecha'), 'conteos': inf['conteos'], 'no_leidas': inf.get('no_leidas') or [], 'total': len(res), 'hojas': res}
 
     def parche_hoja(self, version, hoja, filtro=None):
-        """la hoja como conversacion (hoja_celdas) con cada celda marcada `novedad` = nueva|cambiada (+ ja_anterior); filtro nuevas|cambiadas deja solo esas celdas MAS la anterior y
-        la siguiente como contexto (`contexto`: True). Incluye las borradas (con su es) y las movidas de la hoja."""
+        """celdas de la hoja que son novedad, en el orden de traduccion, cada una con `novedad` = nueva|cambiada (+ ja_anterior) y con la anterior y la siguiente como contexto
+        (`contexto`: True). filtro: nuevas | cambiadas | borradas | movidas (en estas dos no se listan celdas: solo las listas) | vacio = nuevas y cambiadas. Se consulta TODA la hoja
+        (sin limite de filas: las novedades del final de hojas enormes como Item tambien salen). Incluye las borradas (con su es) y las movidas de la hoja."""
         inf = self._informe(version); d = inf['hojas'].get(hoja) or {'nuevas': [], 'cambiadas': [], 'borradas': [], 'movidas': []}
-        nov = {(r, s, c): ('nueva', None) for r, s, c in d['nuevas']}
-        nov.update({(r, s, c): ('cambiada', ja) for r, s, c, ja in d['cambiadas']})
-        celdas = self.hoja_celdas(hoja)['celdas']; filtro = filtro if filtro in ('nuevas', 'cambiadas') else None
-        for x in celdas:
-            n = nov.get((x['row'], x['sub'], x['col']))
-            x['novedad'] = n[0] if n else None
-            if n and n[1] is not None: x['ja_anterior'] = n[1][:400]
-            x['etiqueta'] = self.flujo.etiqueta(hoja, x['row'], x['sub'], x['col'])
-        if filtro:
-            quiere = 'nueva' if filtro == 'nuevas' else 'cambiada'
-            idx = [i for i, x in enumerate(celdas) if x['novedad'] == quiere]; mant = {}
+        nov = {}
+        if filtro in (None, '', 'nuevas'): nov.update({(r, s, c): ('nueva', None) for r, s, c in d['nuevas']})
+        if filtro in (None, '', 'cambiadas'): nov.update({(r, s, c): ('cambiada', ja) for r, s, c, ja in d['cambiadas']})
+        celdas = []
+        if nov:
+            rs = self.base.q('SELECT id,row,sub,col,estado,substr(ja,1,400) ja,substr(fr,1,400) fr,substr(es,1,400) es,editada FROM celdas WHERE hoja=? ORDER BY row, COALESCE(sub,-1), col', (hoja,))
+            idx = [i for i, r in enumerate(rs) if (r['row'], r['sub'], r['col']) in nov]; mant = {}
             for i in idx:
                 for j in (i - 1, i, i + 1):
-                    if 0 <= j < len(celdas): mant[j] = (j == i)
-            celdas = [dict(celdas[j], contexto=not mant[j]) for j in sorted(mant)]
-        return {'version': inf['version'], 'hoja': hoja, 'celdas': celdas, 'borradas': [{'row': r, 'sub': s, 'col': c, 'ja': ja, 'es': es} for r, s, c, ja, es in d['borradas']],
-                'movidas': d['movidas']}
+                    if 0 <= j < len(rs) and not mant.get(j): mant[j] = (j == i)
+            for j in sorted(mant):
+                x = dict(rs[j]); n = nov.get((x['row'], x['sub'], x['col']))
+                m = celda.HABLANTE_RE.match(x['es'] or '') or celda.HABLANTE_RE.match(x['ja'] or '')
+                x['hablante'] = m.group(1) if m else None
+                x['flujo'] = self.flujo.estado(hoja, x['row'], x['sub'], x['col']); x['etiqueta'] = self.flujo.etiqueta(hoja, x['row'], x['sub'], x['col'])
+                x['novedad'] = n[0] if n else None; x['contexto'] = not mant[j]
+                if n and n[1] is not None: x['ja_anterior'] = n[1][:400]
+                celdas.append(x)
+        return {'version': inf['version'], 'hoja': hoja, 'celdas': celdas, 'truncado': False,
+                'borradas': [{'row': r, 'sub': s, 'col': c, 'ja': ja, 'es': es} for r, s, c, ja, es in d['borradas']] if filtro in (None, '', 'borradas') else [],
+                'movidas': d['movidas'] if filtro in (None, '', 'movidas') else []}
 
     def parche_movidas(self, version=None, hoja=None, limite=2000):
         """vista previa de las traducciones que se podrian arrastrar (no aplica nada): ja, es de la borrada, destino y si el destino ya esta traducido"""
@@ -623,25 +631,42 @@ class Aplicacion(object):
             for m in d['movidas']:
                 tot += 1
                 if len(out) >= limite: continue
-                r = self.base.q('SELECT estado FROM celdas WHERE hoja=? AND row=? AND sub IS ? AND col=?', (h, m['a'][0], m['a'][1], m['a'][2]))
-                out.append({'hoja': h, 'de': m['de'], 'a': m['a'], 'ja': m['ja'][:400], 'es': indexer.plano(m['es'])[:400], 'aceptada': bool(m.get('aceptada')),
+                r = self.base.q('SELECT estado, es, editada FROM celdas WHERE hoja=? AND row=? AND sub IS ? AND col=?', (h, m['a'][0], m['a'][1], m['a'][2]))
+                out.append({'aplicable': bool(r) and r[0]['estado'] in ('rojo', 'blanco') and not (r[0]['es'] or '').strip() and not r[0]['editada'], 'hoja': h, 'de': m['de'], 'a': m['a'], 'ja': m['ja'][:400], 'es': indexer.plano(m['es'])[:400], 'aceptada': bool(m.get('aceptada')),
                             'estado_destino': r[0]['estado'] if r else None})
         return {'version': inf['version'], 'total': tot, 'movidas': out}
 
+    @staticmethod
+    def _validar_destinos(destinos):
+        """destinos = lista de [hoja, row, sub|null, col] (enteros); cualquier otra cosa -> ValueError (400)"""
+        if destinos is None: return None
+        if not isinstance(destinos, list): raise ValueError('destinos debe ser una lista de [hoja,row,sub,col]')
+        out = set()
+        for d in destinos:
+            ok = isinstance(d, (list, tuple)) and len(d) == 4 and isinstance(d[0], str) and d[0]
+            ok = ok and all(isinstance(x, int) and not isinstance(x, bool) for x in (d[1], d[3])) and (d[2] is None or (isinstance(d[2], int) and not isinstance(d[2], bool)))
+            if not ok: raise ValueError('destino no valido: %r (se espera [hoja,row,sub|null,col] con enteros)' % (d,))
+            out.add((d[0], d[1], d[2], d[3]))
+        return out
+
     def parche_arrastrar(self, version=None, hoja=None, destinos=None):
         """ACEPTAR por lote: escribe en ediciones/ (origen sesion, con las mismas puertas que al guardar) la traduccion de la fila borrada en la fila movida. Solo las movidas
-        del lote (hoja = una hoja; destinos = [[hoja,row,sub,col]]; ninguno = todas las pendientes). Nunca se llama solo desde la importacion."""
+        del lote (hoja = una hoja; destinos = [[hoja,row,sub,col]]; ninguno = todas las pendientes). Se OMITEN (y se informan en `omitidas`) los destinos que no esten en el indice,
+        que ya tengan es (cualquier color distinto de rojo/blanco, o es no vacio) o una edicion tuya. Nunca se llama solo desde la importacion."""
+        sel = self._validar_destinos(destinos)
+        if hoja is not None and not isinstance(hoja, str): raise ValueError('hoja debe ser texto')
         self.base.exigir_libre()
-        inf = self._informe(version); sel = {tuple(x) for x in destinos} if destinos else None
+        inf = self._informe(version)
         m_ = self.motor(); items = []; omitidas = []; refs = []
         for h, d in inf['hojas'].items():
             if hoja and h != hoja: continue
             for m in d['movidas']:
                 a = tuple(m['a'])
-                if m.get('aceptada') or (sel is not None and (h,) + a not in sel): continue
-                r = self.base.q('SELECT estado FROM celdas WHERE hoja=? AND row=? AND sub IS ? AND col=?', (h, a[0], a[1], a[2]))
+                if m.get('aceptada') or (sel is not None and (h, a[0], a[1], a[2]) not in sel): continue
+                r = self.base.q('SELECT estado, es, editada FROM celdas WHERE hoja=? AND row=? AND sub IS ? AND col=?', (h, a[0], a[1], a[2]))
                 if not r: omitidas.append({'hoja': h, 'a': list(a), 'motivo': 'la celda no esta en el indice'}); continue
-                if r[0]['estado'] == 'verde': omitidas.append({'hoja': h, 'a': list(a), 'motivo': 'el destino ya esta traducido'}); continue
+                if r[0]['estado'] not in ('rojo', 'blanco') or (r[0]['es'] or '').strip() or r[0]['editada']:
+                    omitidas.append({'hoja': h, 'a': list(a), 'motivo': 'el destino ya tiene traduccion o edicion'}); continue
                 items.append((m_.contexto(h, a[0], a[1], a[2]), m['es'])); refs.append((h, m))
         hechos, fallos = edits.guardar_lote(self.base, self.cfg.ediciones_dir, m_.R, items) if items else ([], [])
         mal = {(c.hoja,) + c.k for c, _ in fallos}

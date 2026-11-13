@@ -43,6 +43,8 @@ class Flujo(object):
 
     def etiquetar(self, celdas, version, tipo):
         """marca las celdas como novedad de un parche (solo informativo; fichero local flujo_parche.json)"""
+        celdas = list(celdas)
+        if not celdas: return
         with self.lock:
             for c in celdas: self.etiquetas[clave(*c)] = '%s|%s' % (version, tipo)
             os.makedirs(os.path.dirname(os.path.abspath(self.ruta_et)), exist_ok=True)

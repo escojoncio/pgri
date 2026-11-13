@@ -4,7 +4,7 @@ y escribe datos/parches/<version>.json y las marcas locales de flujo.
 Clases (por hoja+row+sub+col, solo celdas con japones CJK):
   NUEVA    = clave inexistente en la extraccion anterior.   CAMBIADA = clave en ambas con `text` ja distinto (el es se conserva; el indice la marca naranja = a revisar).
   BORRADA  = clave que ya no esta (se guarda su es, si lo tenia).   MOVIDA = NUEVA cuyo ja es identico (mismo h) a una BORRADA con es de la MISMA hoja: solo se PROPONE arrastrar su traduccion."""
-import hashlib, json, os, time
+import collections, hashlib, json, os, time
 from . import extractor, indexer
 
 TIPOS = ('nuevas', 'cambiadas', 'borradas', 'movidas')
@@ -13,10 +13,10 @@ TIPOS = ('nuevas', 'cambiadas', 'borradas', 'movidas')
 def _h(t): return hashlib.sha1(t.encode('utf-8')).hexdigest()[:12]
 
 
-def leer_ja(raiz, hoja):
-    """{(row,sub,col): text} de una hoja de <raiz>/textos/ja (solo texto no vacio)"""
+def leer_ja(raiz, hoja, idioma='ja'):
+    """{(row,sub,col): text} de una hoja de <raiz>/textos/<idioma> (solo texto no vacio)"""
     out = {}
-    for k, l in indexer._lineas(indexer._rutas_hoja(raiz, 'ja', hoja)).items():
+    for k, l in indexer._lineas(indexer._rutas_hoja(raiz, idioma, hoja)).items():
         t = indexer._texto(l)[0]
         if t: out[k] = t
     return out
@@ -34,7 +34,7 @@ def _hojas(raiz):
     return indexer.listar_jsonl(os.path.join(raiz, 'textos', 'ja'), quitar_part=True)
 
 
-def comparar(raiz_viejo, raiz_nuevo, repo_dir=None, ediciones_dir=None, tiene_cjk=None, hash_ja=None, progreso=None):
+def comparar(raiz_viejo, raiz_nuevo, repo_dir=None, ediciones_dir=None, tiene_cjk=None, hash_ja=None, progreso=None, excluir=()):
     """raiz_* = carpetas que contienen textos/ja. -> {hoja: {'nuevas': [[r,s,c]], 'cambiadas': [[r,s,c,ja_anterior]], 'borradas': [[r,s,c,ja,es]], 'movidas': [{'de','a','ja','es'}]}}
     (solo hojas con alguna novedad). No escribe nada."""
     if tiene_cjk is None:
@@ -42,7 +42,7 @@ def comparar(raiz_viejo, raiz_nuevo, repo_dir=None, ediciones_dir=None, tiene_cj
         cjk = re.compile('[぀-ヿ㐀-鿿＀-￯]'); tiene_cjk = lambda t: cjk.search(t) is not None
     hash_ja = hash_ja or _h
     hv, hn = _hojas(raiz_viejo), _hojas(raiz_nuevo)
-    todas = sorted(hv | hn); res = {}
+    todas = sorted((hv | hn) - set(excluir)); res = {}      # excluir = hojas que no se pudieron leer: ni nuevas ni borradas (se conservan)
     for i, hoja in enumerate(todas):
         v = leer_ja(raiz_viejo, hoja) if hoja in hv else {}
         n = leer_ja(raiz_nuevo, hoja) if hoja in hn else {}
@@ -54,15 +54,21 @@ def comparar(raiz_viejo, raiz_nuevo, repo_dir=None, ediciones_dir=None, tiene_cj
         es = leer_es(repo_dir, ediciones_dir, hoja) if (sin_n or nuevas) else {}
         borradas = [k for k in sin_n if tiene_cjk(v[k]) or k in es]
         orden = lambda k: (k[0], -1 if k[1] is None else k[1], k[2])
-        # movidas: nueva con el mismo ja (h) que una borrada CON es de la misma hoja, y sin traduccion propia
+        # movidas: nueva con el mismo ja (h) que una borrada CON es de la misma hoja, sin traduccion propia, con ja UNICO en esa hoja a ambos lados (si la frase se repite
+        # en varias filas el emparejamiento seria ambiguo: no se propone) y, si ambos tienen frances, con el mismo frances
+        rep_v = collections.Counter(v.values()); rep_n = collections.Counter(n.values())
         por_h = {}
-        for k in sorted((k for k in borradas if k in es), key=orden): por_h.setdefault(hash_ja(v[k]), []).append(k)
-        movidas = []
+        for k in sorted((k for k in borradas if k in es and rep_v[v[k]] == 1), key=orden): por_h.setdefault(hash_ja(v[k]), []).append(k)
+        movidas = []; fr_v = fr_n = None
         for k in sorted(nuevas, key=orden):
-            if k in es: continue
+            if k in es or rep_n[n[k]] != 1: continue
             lst = por_h.get(hash_ja(n[k]))
             if lst:
-                de = lst.pop(0)
+                if fr_v is None:
+                    fr_v = leer_ja(raiz_viejo, hoja, 'fr') if hoja in hv else {}; fr_n = leer_ja(raiz_nuevo, hoja, 'fr') if hoja in hn else {}
+                de = lst[0]
+                if fr_v.get(de) and fr_n.get(k) and fr_v[de] != fr_n[k]: continue
+                lst.pop(0)
                 movidas.append({'de': list(de), 'a': list(k), 'ja': n[k], 'es': es[de], 'aceptada': False})
         d = {'nuevas': [list(k) for k in sorted(nuevas, key=orden)],
              'cambiadas': [list(k) + [v[k]] for k in sorted(cambiadas, key=orden)],
@@ -80,8 +86,9 @@ def conteos(hojas):
     return c
 
 
-def crear_informe(version, base_version, hojas):
-    return {'formato': 1, 'version': version, 'base_version': base_version, 'fecha': time.strftime('%Y-%m-%d %H:%M:%S'), 'conteos': conteos(hojas), 'hojas': hojas}
+def crear_informe(version, base_version, hojas, no_leidas=()):
+    return {'formato': 1, 'version': version, 'base_version': base_version, 'fecha': time.strftime('%Y-%m-%d %H:%M:%S'), 'conteos': conteos(hojas), 'hojas': hojas,
+            'no_leidas': list(no_leidas)}      # no_leidas = hojas que fallaron al leer y se conservaron como estaban (no cuentan como borradas)
 
 
 def _ruta(parches_dir, version): return os.path.join(parches_dir, extractor.version_segura(version) + '.json')
@@ -133,11 +140,15 @@ def celdas_flujo(informe):
 
 
 def marcar_flujo(flujo, informe):
-    """nuevas y cambiadas -> «Por hacer» con etiqueta de version. Las nuevas ya «Hecho» no se tocan; una cambiada «Hecho» vuelve a «Por hacer». Solo escribe flujo.json
-    y flujo_parche.json (nada de traducciones). -> {'por_hacer': n, 'respetadas_hecho': n}"""
+    """nuevas y cambiadas -> «Por hacer» con etiqueta de version. IDEMPOTENTE: una celda con la etiqueta de ESTA version ya se proceso y no se vuelve a tocar (asi un reimporte, o abrir
+    Novedades tras un corte, completa lo que faltaba sin pisar lo que el usuario ya hizo). Las nuevas ya «Hecho» no se tocan (se etiquetan igual); una cambiada «Hecho» vuelve a
+    «Por hacer». Solo escribe flujo.json y flujo_parche.json (nada de traducciones). -> {'por_hacer': n, 'respetadas_hecho': n, 'ya_procesadas': n}"""
     nu, ca = celdas_flujo(informe); v = informe['version']
+    def pend(lst): return [c for c in lst if (flujo.etiqueta(*c) or {}).get('version') != v]
+    nu, ca, ya = pend(nu), pend(ca), len(nu) + len(ca)
+    ya -= len(nu) + len(ca)
     hechas = [c for c in nu if flujo.estado(*c) == 'hecho']
     nu_ok = [c for c in nu if flujo.estado(*c) != 'hecho']
     n = flujo.poner(nu_ok + ca, 'por_hacer')
-    flujo.etiquetar(nu_ok, v, 'nueva'); flujo.etiquetar(ca, v, 'cambiada')
-    return {'por_hacer': n, 'respetadas_hecho': len(hechas)}
+    flujo.etiquetar(nu, v, 'nueva'); flujo.etiquetar(ca, v, 'cambiada')
+    return {'por_hacer': n, 'respetadas_hecho': len(hechas), 'ya_procesadas': ya}

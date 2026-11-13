@@ -209,9 +209,9 @@ class Servidor(object):
         if ruta == '/api/config': a.cfg.actualizar(b); return a.cfg.publico()
         if ruta == '/api/borrar_token': a.cfg.borrar_token(); return a.cfg.publico()
         if ruta == '/api/sync': a.tarea_sync(); return {'ok': True}
-        if ruta == '/api/extraer': a.tarea_extraer(b.get('ruta') or None); return {'ok': True}
-        if ruta == '/api/parche_importar': a.tarea_extraer(b.get('ruta') or None); return {'ok': True}      # = /api/extraer («Importar parche»)
-        if ruta == '/api/parche_arrastrar': return a.parche_arrastrar(b.get('version') or None, b.get('hoja') or None, b.get('destinos') or None)
+        if ruta == '/api/extraer': a.tarea_extraer(b.get('ruta') or None, bool(b.get('forzar'))); return {'ok': True}
+        if ruta == '/api/parche_importar': a.tarea_extraer(b.get('ruta') or None, bool(b.get('forzar'))); return {'ok': True}      # = /api/extraer («Importar parche»)
+        if ruta == '/api/parche_arrastrar': return a.parche_arrastrar(b.get('version') or None, b.get('hoja') or None, b.get('destinos'))
         if ruta == '/api/indexar': a.tarea_indexar(bool(b.get('forzar'))); return {'ok': True}
         if ruta == '/api/tarea_cancelar': return a.tarea_cancelar()
         if ruta == '/api/abrir_registros': return a.abrir_registros()
