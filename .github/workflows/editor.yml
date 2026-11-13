@@ -11,6 +11,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
       - run: pip install -r editor/requirements-dev.txt
       - name: Tests (los que necesitan tools/py o el juego se saltan)
         run: python -m pytest editor/tests -q

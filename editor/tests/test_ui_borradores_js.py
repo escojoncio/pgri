@@ -3,6 +3,8 @@ import json, os, shutil, subprocess, pytest
 
 MOD = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'gridania_editor', 'ui', 'borradores.js'))
 NODE = shutil.which('node')
+if not NODE and os.environ.get('CI', '').lower() == 'true':
+    raise RuntimeError('CI=true y falta node: los tests JS no pueden saltarse (instalar actions/setup-node)')
 pytestmark = pytest.mark.skipif(not NODE, reason='sin node')
 
 PRE = '''
@@ -51,7 +53,7 @@ const tras_tick=Object.values(srv).map(x=>x.texto);
 await G.tick({cargando:false,celda:Object.assign({},C),texto:'nuevo',base:'viejo'});   // edita: el antiguo se conserva
 const k=Object.keys(srv).sort();
 console.log(JSON.stringify({tras_tick,k,textos:k.map(x=>srv[x].texto),msgs}));''', tmp_path)
-    assert r['tras_tick'] == []
+    assert r['tras_tick'] == ['ANTIGUO']      # «Decidir luego» se persiste en el servidor
     assert r['k'] == ['Quest|3||1', 'Quest|3||1#a1'] and r['textos'] == ['nuevo', 'ANTIGUO']
     assert 'pendiente de decidir' in r['msgs'][0]
 
@@ -132,3 +134,43 @@ await new Promise(r=>setTimeout(r,5));dlg[1]('luego');await p;
 await G.borrarBorradorDe(C,'',{archivarSi:'guardado'});
 console.log(JSON.stringify({puesto,k:Object.keys(srv),t:Object.values(srv).map(x=>x.texto)}));''', tmp_path)
     assert r['puesto'] == ['nuevo'] and r['k'] == ['Quest|3||1#a1'] and r['t'] == ['P']
+
+
+def test_archivar_deduplica_y_limita_a_5(tmp_path):
+    r = _node('''
+const {G,srv}=mk();
+// 8 pendientes distintos + uno repetido: cada vez 'luego' y se edita con otro texto
+for (let i=1;i<=8;i++){ await G.guardarBorradorDe(C,'P'+i); G.luego.add('Quest|3||1'); await G.guardarBorradorDe(C,'P'+(i+1)); }
+// repetir un texto ya archivado no crea otra version
+await G.guardarBorradorDe(C,'P3'); G.luego.add('Quest|3||1'); await G.guardarBorradorDe(C,'P99');
+const vers=Object.keys(srv).filter(k=>k.includes('#')).sort();
+console.log(JSON.stringify({vers,textos:vers.map(k=>srv[k].texto),local:G.borradoresDe(C).length}));''', tmp_path)
+    assert len(r['vers']) == 5 and len(set(r['textos'])) == 5 and r['local'] == 6
+    assert 'P1' not in r['textos'] and 'P2' not in r['textos']
+
+
+def test_decidir_luego_persiste_en_servidor_y_sobrevive_a_recarga(tmp_path):
+    r = _node('''
+const {G,srv,dlg}=mk();
+G.cargar([{hoja:'Quest',row:3,sub:null,col:1,h:'h0',texto:'ANT',base:'otra',fecha:1}]);
+const p=G.resolver(C,{h:'h1',es_texto:'viejo'},{vigente:()=>true,poner(){},msg(){}});
+await new Promise(r=>setTimeout(r,5));dlg[1]('luego');await p;
+const flag=srv['Quest|3||1'].luego;
+// recarga: nuevo gestor cargado con lo que hay en el servidor
+const g2=mk().G; g2.cargar(Object.values(srv));
+await g2.tick({cargando:false,celda:C,texto:'viejo',base:'viejo'});
+console.log(JSON.stringify({flag,luego2:g2.luego.has('Quest|3||1'),sigue:g2.tiene('Quest|3||1')}));''', tmp_path)
+    assert r == {'flag': True, 'luego2': True, 'sigue': True}
+
+
+def test_alsalir_no_marca_enviado_si_no_guardo(tmp_path):
+    r = _node('''
+const {G,srv,log}=mk();
+const p=G.alSalir(C,'texto','viejo');           // guarda y marca enviado
+await p; const n1=log.length;
+await G.tick({cargando:false,celda:C,texto:'texto',base:'viejo'}); const n2=log.length;   // ya enviado: no repite
+// borrar anula un guardado en cola -> false -> no debe marcar enviado
+const q=G.alSalir(C,'otro','viejo'); const d=G.borrarBorradorDe(C); await q; await d;
+const antes=log.length; await G.tick({cargando:false,celda:C,texto:'otro',base:'viejo'});
+console.log(JSON.stringify({n1,igual:n1===n2,reenvia:log.length>antes}));''', tmp_path)
+    assert r['igual'] and r['reenvia']

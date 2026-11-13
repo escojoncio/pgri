@@ -219,3 +219,31 @@ def test_borradores_versionados_y_servicio_de_borradores_js(tmp_path):
         r = urllib.request.urlopen('http://127.0.0.1:%d/borradores.js' % s.puerto)
         assert r.status == 200 and 'javascript' in r.headers['Content-Type'] and b'crearGestor' in r.read()
     finally: s.httpd.shutdown(); s.httpd.server_close()
+
+
+def test_borradores_tope_nunca_impide_guardar_el_principal(tmp_path):
+    from gridania_editor.servidor import Servidor
+    app = types.SimpleNamespace(cfg=types.SimpleNamespace(home=str(tmp_path), redactar=str))
+    s = Servidor(app, 0)
+    try:
+        s.MAX_BORRADORES = 4
+        s.post('/api/borrador', dict(_bor(row=1, texto='a'), luego=True))
+        s.post('/api/borrador', dict(_bor(row=1, texto='v1'), ver='a1')); s.post('/api/borrador', dict(_bor(row=1, texto='v2'), ver='a2'))
+        s.post('/api/borrador', _bor(row=2, texto='b'))
+        assert len(s.get('/api/borradores', {})['borradores']) == 4
+        s.post('/api/borrador', _bor(row=3, texto='c'))                                    # lleno: purga la version mas antigua
+        d = s.get('/api/borradores', {})['borradores']
+        assert len(d) == 4 and {b['texto'] for b in d} == {'a', 'v2', 'b', 'c'}
+        assert [b for b in d if b['row'] == 1 and not b['ver']][0]['luego'] is True        # «Decidir luego» persistido
+        s.post('/api/borrador', _bor(row=3, texto='c', h='h1'))                            # sobrescribir no purga
+        s.post('/api/borrador', _bor(row=5, texto='e')); s.post('/api/borrador', _bor(row=6, texto='f'))
+        d = s.get('/api/borradores', {})['borradores']
+        assert len(d) == 4 and 'f' in {b['texto'] for b in d} and 'e' in {b['texto'] for b in d}   # sin versiones: cae el principal mas antiguo sin «luego»
+        assert 'a' in {b['texto'] for b in d}
+        # purga de celdas cuyo h ya no coincide
+        hs = {1: 'nuevo'}
+        s._h_actual = lambda v: hs.get(v['row'])
+        s.post('/api/borrador', _bor(row=7, texto='g'))
+        d = s.get('/api/borradores', {})['borradores']
+        assert len(d) == 4 and 'g' in {b['texto'] for b in d} and 'a' not in {b['texto'] for b in d}   # row 1 tiene h distinto del vigente: se purga antes
+    finally: s.httpd.server_close()

@@ -4,6 +4,8 @@ import os, re, shutil, subprocess, pytest
 HTML = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'gridania_editor', 'ui', 'index.html')
 MOD = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'gridania_editor', 'ui', 'borradores.js'))
 NODE = shutil.which('node')
+if not NODE and os.environ.get('CI', '').lower() == 'true':
+    raise RuntimeError('CI=true y falta node: los tests JS no pueden saltarse (instalar actions/setup-node)')
 
 
 def _logica():

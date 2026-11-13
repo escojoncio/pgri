@@ -118,15 +118,43 @@ class Servidor(object):
         with self._lock_bor: d = self._leer_borradores()
         return {'borradores': [v for v in d.values() if isinstance(v, dict) and isinstance(v.get('texto'), str)]}
 
+    MAX_BORRADORES = 2000
+
+    def _h_actual(self, v):
+        """h vigente de la celda segun el indice (None si no se sabe)"""
+        try:
+            r = self.app.base.q('SELECT h FROM celdas WHERE hoja=? AND row=? AND sub IS ? AND col=?', (v['hoja'], v['row'], v['sub'], v['col']))
+            return str(r[0]['h']) if r else None
+        except Exception: return None
+
+    def _purgar_borradores(self, d, clave, es_version):
+        """hace sitio para un borrador nuevo: 1) versiones antiguas, 2) principales cuyo h ya no coincide, 3) (solo un principal) el principal mas antiguo sin «luego»"""
+        def sitio(): return len(d) < self.MAX_BORRADORES
+        def f(v): return v.get('fecha') if isinstance(v.get('fecha'), (int, float)) else 0
+        for k in sorted([k for k, v in d.items() if isinstance(v, dict) and v.get('ver')], key=lambda k: f(d[k])):
+            if sitio(): break
+            del d[k]
+        if not sitio():
+            for k in [k for k, v in d.items() if isinstance(v, dict) and not v.get('ver')]:
+                if sitio(): break
+                h = self._h_actual(d[k])
+                if h is not None and h != str(d[k].get('h')): del d[k]
+        if not sitio() and not es_version:
+            for k in sorted([k for k, v in d.items() if isinstance(v, dict) and not v.get('luego')] or list(d), key=lambda k: f(d[k]) if isinstance(d[k], dict) else 0):
+                if sitio(): break
+                del d[k]
+        return sitio()
+
     def guardar_borrador(self, b):
         texto = str(b.get('texto', ''))
         if len(texto) > 2000000: raise ValueError('borrador demasiado grande')
         clave = self.clave_borrador(b)
         reg = {'hoja': str(b['hoja']), 'row': int(b['row']), 'sub': None if b.get('sub') is None else int(b['sub']), 'col': int(b['col']),
                'ver': ''.join(ch for ch in str(b.get('ver') or '') if ch.isalnum())[:16], 'h': str(b.get('h', '')), 'texto': texto, 'base': str(b.get('base', '')), 'fecha': time.time()}
+        if b.get('luego') is True and not reg['ver']: reg['luego'] = True                  # «Decidir luego»: sobrevive a recargas
         with self._lock_bor:
             d = self._leer_borradores()
-            if clave not in d and len(d) >= 2000: raise ValueError('demasiados borradores')
+            if clave not in d and len(d) >= self.MAX_BORRADORES and not self._purgar_borradores(d, clave, bool(reg['ver'])): raise ValueError('demasiados borradores')
             d[clave] = reg; self._escribir_borradores(d)
         return {'ok': True}
 

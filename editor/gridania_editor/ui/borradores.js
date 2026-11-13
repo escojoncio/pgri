@@ -28,10 +28,23 @@ function crearGestor(deps) {
     cola[k] = p.catch(() => {}).then(() => { ocupado[k]--; });
     return p;
   }
+  const MAX_VERS = 5, nver = (v) => parseInt(String(v).replace(/\D/g, ''), 10) || 0;
+  const versDe = (k) => Object.keys(borr).filter((kk) => kk.startsWith(k + '#')).sort((x, y) => nver(x.split('#')[1]) - nver(y.split('#')[1]));
+  /* archiva sin duplicar un texto ya archivado y conserva como mucho MAX_VERS versiones (descarta las mas antiguas) */
   async function archivar(c, viejo) {
-    const k = claveCelda(c); let i = 1; while (borr[completa(k, 'a' + i)]) i++;
-    const ver = 'a' + i, reg = Object.assign(cuerpo(c), { h: viejo.h, texto: viejo.texto, base: viejo.base, ver: ver });
+    const k = claveCelda(c), ex = versDe(k);
+    if (ex.some((kk) => borr[kk].texto === viejo.texto)) return;
+    const ver = 'a' + ((ex.length ? nver(ex[ex.length - 1].split('#')[1]) : 0) + 1), reg = Object.assign(cuerpo(c), { h: viejo.h, texto: viejo.texto, base: viejo.base, ver: ver });
     await deps.api('/api/borrador', reg); borr[completa(k, ver)] = Object.assign({ fecha: viejo.fecha }, reg);
+    const todas = versDe(k);
+    while (todas.length > MAX_VERS) { const kk = todas.shift(), v = borr[kk].ver; await deps.api('/api/borrador_borrar', Object.assign(cuerpo(c), { ver: v })); delete borr[kk]; }
+  }
+  /* persiste (o limpia) la marca «Decidir luego» en el propio borrador principal del servidor */
+  async function marcarLuego(c, b, valor) {
+    const k = claveCelda(c);
+    if (valor) luego.add(k); else luego.delete(k);
+    const reg = Object.assign(cuerpo(c), { h: b.h, texto: b.texto, base: b.base, luego: valor });
+    await deps.api('/api/borrador', reg); borr[k] = Object.assign({}, b, reg, { fecha: Date.now() / 1000 });
   }
   function guardarBorradorDe(c, texto) {
     const k = claveCelda(c), g = gen[k] || 0;
@@ -39,7 +52,7 @@ function crearGestor(deps) {
       if ((gen[k] || 0) !== g) return false;                       /* anulado por un borrar posterior */
       const viejo = borr[k];
       if (viejo && luego.has(k) && viejo.texto !== texto) { await archivar(c, viejo); luego.delete(k); }   /* nunca pisa en silencio un borrador pendiente de «Decidir luego» */
-      const reg = Object.assign(cuerpo(c), { h: c.h, texto: texto, base: c.base });
+      const reg = Object.assign(cuerpo(c), { h: c.h, texto: texto, base: c.base, luego: luego.has(k) });
       await deps.api('/api/borrador', reg); borr[k] = Object.assign({ fecha: Date.now() / 1000 }, reg); cambio(); return true;
     });
   }
@@ -67,7 +80,7 @@ function crearGestor(deps) {
   /* al cambiar de celda: con texto sin guardar se guarda su borrador; con texto igual a la base se borra */
   async function alSalir(prev, textoPrev, base) {
     if (!prev) return;
-    if (textoPrev !== base) { await guardarBorradorDe(prev, textoPrev); enviado = claveCelda(prev) + '\u0000' + textoPrev; }
+    if (textoPrev !== base) { if (await guardarBorradorDe(prev, textoPrev)) enviado = claveCelda(prev) + '\u0000' + textoPrev; }
     else if (!luego.has(claveCelda(prev))) await borrarBorradorDe(prev);
   }
   function pedirDecision(b, d, vigente) {                           /* decisiones en cola: nunca dos dialogos a la vez */
@@ -77,7 +90,7 @@ function crearGestor(deps) {
   function borradoresDe(c) {
     const k = claveCelda(c), l = [];
     for (const kk of Object.keys(borr)) if (kk === k || kk.startsWith(k + '#')) l.push(borr[kk]);
-    return l.sort((x, y) => (x.ver ? 1 : 0) - (y.ver ? 1 : 0) || String(x.ver || '').localeCompare(String(y.ver || '')));
+    return l.sort((x, y) => (x.ver ? 1 : 0) - (y.ver ? 1 : 0) || nver(x.ver) - nver(y.ver));
   }
   /* ui: {vigente(), poner(texto,msg), msg(m)}. Se llama tras cargar la celda d (c = celda abierta) */
   async function resolver(c, d, ui) {
@@ -88,14 +101,14 @@ function crearGestor(deps) {
       const ver = b.ver || '', dec = await decidirNormalizado(b, d, (t) => deps.normalizar(c, t));
       if (!ui.vigente()) return;
       if (dec === 'igual') { await borrarBorradorDe(c, ver); continue; }
-      if (dec === 'aplicar' && !ver && !aplicado) { aplicado = true; poner(b.texto, 'Restaurado el borrador sin guardar de esta celda (' + new Date(b.fecha * 1000).toLocaleString('es') + '). Revisalo y pulsa Guardar, o «Descartar borrador».'); continue; }
+      if (dec === 'aplicar' && !ver && !aplicado) { aplicado = true; if (luego.has(k)) await marcarLuego(c, b, false); poner(b.texto, 'Restaurado el borrador sin guardar de esta celda (' + new Date(b.fecha * 1000).toLocaleString('es') + '). Revisalo y pulsa Guardar, o «Descartar borrador».'); continue; }
       const r = await pedirDecision(b, d, ui.vigente); if (!ui.vigente()) return;
-      if (r === 'borrador') { if (!ver) luego.delete(k); poner(b.texto, 'Borrador restaurado (la celda habia cambiado). Revisalo y pulsa Guardar.'); aplicado = true; }
+      if (r === 'borrador') { if (!ver && luego.has(k)) await marcarLuego(c, b, false); poner(b.texto, 'Borrador restaurado (la celda habia cambiado). Revisalo y pulsa Guardar.'); aplicado = true; }
       else if (r === 'actual') { await borrarBorradorDe(c, ver); ui.msg('Borrador descartado.'); }
-      else { if (!ver) luego.add(k); ui.msg('Esta celda tiene un borrador pendiente de decidir (se conserva).'); }
+      else { if (!ver) await marcarLuego(c, b, true); ui.msg('Esta celda tiene un borrador pendiente de decidir (se conserva).'); }
     }
   }
-  function cargar(lista) { for (const k of Object.keys(borr)) delete borr[k]; for (const b of lista || []) borr[completa(claveCelda(b), b.ver)] = b; cambio(); }
+  function cargar(lista) { for (const k of Object.keys(borr)) delete borr[k]; luego.clear(); for (const b of lista || []) { borr[completa(claveCelda(b), b.ver)] = b; if (b.luego && !b.ver) luego.add(claveCelda(b)); } cambio(); }
   function tiene(k) { for (const kk of Object.keys(borr)) if (kk === k || kk.startsWith(k + '#')) return true; return false; }
   return { borr, luego, guardarBorradorDe, borrarBorradorDe, tick, alSalir, pedirDecision, resolver, cargar, tiene, borradoresDe, cola: () => Promise.all(Object.values(cola)) };
 }
