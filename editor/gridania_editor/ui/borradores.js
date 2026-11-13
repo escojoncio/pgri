@@ -40,20 +40,23 @@ function crearGestor(deps) {
     while (todas.length > MAX_VERS) { const kk = todas.shift(), v = borr[kk].ver; await deps.api('/api/borrador_borrar', Object.assign(cuerpo(c), { ver: v })); delete borr[kk]; }
   }
   /* persiste (o limpia) la marca «Decidir luego» en el propio borrador principal del servidor */
-  async function marcarLuego(c, b, valor) {
+  function marcarLuego(c, b, valor) {
     const k = claveCelda(c);
-    if (valor) luego.add(k); else luego.delete(k);
-    const reg = Object.assign(cuerpo(c), { h: b.h, texto: b.texto, base: b.base, luego: valor });
-    await deps.api('/api/borrador', reg); borr[k] = Object.assign({}, b, reg, { fecha: Date.now() / 1000 });
+    return enc(k, async () => {
+      if (valor) luego.add(k); else luego.delete(k);
+      const reg = Object.assign(cuerpo(c), { h: b.h, texto: b.texto, base: b.base, luego: valor });
+      await deps.api('/api/borrador', reg); borr[k] = Object.assign({}, b, reg, { fecha: Date.now() / 1000 });
+    });
   }
   function guardarBorradorDe(c, texto) {
     const k = claveCelda(c), g = gen[k] || 0;
     return enc(k, async () => {
       if ((gen[k] || 0) !== g) return false;                       /* anulado por un borrar posterior */
-      const viejo = borr[k];
-      if (viejo && luego.has(k) && viejo.texto !== texto) { await archivar(c, viejo); luego.delete(k); }   /* nunca pisa en silencio un borrador pendiente de «Decidir luego» */
-      const reg = Object.assign(cuerpo(c), { h: c.h, texto: texto, base: c.base, luego: luego.has(k) });
-      await deps.api('/api/borrador', reg); borr[k] = Object.assign({ fecha: Date.now() / 1000 }, reg); cambio(); return true;
+      const viejo = borr[k], arch = !!(viejo && luego.has(k) && viejo.texto !== texto);   /* nunca pisa en silencio un borrador pendiente de «Decidir luego» */
+      const reg = Object.assign(cuerpo(c), { h: c.h, texto: texto, base: c.base, luego: arch ? false : luego.has(k) });
+      await deps.api('/api/borrador', reg); borr[k] = Object.assign({ fecha: Date.now() / 1000 }, reg);   /* primero el principal: el texto nuevo se persiste siempre */
+      if (arch) { luego.delete(k); try { await archivar(c, viejo); } catch (e) { /* tope del servidor: el texto nuevo ya esta guardado; la version antigua no se archiva */ } }
+      cambio(); return true;
     });
   }
   /* ver vacio = borrador principal. opts.archivarSi: texto guardado; un principal pendiente de decidir y distinto se archiva en vez de perderse */
@@ -110,7 +113,7 @@ function crearGestor(deps) {
   }
   function cargar(lista) { for (const k of Object.keys(borr)) delete borr[k]; luego.clear(); for (const b of lista || []) { borr[completa(claveCelda(b), b.ver)] = b; if (b.luego && !b.ver) luego.add(claveCelda(b)); } cambio(); }
   function tiene(k) { for (const kk of Object.keys(borr)) if (kk === k || kk.startsWith(k + '#')) return true; return false; }
-  return { borr, luego, guardarBorradorDe, borrarBorradorDe, tick, alSalir, pedirDecision, resolver, cargar, tiene, borradoresDe, cola: () => Promise.all(Object.values(cola)) };
+  return { borr, luego, enviado: () => enviado, guardarBorradorDe, borrarBorradorDe, tick, alSalir, pedirDecision, resolver, cargar, tiene, borradoresDe, cola: () => Promise.all(Object.values(cola)) };
 }
 const api = { claveCelda, decidirBorrador, decidirNormalizado, puedeEnviarBorrador, crearCarga, crearGestor };
 if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.Borradores = api;

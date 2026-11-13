@@ -170,7 +170,17 @@ const p=G.alSalir(C,'texto','viejo');           // guarda y marca enviado
 await p; const n1=log.length;
 await G.tick({cargando:false,celda:C,texto:'texto',base:'viejo'}); const n2=log.length;   // ya enviado: no repite
 // borrar anula un guardado en cola -> false -> no debe marcar enviado
-const q=G.alSalir(C,'otro','viejo'); const d=G.borrarBorradorDe(C); await q; await d;
+const q=G.alSalir(C,'otro','viejo'); const d=G.borrarBorradorDe(C); await q; await d; const env=G.enviado();
 const antes=log.length; await G.tick({cargando:false,celda:C,texto:'otro',base:'viejo'});
-console.log(JSON.stringify({n1,igual:n1===n2,reenvia:log.length>antes}));''', tmp_path)
-    assert r['igual'] and r['reenvia']
+console.log(JSON.stringify({n1,igual:n1===n2,reenvia:log.length>antes,env}));''', tmp_path)
+    assert r['igual'] and r['reenvia'] and r['env'] is None
+
+
+def test_archivar_rechazado_por_tope_aun_guarda_el_principal(tmp_path):
+    r = _node('''
+const srv={};
+const G=B.crearGestor({api:async(ruta,b)=>{ if(b.ver) throw new Error('demasiados borradores'); if(ruta==='/api/borrador') srv[[b.hoja,b.row,b.sub==null?'':b.sub,b.col].join('|')]=b; return {ok:true}},mostrar:async()=>'luego',normalizar:async(c,t)=>t,cambio(){}});
+G.cargar([{hoja:'Quest',row:3,sub:null,col:1,h:'h0',texto:'ANT',base:'otra',fecha:1,luego:true}]);
+const ok=await G.guardarBorradorDe(C,'NUEVO');
+console.log(JSON.stringify({ok,texto:srv['Quest|3||1'].texto,mem:G.borr['Quest|3||1'].texto}));''', tmp_path)
+    assert r == {'ok': True, 'texto': 'NUEVO', 'mem': 'NUEVO'}

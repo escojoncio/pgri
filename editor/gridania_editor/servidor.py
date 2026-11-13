@@ -118,7 +118,7 @@ class Servidor(object):
         with self._lock_bor: d = self._leer_borradores()
         return {'borradores': [v for v in d.values() if isinstance(v, dict) and isinstance(v.get('texto'), str)]}
 
-    MAX_BORRADORES = 2000
+    MAX_BORRADORES = 10000
 
     def _h_actual(self, v):
         """h vigente de la celda segun el indice (None si no se sabe)"""
@@ -128,21 +128,22 @@ class Servidor(object):
         except Exception: return None
 
     def _purgar_borradores(self, d, clave, es_version):
-        """hace sitio para un borrador nuevo: 1) versiones antiguas, 2) principales cuyo h ya no coincide, 3) (solo un principal) el principal mas antiguo sin «luego»"""
+        """hace sitio para un borrador nuevo SOLO archivando versiones antiguas (por fecha). NUNCA borra principales (texto sin guardar, «luego», h obsoleto o en conflicto).
+        De cada celda con principal en conflicto (h distinto del vigente, o indice sin respuesta) queda siempre su version archivada mas reciente."""
         def sitio(): return len(d) < self.MAX_BORRADORES
         def f(v): return v.get('fecha') if isinstance(v.get('fecha'), (int, float)) else 0
-        for k in sorted([k for k, v in d.items() if isinstance(v, dict) and v.get('ver')], key=lambda k: f(d[k])):
+        def celda(k): return k.split('#', 1)[0]
+        vers = [k for k, v in d.items() if isinstance(v, dict) and v.get('ver')]
+        protegidas = set()
+        for c in {celda(k) for k in vers}:
+            pr = d.get(c)
+            if not isinstance(pr, dict): continue
+            h = self._h_actual(pr)
+            if h is None or h != str(pr.get('h')):                                  # conflicto (o indice caido: no se purga nada por h)
+                protegidas.add(max((k for k in vers if celda(k) == c), key=lambda k: f(d[k])))
+        for k in sorted(vers, key=lambda k: f(d[k])):
             if sitio(): break
-            del d[k]
-        if not sitio():
-            for k in [k for k, v in d.items() if isinstance(v, dict) and not v.get('ver')]:
-                if sitio(): break
-                h = self._h_actual(d[k])
-                if h is not None and h != str(d[k].get('h')): del d[k]
-        if not sitio() and not es_version:
-            for k in sorted([k for k, v in d.items() if isinstance(v, dict) and not v.get('luego')] or list(d), key=lambda k: f(d[k]) if isinstance(d[k], dict) else 0):
-                if sitio(): break
-                del d[k]
+            if k not in protegidas: del d[k]
         return sitio()
 
     def guardar_borrador(self, b):

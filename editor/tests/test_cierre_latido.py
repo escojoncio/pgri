@@ -221,29 +221,42 @@ def test_borradores_versionados_y_servicio_de_borradores_js(tmp_path):
     finally: s.httpd.shutdown(); s.httpd.server_close()
 
 
-def test_borradores_tope_nunca_impide_guardar_el_principal(tmp_path):
+def test_borradores_tope_no_borra_principales_y_rechaza(tmp_path):
     from gridania_editor.servidor import Servidor
     app = types.SimpleNamespace(cfg=types.SimpleNamespace(home=str(tmp_path), redactar=str))
     s = Servidor(app, 0)
     try:
         s.MAX_BORRADORES = 4
+        s._h_actual = lambda v: 'h1'                                                        # indice responde: h coincide
         s.post('/api/borrador', dict(_bor(row=1, texto='a'), luego=True))
         s.post('/api/borrador', dict(_bor(row=1, texto='v1'), ver='a1')); s.post('/api/borrador', dict(_bor(row=1, texto='v2'), ver='a2'))
         s.post('/api/borrador', _bor(row=2, texto='b'))
-        assert len(s.get('/api/borradores', {})['borradores']) == 4
-        s.post('/api/borrador', _bor(row=3, texto='c'))                                    # lleno: purga la version mas antigua
-        d = s.get('/api/borradores', {})['borradores']
-        assert len(d) == 4 and {b['texto'] for b in d} == {'a', 'v2', 'b', 'c'}
-        assert [b for b in d if b['row'] == 1 and not b['ver']][0]['luego'] is True        # «Decidir luego» persistido
-        s.post('/api/borrador', _bor(row=3, texto='c', h='h1'))                            # sobrescribir no purga
-        s.post('/api/borrador', _bor(row=5, texto='e')); s.post('/api/borrador', _bor(row=6, texto='f'))
-        d = s.get('/api/borradores', {})['borradores']
-        assert len(d) == 4 and 'f' in {b['texto'] for b in d} and 'e' in {b['texto'] for b in d}   # sin versiones: cae el principal mas antiguo sin «luego»
-        assert 'a' in {b['texto'] for b in d}
-        # purga de celdas cuyo h ya no coincide
-        hs = {1: 'nuevo'}
-        s._h_actual = lambda v: hs.get(v['row'])
-        s.post('/api/borrador', _bor(row=7, texto='g'))
-        d = s.get('/api/borradores', {})['borradores']
-        assert len(d) == 4 and 'g' in {b['texto'] for b in d} and 'a' not in {b['texto'] for b in d}   # row 1 tiene h distinto del vigente: se purga antes
+        s.post('/api/borrador', _bor(row=3, texto='c'))                                     # lleno: purga la version archivada mas antigua
+        t = lambda: {(b['row'], b['ver']): b['texto'] for b in s.get('/api/borradores', {})['borradores']}
+        assert len(t()) == 4 and (1, 'a1') not in t() and t()[(1, '')] == 'a'
+        s.post('/api/borrador', _bor(row=3, texto='c2'))                                    # sobrescribir no purga
+        s.post('/api/borrador', _bor(row=4, texto='d'))                                     # quita la ultima version (h coincide: no hay conflicto)
+        assert (1, 'a2') not in t() and len(t()) == 4
+        with pytest.raises(ValueError, match='demasiados'): s.post('/api/borrador', _bor(row=5, texto='e'))   # solo principales: se rechaza, no se borra
+        assert {v for (r, ver), v in t().items()} == {'a', 'b', 'c2', 'd'} and (5, '') not in t()
+        # principal en conflicto: conserva su version archivada mas reciente
+        s.MAX_BORRADORES = 5
+        s.post('/api/borrador', dict(_bor(row=1, texto='v3'), ver='a3')); s.post('/api/borrador', dict(_bor(row=1, texto='v4'), ver='a4'))
+        s._h_actual = lambda v: 'nuevo'
+        with pytest.raises(ValueError): s.post('/api/borrador', _bor(row=6, texto='f'))
+        assert (1, 'a4') in t()
+        assert all(t()[k] for k in [(1, ''), (2, ''), (3, ''), (4, '')])
+    finally: s.httpd.server_close()
+
+
+def test_borradores_indice_caido_no_purga_por_h(tmp_path):
+    from gridania_editor.servidor import Servidor
+    app = types.SimpleNamespace(cfg=types.SimpleNamespace(home=str(tmp_path), redactar=str))
+    s = Servidor(app, 0)
+    try:
+        s.MAX_BORRADORES = 3
+        s._h_actual = lambda v: None                                                        # indice sin respuesta
+        s.post('/api/borrador', _bor(row=1, texto='a')); s.post('/api/borrador', dict(_bor(row=1, texto='v1'), ver='a1')); s.post('/api/borrador', _bor(row=2, texto='b'))
+        with pytest.raises(ValueError): s.post('/api/borrador', _bor(row=3, texto='c'))     # la unica version esta protegida y nada mas se borra
+        assert {b['texto'] for b in s.get('/api/borradores', {})['borradores']} == {'a', 'v1', 'b'}
     finally: s.httpd.server_close()
