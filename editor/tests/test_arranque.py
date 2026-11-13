@@ -71,11 +71,13 @@ def test_faulthandler_a_fichero(tmp_path):
 
 
 class ProcFalso(object):
-    """Popen falso: modo 'ok' = la ventana pide la pagina y vive hasta cerrar(); 'cuelga' = vive sin pedir nada; 'muere' = termina al instante sin pedir nada"""
+    """Popen falso (el pid es solo una pista): 'ok' = la ventana pide la pagina y vive; 'cuelga' = vive sin pedir nada; 'muere' = termina al instante sin pedir nada;
+    'delega' = el lanzador sale al instante pero la ventana (otro proceso) SI pide la pagina"""
     def __init__(self, url, modo):
         self.url = url; self.modo = modo; self.pid = 4242; self._fin = threading.Event(); self.terminado = False; self.cod = None
         if modo == 'muere': self.cod = 1; self._fin.set()
-        if modo == 'ok': threading.Thread(target=lambda: urllib.request.urlopen(url, timeout=5).read(), daemon=True).start()
+        if modo == 'delega': self.cod = 0; self._fin.set()
+        if modo in ('ok', 'delega'): threading.Thread(target=lambda: urllib.request.urlopen(url, timeout=5).read(), daemon=True).start()
     def wait(self, timeout=None):
         if not self._fin.wait(timeout): raise subprocess.TimeoutExpired('x', timeout)
         return self.cod
@@ -94,6 +96,7 @@ class LanzadorFalso(object):
 
 def _lanzar(tmp_path, monkeypatch, modo, espera=15):
     from gridania_editor import app as app_mod
+    monkeypatch.setattr(app_mod, 'GRACIA_CIERRE_S', 0.6); monkeypatch.setattr(app_mod, 'PASO_VIGILANTE_S', 0.05); monkeypatch.setattr(app_mod.ventana, 'perfil_libre', lambda *a, **k: True)
     lz = LanzadorFalso(modo); monkeypatch.setattr(app_mod, 'LANZADOR', lz)
     abiertas = []; monkeypatch.setattr(app_mod.webbrowser, 'open', abiertas.append); monkeypatch.setattr(app_mod, 'ESPERA_UI_S', espera)
     srvs = []
@@ -121,16 +124,28 @@ def _esperar(cond, n=200):
     return False
 
 
+def _post(srv, ruta, clave='ok'):
+    """POST como la UI: sendBeacon con la clave en ?k= (clave='ok' = la buena). -> codigo HTTP"""
+    k = srv.clave if clave == 'ok' else clave
+    rq = urllib.request.Request(srv.url + ruta.lstrip('/') + ('?k=' + k if k else ''), data=b'', method='POST')
+    try: return urllib.request.urlopen(rq, timeout=5).status
+    except urllib.error.HTTPError as x: return x.code
+
+
+def _latido(srv):
+    rq = urllib.request.Request(srv.url + 'api/latido', headers={'X-K': srv.clave}); return urllib.request.urlopen(rq, timeout=5).status
+
+
 def test_la_ventana_se_lanza_y_al_cerrarla_se_cierra_limpio(tmp_path, monkeypatch):
     app_mod, lz, llamadas, abiertas, srvs, home, th, r, t0 = _lanzar(tmp_path, monkeypatch, 'ok')
     assert _esperar(lambda: llamadas) and llamadas[0][2] - t0 < 1.5 and llamadas[0][1] == home
     assert _esperar(lambda: srvs and srvs[0].ui_cargada.is_set() and srvs[0].app.arranque['listo'])
     assert th.is_alive() and abiertas == []                      # mientras la ventana vive, el proceso sigue
-    lz.proc.cerrar()                                             # el usuario cierra la ventana
-    th.join(15); assert not th.is_alive() and r['cod'] == 0 and abiertas == [] and not lz.proc.terminado
+    assert _post(srvs[0], '/api/cierre') == 200                  # el usuario cierra la ventana: sendBeacon
+    th.join(15); assert not th.is_alive() and r['cod'] == 0 and abiertas == []
     t = _log(home)
     assert 'fase lanzar ventana: inicio' in t and 'primera peticion GET / de la UI' in t and 'ventana cerrada por el usuario: cierre limpio' in t
-    assert 'ventana: resultado cerrada' in t and 'faulthandler activo' in t and 'faulthandler: volcados periodicos cancelados' in t
+    assert 'ventana: resultado salir' in t and 'faulthandler activo' in t and 'faulthandler: volcados periodicos cancelados' in t
     with pytest.raises(Exception): urllib.request.urlopen(srvs[0].url, timeout=2)      # servidor parado
 
 
@@ -151,9 +166,10 @@ def test_sin_edge_ni_chrome_abre_el_navegador_y_mantiene_el_servidor(tmp_path, m
     assert th.is_alive(); srvs[0].salir.set(); th.join(15); assert not th.is_alive() and r['cod'] == 0
 
 
-def test_ventana_que_muere_al_abrirse_cae_al_navegador(tmp_path, monkeypatch):
-    app_mod, lz, llamadas, abiertas, srvs, home, th, r, t0 = _lanzar(tmp_path, monkeypatch, 'muere')
-    assert _esperar(lambda: abiertas) and len(abiertas) == 1 and 'se cerro al abrirse' in srvs[0].app.aviso
+def test_lanzador_que_muere_sin_ventana_cae_al_navegador_tras_el_plazo(tmp_path, monkeypatch):
+    app_mod, lz, llamadas, abiertas, srvs, home, th, r, t0 = _lanzar(tmp_path, monkeypatch, 'muere', espera=0.6)
+    assert time.time() - t0 < 0.5 or not abiertas             # NO abre otro navegador de inmediato: espera el plazo del vigilante
+    assert _esperar(lambda: abiertas) and len(abiertas) == 1 and 'no ha cargado' in srvs[0].app.aviso and 'Salir' in srvs[0].app.aviso
     srvs[0].salir.set(); th.join(15)
 
 

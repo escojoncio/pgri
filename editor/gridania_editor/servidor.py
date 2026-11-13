@@ -18,6 +18,7 @@ def dir_ui():
 class Servidor(object):
     def __init__(self, app, puerto=0):
         self.app = app; self.clave = secrets.token_urlsafe(16); self.salir = threading.Event(); self.ui_cargada = threading.Event(); self.fallo = None; self.al_pedir_pagina = None; self.url_navegador = None
+        self.t_latido = None; self.t_get = None; self.t_cierre = None      # time.monotonic() del ultimo latido / GET / / aviso de cierre (sendBeacon)
         servidor = self
         class H(BaseHTTPRequestHandler):
             protocol_version = 'HTTP/1.1'
@@ -32,12 +33,14 @@ class Servidor(object):
             def _lento(self, ruta, t0):
                 dt = time.time() - t0
                 if dt > 1.0: log.warning('peticion lenta %s: %.1f s', ruta, dt)
-            def _auth(self):
-                return self.headers.get('X-K') == servidor.clave
+            def _auth(self, q=None):
+                if self.headers.get('X-K') == servidor.clave: return True
+                return bool(q) and secrets.compare_digest(str(q.get('k') or ''), servidor.clave)      # sendBeacon no puede poner cabeceras: la clave va en ?k=
             def do_GET(self):
                 if not self._host_ok(): return self._err(403, 'host no permitido')
                 u = urllib.parse.urlparse(self.path); q = {k: v[0] for k, v in urllib.parse.parse_qs(u.query).items()}
                 if u.path in ('/', '/index.html'):
+                    servidor.t_get = time.monotonic()
                     try: html = open(os.path.join(dir_ui(), 'index.html'), encoding='utf-8').read().replace('__CLAVE__', servidor.clave)
                     except OSError: return self._err(500, 'falta ui/index.html')
                     if not servidor.ui_cargada.is_set():
@@ -54,8 +57,9 @@ class Servidor(object):
                 except Exception as x: log.error('GET %s', u.path, exc_info=True); self._err(500, '%s: %s' % (type(x).__name__, x))
             def do_POST(self):
                 if not self._host_ok(): return self._err(403, 'host no permitido')
-                if not self._auth(): return self._err(401, 'clave invalida')
                 u = urllib.parse.urlparse(self.path)
+                q = {k: v[0] for k, v in urllib.parse.parse_qs(u.query).items()}
+                if not self._auth(q if u.path == '/api/cierre' else None): return self._err(401, 'clave invalida')
                 try:
                     n = int(self.headers.get('Content-Length') or 0); cuerpo = json.loads(self.rfile.read(n).decode('utf-8')) if n else {}
                     t0 = time.time(); self._json(servidor.post(u.path, cuerpo)); self._lento(u.path, t0)
@@ -80,6 +84,10 @@ class Servidor(object):
                 self.salir.set()
         self.hilo = threading.Thread(target=servir, daemon=True, name='http'); self.hilo.start()
 
+    def registrar_latido(self): self.t_latido = time.monotonic()
+
+    def pedir_cierre(self): self.t_cierre = time.monotonic()
+
     def parar(self):
         self.httpd.shutdown(); self.httpd.server_close()
 
@@ -87,6 +95,7 @@ class Servidor(object):
     def get(self, ruta, q):
         a = self.app
         if ruta == '/api/estado': return a.estado()
+        if ruta == '/api/latido': self.registrar_latido(); return {'ok': True}
         if ruta == '/api/hojas': return {'hojas': indexer.hojas_resumen(a.base, q.get('q') or None)}
         if ruta == '/api/celdas':
             est = [e for e in (q.get('estados') or '').split(',') if e in indexer.ESTADOS]
@@ -130,5 +139,7 @@ class Servidor(object):
             if self.url_navegador: self.url_navegador()
             else: import webbrowser; webbrowser.open(self.url)
             return {'ok': True}
+        if ruta == '/api/latido': self.registrar_latido(); return {'ok': True}
+        if ruta == '/api/cierre': self.pedir_cierre(); return {'ok': True}        # la UI se descarga (cerrar ventana o F5): el vigilante decide pasado el plazo
         if ruta == '/api/salir': self.salir.set(); return {'ok': True}
         raise KeyError(ruta)

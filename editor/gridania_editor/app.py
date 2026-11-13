@@ -8,7 +8,12 @@ from .servidor import Servidor
 
 LANZADOR = ventana.lanzar    # (url, home) -> Popen | None; las pruebas lo sustituyen por un lanzador falso
 
-ESPERA_UI_S = 30    # si la UI no pide la pagina en este tiempo (arranque en frio), se abre el navegador por defecto (el servidor sigue vivo)
+ESPERA_UI_S = 30    # si la UI no pide la pagina en este tiempo (arranque en frio, o lanzador que no abrio nada), se abre el navegador por defecto (el servidor sigue vivo)
+GRACIA_CIERRE_S = 10        # tras /api/cierre (sendBeacon) sin latido ni GET / en este tiempo -> cierre (si hay F5 la pagina vuelve a pedirse antes)
+UMBRAL_LATIDO_S = 180       # sin latido tanto tiempo desde la primera carga Y perfil de la ventana libre -> cierre (180 s por el throttling de pestañas ocultas/minimizadas)
+UMBRAL_SIN_LOCK_S = 300     # igual sin poder comprobar el perfil (no Windows)
+PASO_VIGILANTE_S = 0.5
+AVISO_NAVEGADOR = ' En el navegador el editor NO se cierra solo al cerrar la pestaña: usa el boton Salir.'
 
 
 def _decir(texto, nivel=logging.WARNING):
@@ -131,14 +136,13 @@ def _pasar_a_navegador(srv, app, estado, url, abrir, aviso=None, forzar=False):
 
 def _vigilar_ui(srv, app, estado, url, espera=None, paso=0.5, abrir=None):
     """Si la ventana Edge no pide GET / en `espera` s se abre el navegador predeterminado con la URL y se avisa (sin dos UIs: la ventana se termina).
-    Si el usuario cerro la ventana antes (estado['cerrada']), no se abre nada."""
+    El pid del Popen es solo una pista: aunque el lanzador haya salido al instante, se espera el plazo completo por si la ventana es de un proceso delegado."""
     espera = ESPERA_UI_S if espera is None else espera; abrir = abrir or webbrowser.open
     estado.setdefault('lock', threading.Lock())
     t0 = time.time()
     while time.time() < t0 + espera:
         if srv.ui_cargada.wait(paso) or srv.salir.is_set(): return
-        if estado.get('cerrada') and estado['cerrada'].is_set(): return
-    _pasar_a_navegador(srv, app, estado, url, abrir, 'La ventana propia (Microsoft Edge) no ha cargado en %d s; se ha abierto el navegador predeterminado.' % (time.time() - t0))
+    _pasar_a_navegador(srv, app, estado, url, abrir, 'La ventana propia (Microsoft Edge) no ha cargado en %d s; se ha abierto el navegador predeterminado.' % (time.time() - t0) + AVISO_NAVEGADOR)
 
 
 def _principal(a, lg, tras_ui=None, aviso=''):
@@ -151,19 +155,42 @@ def _principal(a, lg, tras_ui=None, aviso=''):
         cerrar_trabajo(app)
 
 
-def _esperar_ventana(srv, proc, estado):
-    """espera a que termine el proceso de la ventana (usuario la cierra), a que se pida salir o a que el navegador tome el relevo.
-    -> 'cerrada' | 'salir' | 'navegador'"""
+def motivo_cierre(srv, ahora, libre, gracia=None, umbral=None, umbral_sin_lock=None):
+    """decide si hay que cerrar (funcion pura sobre las marcas de tiempo de `srv`, en time.monotonic()). -> texto del motivo o None.
+    libre: perfil de la ventana libre (True/False/None=no comprobable). Un latido o un GET / posterior a /api/cierre lo anula (era una recarga)."""
+    gracia = GRACIA_CIERRE_S if gracia is None else gracia
+    umbral = UMBRAL_LATIDO_S if umbral is None else umbral; umbral_sin_lock = UMBRAL_SIN_LOCK_S if umbral_sin_lock is None else umbral_sin_lock
+    actividad = max([t for t in (srv.t_latido, srv.t_get) if t is not None] or [None], key=lambda t: -1 if t is None else t)
+    if srv.t_cierre is not None:
+        if actividad is not None and actividad > srv.t_cierre: srv.t_cierre = None           # recarga (F5): la pagina volvio
+        elif ahora - srv.t_cierre >= gracia: return 'cierre explicito de la ventana y %s s sin latido ni GET /' % gracia
+    if srv.ui_cargada.is_set() and actividad is not None:
+        limite = umbral_sin_lock if libre is None else umbral
+        if libre is not False and ahora - actividad >= limite: return '%s s sin latido y perfil de la ventana %s' % (limite, 'libre' if libre else 'no comprobable')
+    return None
+
+
+def _vigilar_cierre(srv, estado, libre, paso=None):
+    """hilo de la ventana propia: cierra el editor por latido (NUNCA porque el Popen terminase). Se detiene al salir o si el navegador toma el relevo (sin cierre por latido, solo Salir)."""
+    paso = PASO_VIGILANTE_S if paso is None else paso
+    while not srv.salir.wait(paso):
+        with estado['lock']:
+            if estado['navegador']: return
+        try: motivo = motivo_cierre(srv, time.monotonic(), libre())
+        except Exception:
+            logging.getLogger('gridania').warning('vigilante de cierre', exc_info=True); continue
+        if motivo:
+            logging.getLogger('gridania').info('cierre por latido: %s', motivo); registro.etapa('ventana cerrada por el usuario: cierre limpio')
+            srv.salir.set(); return
+
+
+def _esperar_ventana(srv, estado):
+    """espera a que se pida salir (boton, o el vigilante de latido) o a que el navegador tome el relevo. El Popen no interviene. -> 'salir' | 'navegador'"""
     while True:
         if srv.salir.is_set(): return 'salir'
         with estado['lock']:
             if estado['navegador']: return 'navegador'
-        try: proc.wait(0.3)
-        except subprocess.TimeoutExpired: continue
-        estado['cerrada'].set()
-        with estado['lock']:
-            if estado['navegador']: return 'navegador'
-        return 'cerrada'
+        time.sleep(0.2)
 
 
 def _servir(a, lg, app, tras_ui=None):
@@ -177,7 +204,7 @@ def _servir(a, lg, app, tras_ui=None):
         arrancar()
         instancia.publicar(app.cfg.home, url, 'navegador', srv.clave)
         srv.salir.wait(); srv.parar(); return _salida(srv)
-    estado = {'navegador': False, 'proc': None, 'etapa': '', 'lock': threading.Lock(), 'arrancar': arrancar, 'abrir': webbrowser.open, 'cerrada': threading.Event()}
+    estado = {'navegador': False, 'proc': None, 'etapa': '', 'lock': threading.Lock(), 'arrancar': arrancar, 'abrir': webbrowser.open}
     srv.al_pedir_pagina = lambda: (registro.etapa('primera peticion GET / de la UI'), registro.parar_faulthandler())
     srv.url_navegador = lambda: estado['abrir'](url)
     proc = None
@@ -187,25 +214,21 @@ def _servir(a, lg, app, tras_ui=None):
             proc = LANZADOR(url, app.cfg.home)
         estado['proc'] = proc
         if proc is None:
-            app.aviso = 'No se ha encontrado Microsoft Edge ni Chrome; se usa el navegador predeterminado.'; _decir(app.aviso)
+            app.aviso = 'No se ha encontrado Microsoft Edge ni Chrome; se usa el navegador predeterminado.' + AVISO_NAVEGADOR; _decir(app.aviso)
     arrancar()
     if proc is not None:
         with estado['lock']: instancia.publicar(app.cfg.home, url, 'ventana', srv.clave)
         with registro.fase('vigilante'):
             threading.Thread(target=_vigilar_ui, args=(srv, app, estado, url), kwargs={'abrir': lambda u: estado['abrir'](u)}, daemon=True, name='vigilante-ui').start()
-        registro.etapa('esperando el cierre de la ventana (pid %s)' % getattr(proc, 'pid', '?'))
-        try: res = _esperar_ventana(srv, proc, estado)
+            threading.Thread(target=_vigilar_cierre, args=(srv, estado, lambda: ventana.perfil_libre(app.cfg.home)), daemon=True, name='vigilante-cierre').start()
+        registro.etapa('esperando el cierre de la ventana por latido (pid %s, solo pista)' % getattr(proc, 'pid', '?'))
+        try: res = _esperar_ventana(srv, estado)
         except KeyboardInterrupt: res = 'salir'
-        lg.info('ventana: resultado %s, codigo de salida %s', res, proc.poll())
-        if res == 'cerrada' and not srv.ui_cargada.is_set():
-            app.aviso = 'La ventana propia se cerro al abrirse; se usa el navegador.'; _decir(app.aviso)
-            proc = None                                  # cae al navegador predeterminado
-        elif res == 'cerrada':
-            registro.etapa('ventana cerrada por el usuario: cierre limpio')
-            srv.parar(); return _salida(srv)
-        elif res == 'salir':
+        lg.info('ventana: resultado %s, codigo de salida del pid %s', res, proc.poll() if hasattr(proc, 'poll') else '?')
+        if res == 'salir':
             _matar(proc); srv.parar(); return _salida(srv)
-    if proc is None:
+    else:
+        if a.navegador and not app.aviso.strip().endswith(AVISO_NAVEGADOR.strip()): app.aviso = (app.aviso + AVISO_NAVEGADOR).strip()
         _pasar_a_navegador(srv, app, estado, url, estado['abrir'], forzar=True)          # no hace nada si el navegador ya se abrio
     try: srv.salir.wait()
     except KeyboardInterrupt: pass

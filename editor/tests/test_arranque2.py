@@ -64,14 +64,15 @@ def test_faulthandler_trunca_si_grande_y_se_para_solo(tmp_path):
         registro.parar_faulthandler(); faulthandler.disable()
 
 
-def test_arranque_real_con_edge_falso_sin_sin_abrir(tmp_path):
-    """proceso real (run_editor.py) con un `msedge.exe` falso (script) encontrado por ProgramFiles: pide la pagina, termina y el editor se cierra solo sin abrir navegador"""
+def test_arranque_real_con_edge_falso_cierra_por_cierre_explicito(tmp_path):
+    """proceso real (run_editor.py) con un `msedge.exe` falso (script) encontrado por ProgramFiles: pide la pagina, avisa /api/cierre con la clave y SALE; el editor se cierra solo a los 10 s sin abrir navegador"""
     if not sys.platform.startswith('linux'): pytest.skip('script falso solo en Linux')
     from conftest import EDITOR
     pf = tmp_path / 'pf'; app = pf / 'Microsoft' / 'Edge' / 'Application'; app.mkdir(parents=True)
     nav = tmp_path / 'nav.txt'; args = tmp_path / 'args.txt'
     (app / 'msedge.exe').write_text('#!%s\nimport sys, time, urllib.request\nopen(%r, "w").write(" ".join(sys.argv[1:]))\nurl = [a for a in sys.argv if a.startswith("--app=")][0][6:]\n'
-                                    'urllib.request.urlopen(url, timeout=10).read(); time.sleep(2)\n' % (sys.executable, str(args)))
+                                    'import re\nhtml = urllib.request.urlopen(url, timeout=10).read().decode()\nk = re.search(r"const K=\'([^\']+)\'", html).group(1)\n'
+                                    'urllib.request.urlopen(urllib.request.Request(url + "api/cierre?k=" + k, data=b"", method="POST"), timeout=10).read()\n' % (sys.executable, str(args)))
     (app / 'msedge.exe').chmod(0o755)
     sh = tmp_path / 'navegador.sh'; sh.write_text('#!/bin/sh\necho "$@" >> %s\n' % nav); sh.chmod(0o755)
     env = dict(os.environ, BROWSER=str(sh)); env['ProgramFiles'] = str(pf); env.pop('GRIDANIA_EDITOR_HOME', None)
@@ -79,7 +80,7 @@ def test_arranque_real_con_edge_falso_sin_sin_abrir(tmp_path):
     p = subprocess.run([sys.executable, os.path.join(EDITOR, 'run_editor.py'), '--carpeta', home], env=env, capture_output=True, timeout=60)
     t = _log(home)
     assert p.returncode == 0, p.stderr.decode()[-500:]
-    assert 'primera peticion GET / de la UI' in t and 'ventana cerrada por el usuario' in t and not nav.exists()
+    assert 'primera peticion GET / de la UI' in t and 'cierre por latido' in t and not nav.exists()
     assert '--app=http://127.0.0.1:' in args.read_text() and '--user-data-dir=' in args.read_text()
 
 
@@ -160,11 +161,23 @@ def test_buscar_edge_en_program_files_y_sin_nada():
 def test_linea_de_comandos_exacta_y_lanzar(tmp_path):
     from gridania_editor import ventana
     cmd = ventana.linea_comando('E', 'http://127.0.0.1:5/', 'P')
-    assert cmd == ['E', '--app=http://127.0.0.1:5/', '--user-data-dir=P', '--no-first-run', '--no-default-browser-check', '--window-size=1400,900']
+    assert cmd == ['E', '--app=http://127.0.0.1:5/', '--user-data-dir=P', '--no-first-run', '--no-default-browser-check', '--window-size=1400,900',
+                   '--disable-features=msEdgeStartupBoost', '--disable-background-mode']
     vistos = []
     class P(object): pid = 7
-    p = ventana.lanzar('http://127.0.0.1:5/', str(tmp_path), buscar=lambda: 'E', popen=lambda c: vistos.append(c) or P())
-    assert p.pid == 7 and vistos[0] == ventana.linea_comando('E', 'http://127.0.0.1:5/', os.path.join(str(tmp_path), 'perfil-ventana')) and (tmp_path / 'perfil-ventana').is_dir()
+    p = ventana.lanzar('http://127.0.0.1:5/', str(tmp_path), buscar=lambda: 'E', popen=lambda c, **k: vistos.append((c, k)) or P(), env={})
+    assert p.pid == 7 and vistos[0][0] == ventana.linea_comando('E', 'http://127.0.0.1:5/', os.path.join(str(tmp_path), 'perfil-ventana')) and (tmp_path / 'perfil-ventana').is_dir()
+    k = vistos[0][1]; assert k['stdin'] == k['stdout'] == k['stderr'] == subprocess.DEVNULL and k['close_fds'] is True
     assert ventana.lanzar('u', str(tmp_path), buscar=lambda: None) is None                    # sin Edge/Chrome
-    def malo(c): raise OSError('no arranca')
-    assert ventana.lanzar('u', str(tmp_path), buscar=lambda: 'E', popen=malo) is None         # fallo al lanzar
+    def malo(c, **k): raise OSError('no arranca')
+    assert ventana.lanzar('u', str(tmp_path), buscar=lambda: 'E', popen=malo, env={}) is None         # fallo al lanzar
+
+
+def test_perfil_en_localappdata_y_fallo_de_makedirs(tmp_path):
+    from gridania_editor import ventana
+    la = tmp_path / 'la'; la.mkdir()
+    assert ventana.dir_perfil('H', {'LOCALAPPDATA': str(la)}) == os.path.join(str(la), 'GridaniaEditor', 'perfil-ventana')
+    assert ventana.dir_perfil('H', {}) == os.path.join('H', 'perfil-ventana')
+    lanzados = []
+    bloq = tmp_path / 'fichero'; bloq.write_text('x')                      # un fichero donde deberia haber carpeta: makedirs falla
+    assert ventana.lanzar('u', 'H', buscar=lambda: 'E', popen=lambda c, **k: lanzados.append(c), env={'LOCALAPPDATA': str(bloq)}) is None and lanzados == []

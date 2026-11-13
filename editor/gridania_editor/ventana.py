@@ -1,5 +1,7 @@
-"""Ventana propia SIN pywebview/pythonnet: Microsoft Edge (o Chrome) en modo aplicacion, con perfil propio para que el proceso viva mientras la ventana este abierta
-(Popen.wait detecta el cierre). Sin Edge/Chrome -> None y el llamador usa el navegador predeterminado."""
+"""Ventana propia SIN pywebview/pythonnet: Microsoft Edge (o Chrome) en modo aplicacion con perfil propio.
+El pid del Popen es solo una PISTA (el lanzador puede delegar y salir, o Edge seguir en segundo plano): el cierre de la ventana se detecta por latido de la UI (ver app.py).
+Perfil: %LOCALAPPDATA%\\GridaniaEditor\\perfil-ventana (o <datos>/perfil-ventana si no hay LOCALAPPDATA). NO son datos del usuario, solo cache/cookies del navegador; se puede borrar.
+Sin Edge/Chrome -> None y el llamador usa el navegador predeterminado."""
 import logging, os, subprocess, sys
 
 log = logging.getLogger('gridania')
@@ -44,21 +46,44 @@ def buscar_navegador(env=None, winreg=None, existe=os.path.isfile):
     return None
 
 
+def dir_perfil(home, env=None):
+    env = os.environ if env is None else env
+    base = env.get('LOCALAPPDATA')
+    return os.path.join(base, 'GridaniaEditor', 'perfil-ventana') if base else os.path.join(home, 'perfil-ventana')
+
+
+def perfil_libre(home, env=None):
+    """el navegador de la ventana ya no usa el perfil: True libre, False ocupado, None no comprobable (no Windows).
+    Chromium mantiene `lockfile` abierto en exclusiva mientras alguno de sus procesos vive con ese perfil."""
+    if not sys.platform.startswith('win'): return None
+    lock = os.path.join(dir_perfil(home, env), 'lockfile')
+    if not os.path.exists(lock): return True
+    try:
+        with open(lock, 'rb'): pass
+        os.rename(lock, lock)
+        return True
+    except OSError: return False
+
+
 def linea_comando(exe, url, perfil, ancho=1400, alto=900):
-    return [exe, '--app=%s' % url, '--user-data-dir=%s' % perfil, '--no-first-run', '--no-default-browser-check', '--window-size=%d,%d' % (ancho, alto)]
+    return [exe, '--app=%s' % url, '--user-data-dir=%s' % perfil, '--no-first-run', '--no-default-browser-check', '--window-size=%d,%d' % (ancho, alto),
+            '--disable-features=msEdgeStartupBoost', '--disable-background-mode']
 
 
-def lanzar(url, home, buscar=None, popen=subprocess.Popen):
-    """abre la ventana. -> Popen o None (sin Edge/Chrome o fallo al lanzarlo)"""
+def lanzar(url, home, buscar=None, popen=subprocess.Popen, env=None):
+    """abre la ventana. -> Popen o None (sin Edge/Chrome, perfil no creable o fallo al lanzarlo). El Popen es solo una pista."""
     exe = (buscar or buscar_navegador)()
     if not exe: return None
-    perfil = os.path.join(home, 'perfil-ventana')
+    perfil = dir_perfil(home, env)
     try: os.makedirs(perfil, exist_ok=True)
-    except OSError: pass
+    except OSError:
+        log.warning('no se pudo crear el perfil de la ventana %s: se usa el navegador predeterminado', perfil, exc_info=True); return None
     cmd = linea_comando(exe, url, perfil)
     log.info('linea de comandos de la ventana: %s', cmd)
-    try: p = popen(cmd)
+    kw = dict(stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, close_fds=True)
+    if sys.platform.startswith('win'): kw['creationflags'] = getattr(subprocess, 'CREATE_NO_WINDOW', 0x08000000)
+    try: p = popen(cmd, **kw)
     except Exception:
         log.warning('no se pudo lanzar la ventana', exc_info=True); return None
-    log.info('ventana lanzada: pid %s', getattr(p, 'pid', '?'))
+    log.info('ventana lanzada: pid %s (solo pista)', getattr(p, 'pid', '?'))
     return p

@@ -46,14 +46,24 @@ def liberar(home, f):
     except OSError: pass
 
 
-def traer_al_frente():
-    """Windows: restaura y enfoca la ventana del editor ya abierta -> bool"""
+def traer_al_frente(titulo=TITULO):
+    """Windows: restaura y enfoca la ventana del editor ya abierta (EnumWindows: titulo que CONTIENE `titulo`; Edge puede anadir texto al titulo) -> bool"""
     if not sys.platform.startswith('win'): return False
     try:
         import ctypes
-        u = ctypes.windll.user32; h = u.FindWindowW(None, TITULO)
-        if not h: return False
-        u.ShowWindow(h, 9); u.SetForegroundWindow(h); return True
+        from ctypes import wintypes
+        u = ctypes.windll.user32; hallada = []; clave = titulo.lower()
+        CB = ctypes.WINFUNCTYPE(ctypes.c_bool, wintypes.HWND, wintypes.LPARAM)
+        def cb(h, _):
+            if not u.IsWindowVisible(h): return True
+            n = u.GetWindowTextLengthW(h)
+            if n <= 0: return True
+            buf = ctypes.create_unicode_buffer(n + 1); u.GetWindowTextW(h, buf, n + 1)
+            if clave in buf.value.lower(): hallada.append(h); return False
+            return True
+        u.EnumWindows(CB(cb), 0)
+        if not hallada: return False
+        h = hallada[0]; u.ShowWindow(h, 9); u.SetForegroundWindow(h); return True
     except Exception: return False
 
 

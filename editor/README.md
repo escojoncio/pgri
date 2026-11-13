@@ -5,7 +5,7 @@ Programa de escritorio (carpeta `GridaniaEditor/` con `GridaniaEditor.exe`) para
 
 ## Obtener el .exe
 GitHub > Actions > workflow **editor** > ultima ejecucion > artefacto `GridaniaEditor-win64` (se genera en `windows-latest` con PyInstaller).
-Se descarga la carpeta (`--onedir`): descomprimela y ejecuta `GridaniaEditor.exe`. Edge viene con Windows 10/11. Ayuda > Abrir en el navegador, o `GridaniaEditor.exe --navegador`, usa el navegador predeterminado. El perfil de la ventana vive en `datos/perfil-ventana`.
+Se descarga la carpeta (`--onedir`): descomprimela y ejecuta `GridaniaEditor.exe`. Edge viene con Windows 10/11. Ayuda > Abrir en el navegador, o `GridaniaEditor.exe --navegador`, usa el navegador predeterminado. El perfil de la ventana (solo cache/cookies del navegador, NO son datos del usuario; se puede borrar) vive en `%LOCALAPPDATA%\GridaniaEditor\perfil-ventana` (o `datos/perfil-ventana` si no hay LOCALAPPDATA).
 
 ## Datos
 Todo lo que genera el editor (editor.db, editor.log, faulthandler.log, config.json, flujo.json, ediciones/, exportado/, cache del repo descargado, instancia.*)
@@ -18,6 +18,7 @@ Si esa carpeta no es escribible se avisa y se usa `Documentos/GridaniaEditor`. A
 `datos/editor.log` registra inicio y fin de cada fase (aplicacion, servidor, busqueda de Edge/Chrome, linea de comandos y pid de la ventana, primera peticion de la UI, migracion,
 vigencia, resultado y codigo de salida de la ventana) y, mientras algo tarde, un volcado cada 10 s con la etapa y las fases activas; `datos/faulthandler.log` vuelca las pilas de todos los hilos cada 30 s hasta que la UI carga.
 Si la UI no pide la pagina en 30 s se abre el navegador por defecto con la URL (el servidor sigue activo).
+**Cierre de la ventana por latido** (el pid de Edge no es fiable: el lanzador puede delegar y salir, o Edge seguir en segundo plano): la UI envia `/api/latido` cada 5 s y `sendBeacon('/api/cierre?k=<clave>')` al descargarse la pagina. El servidor cierra cuando (a) llega `/api/cierre` y pasan 10 s sin latido ni `GET /` (F5 no cierra), o (b) pasan >= 180 s sin latido (ventana oculta/minimizada: throttling) y el perfil de la ventana esta libre (Windows: `lockfile`; sin esa comprobacion, 300 s). Nunca cierra solo porque el proceso lanzado termine. En el navegador de respaldo (pestana normal) NO hay cierre automatico: usa el boton Salir (la UI lo avisa).
 
 ## Uso
 1. **Ajustes**: repo (`escojoncio/gridania`), rama, token personal de GitHub con lectura de *Contents* (se guarda solo en

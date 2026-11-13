@@ -238,6 +238,11 @@ mark{background:#ffd24d;color:#111} .res{border-bottom:1px solid #333;padding:3p
 <script>
 const K='__CLAVE__';
 const $=id=>document.getElementById(id);
+/* Latido: el servidor cierra el editor cuando la ventana propia deja de dar señales. Al descargarse la pagina (cerrar la ventana o F5) avisa con sendBeacon; el servidor espera 10 s por si es una recarga. */
+function latido(){fetch('/api/latido',{headers:{'X-K':K},cache:'no-store'}).catch(()=>{})}
+latido();setInterval(latido,5000);
+function avisoCierre(){try{navigator.sendBeacon('/api/cierre?k='+encodeURIComponent(K))}catch(e){}}
+addEventListener('pagehide',avisoCierre);addEventListener('beforeunload',avisoCierre);
 async function api(ruta,cuerpo){const o={headers:{'X-K':K}};if(cuerpo!==undefined){o.method='POST';o.headers['Content-Type']='application/json';o.body=JSON.stringify(cuerpo)}
  const r=await fetch(ruta,o);const j=await r.json();if(!r.ok)throw new Error(j.error||r.status);return j}
 const ESTADOS=['rojo','naranja','verde','blanco'];let activos=new Set(['rojo','naranja']);let off=0,total=0,LIM=100,selId=null,timer=null,tareaDesde=0,sondeo=null,modoVista='tabla';

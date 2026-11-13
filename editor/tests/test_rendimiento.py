@@ -377,10 +377,11 @@ def test_vigilante_espera_a_la_ventana_y_no_abre_dos_uis(tmp_path):
     srv, est = Srv(), nuevo()
     app_mod._vigilar_ui(srv, ap, est, 'u', espera=0.1, paso=0.02, abrir=abiertas.append)
     assert abiertas == ['u'] and est['proc'].terminada and est['navegador'] and 'ventana propia' in ap.aviso and not srv.salir.is_set()
-    # el usuario cierra la ventana mientras carga: no se abre nada
+    # el Popen ya termino pero la ventana (proceso delegado) carga a mitad del plazo: no se abre nada
     srv, est, abiertas = Srv(), nuevo(), []
-    est['cerrada'].set()
-    app_mod._vigilar_ui(srv, ap, est, 'u', espera=0.2, paso=0.02, abrir=abiertas.append)
+    est['proc'].poll = lambda: 0
+    threading.Timer(0.15, srv.ui_cargada.set).start()
+    app_mod._vigilar_ui(srv, ap, est, 'u', espera=1, paso=0.02, abrir=abiertas.append)
     assert abiertas == [] and not est['navegador']
 
 
