@@ -450,3 +450,66 @@ console.log('ok');
 """
     f = tmp_path / 'nv.js'; f.write_text(js, encoding='utf-8')
     r = subprocess.run([shutil.which('node'), str(f)], capture_output=True, text=True); assert r.returncode == 0 and r.stdout.strip() == 'ok', r.stderr
+
+
+def test_doble_fallo_conserva_la_copia_del_textos_antiguo(tmp_path, monkeypatch):
+    """falla el paso 3 (info.json) Y devolver textos nuevo al temporal: la copia con el textos antiguo NO se borra"""
+    dest = str(tmp_path / 'juego'); ruta = crear_pack(tmp_path, 'g', 'v1'); copias = str(tmp_path / 'c')
+    extractor.extraer(PR(None, FakeX(None, juego_simple(5))), ruta, dest, copias_dir=copias)
+    antes = hash_arbol(os.path.join(dest, 'textos')); (tmp_path / 'g' / 'game' / 'ffxivgame.ver').write_text('v2')
+    real = os.replace; n = []
+    def rota(a, b):
+        n.append(1)
+        if len(n) in (3, 4): raise OSError('fallo %d' % len(n))
+        return real(a, b)
+    monkeypatch.setattr(os, 'replace', rota); monkeypatch.setattr(extractor, 'PAUSA_REINTENTO', 0)
+    with pytest.raises(OSError): extractor.extraer(PR(None, FakeX(None, juego_simple(6))), ruta, dest, copias_dir=copias)
+    monkeypatch.undo()
+    cs = os.listdir(copias); assert len(cs) == 1 and hash_arbol(os.path.join(copias, cs[0], 'textos')) == antes
+
+
+def test_marcar_flujo_no_toca_celdas_con_etiqueta_mas_nueva(tmp_path):
+    f = flujo.Flujo(str(tmp_path / 'flujo.json'))
+    inf2 = {'version': '2026.12.01.0000.0000', 'hojas': {'H': {'nuevas': [], 'cambiadas': [[3, None, 1, 'v']], 'borradas': [], 'movidas': []}}}
+    inf1 = {'version': '2026.11.01.0000.0000', 'hojas': {'H': {'nuevas': [[1, None, 1]], 'cambiadas': [[3, None, 1, 'v']], 'borradas': [], 'movidas': []}}}
+    parche.marcar_flujo(f, inf2); f.poner([('H', 3, None, 1)], 'hecho')
+    r = parche.marcar_flujo(f, inf1)
+    assert f.estado('H', 3, None, 1) == 'hecho' and f.etiqueta('H', 3, None, 1)['version'] == '2026.12.01.0000.0000' and f.estado('H', 1, None, 1) == 'por_hacer' and r['ya_procesadas'] == 1
+
+
+@necesita_repo
+def test_abrir_un_parche_anterior_no_reprocesa_el_flujo(tmp_path, app, monkeypatch):
+    for v, fecha in (('2026.11.01', '2026-11-01 00:00:00'), ('2026.12.01', '2026-12-01 00:00:00')):
+        inf = parche.crear_informe(v, 'x', {HOJA: {'nuevas': [], 'cambiadas': [[1, None, 1, 'viejo']], 'borradas': [], 'movidas': []}}); inf['fecha'] = fecha
+        parche.guardar_informe(app.cfg.parches_dir, inf)
+    llamadas = []; real = parche.marcar_flujo
+    monkeypatch.setattr(parche, 'marcar_flujo', lambda f, i: (llamadas.append(i['version']), real(f, i))[1])
+    app.parche_hojas('2026.11.01'); assert llamadas == []                                   # anterior: nada
+    app.flujo.poner([(HOJA, 1, None, 1)], 'hecho')
+    app.parche_hojas('2026.12.01'); assert llamadas == ['2026.12.01']                       # ultimo: si
+    app.flujo.poner([(HOJA, 1, None, 1)], 'hecho'); app.parche_hojas('2026.11.01')
+    assert app.flujo.estado(HOJA, 1, None, 1) == 'hecho' and app.flujo.etiqueta(HOJA, 1, None, 1)['version'] == '2026.12.01'
+
+
+@necesita_repo
+def test_corte_entre_cambio_y_promocion_se_recupera_el_informe(tmp_path, app, R, monkeypatch):
+    ruta = crear_pack(tmp_path, 'g', 'v1'); juego, _ = juego_parcheado(); app._R = PR(R, FakeX(R, juego))
+    monkeypatch.setattr(parche, 'promover_pendiente', lambda *a: (_ for _ in ()).throw(RuntimeError('proceso muerto')))
+    app.tarea_extraer(ruta); assert esperar(app)['estado'] == 'error'
+    assert parche.leer_informe(app.cfg.parches_dir, 'v1') is None and os.path.exists(os.path.join(app.cfg.parches_dir, 'v1.pendiente.json'))      # cambio hecho, informe solo pendiente
+    assert json.load(open(os.path.join(app.cfg.juego_dir, 'info.json')))['version'] == 'v1' and parche.listar_informes(app.cfg.parches_dir) == []
+    monkeypatch.undo()
+    app.tarea_extraer(ruta); t = esperar(app); assert t['estado'] == 'ok', t['error']
+    inf = parche.leer_informe(app.cfg.parches_dir, 'v1')
+    assert inf['conteos']['nuevas'] == 4 and inf['conteos']['cambiadas'] == 1                 # las novedades REALES, no un informe vacio
+    assert not os.path.exists(os.path.join(app.cfg.parches_dir, 'v1.pendiente.json')) and app.flujo.estado(HOJA, 902, None, 1) == 'por_hacer'
+
+
+@necesita_repo
+def test_pendiente_de_un_cambio_no_hecho_se_descarta_y_no_se_toca_durante_la_tarea(tmp_path, app, R):
+    ruta = crear_pack(tmp_path, 'g', 'v1'); juego, _ = juego_parcheado(); app._R = PR(R, FakeX(R, juego, falla_en=2))
+    app.tarea_extraer(ruta); assert esperar(app)['estado'] == 'error'                       # corte antes del cambio: no queda pendiente (o se descarta)
+    assert not [n for n in os.listdir(app.cfg.parches_dir) if n.endswith('.pendiente.json')] if os.path.isdir(app.cfg.parches_dir) else True
+    parche.guardar_pendiente(app.cfg.parches_dir, parche.crear_informe('v7', 'x', {}))      # pendiente huerfano de otra version
+    app.tarea.estado = 'ejecutando'; assert app.recuperar_parches() == [] and os.path.exists(os.path.join(app.cfg.parches_dir, 'v7.pendiente.json'))   # tarea en curso: intocable
+    app.tarea.estado = 'libre'; app.recuperar_parches(); assert not os.path.exists(os.path.join(app.cfg.parches_dir, 'v7.pendiente.json'))

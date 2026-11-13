@@ -145,12 +145,13 @@ def _cambiar(destino, tmp_root, version, copias_dir, progreso):
         _mover(info_n, info_v)
     except BaseException:
         if puesto:
-            try: _mover(textos, nuevo)                                 # el nuevo vuelve al temporal
+            try: _mover(textos, nuevo); puesto = False                 # el nuevo vuelve al temporal
             except OSError: pass
         if viejo and os.path.isdir(viejo) and not os.path.exists(textos):
             try: _mover(viejo, textos)
             except OSError: pass
-        if copia and os.path.isdir(textos): shutil.rmtree(copia, ignore_errors=True)
+        # la copia (donde esta el textos antiguo) solo se borra si el original esta de vuelta en su sitio; con un doble fallo (`puesto` sigue True) se conserva
+        if copia and not puesto and os.path.isdir(textos) and not os.path.isdir(os.path.join(copia, 'textos')): shutil.rmtree(copia, ignore_errors=True)
         raise
     if basura: shutil.rmtree(basura, ignore_errors=True)
     shutil.rmtree(tmp_root, ignore_errors=True)

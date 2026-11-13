@@ -544,6 +544,19 @@ class Aplicacion(object):
         log('comparando con la version anterior (%s)...' % (self._version_base(raiz_anterior) or 'repo'))
         return parche.comparar(raiz_anterior, raiz_nuevo, self.cfg.repo_dir, self.cfg.ediciones_dir, R.G.tiene_cjk, R.G.hash_ja, log, excluir=info.get('fallidas') or ())
 
+    def _pendiente(self, R, anterior, textos_nuevos, info, ctx, log):
+        """callback ANTES del cambio: calcula las novedades y las guarda como informe pendiente (sobrevive a un corte entre el cambio y la promocion)"""
+        hojas = self._calcular_novedades(R, anterior, textos_nuevos, info, log)
+        ctx['version'] = info.get('version') or time.strftime('sin-version-%Y%m%d-%H%M%S')
+        parche.guardar_pendiente(self.cfg.parches_dir, parche.crear_informe(ctx['version'], ctx.get('_base') or self._recomendada(), hojas, info.get('hojas_conservadas') or []))
+
+    def recuperar_parches(self, desde_tarea=False):
+        """promueve informes pendientes de un corte (si su version es la de la extraccion actual) y descarta los demas. Nunca mientras una importacion esta en curso
+        (su pendiente aun no tiene cambio hecho), salvo la llamada del inicio de la propia tarea (desde_tarea=True)."""
+        if not desde_tarea and self.tarea.estado == 'ejecutando': return []
+        try: return parche.recuperar_pendientes(self.cfg.parches_dir, extractor.version_de_info(self.cfg.juego_dir))
+        except Exception: log.warning('recuperar parches pendientes', exc_info=True); return []
+
     def tarea_extraer(self, ruta=None, forzar=False):
         """«Importar parche»: extrae el juego a un temporal, compara con la extraccion anterior (o el repo), cambia textos/ de forma atomica (con copia de la anterior), guarda el informe
         de novedades, deja lo nuevo/cambiado en «Por hacer» y reindexa. Nada de esto escribe traducciones/ ni ediciones/ ni el es. forzar=True: acepta una extraccion con menos de la
@@ -554,14 +567,16 @@ class Aplicacion(object):
         extractor.comprobar_ruta(game)
         def fn(log):
             R = self.R(); anterior = self.raiz_textos(); ctx = {'_base': self._version_base(anterior)}
+            self.recuperar_parches(True)          # un corte anterior tras el cambio: se promueve su informe pendiente en vez de recalcular novedades vacias
             previo = None
             if not os.path.isfile(os.path.join(cfg.juego_dir, 'info.json')) or os.path.abspath(anterior) != os.path.abspath(cfg.juego_dir):
                 log('contando las celdas de referencia...'); previo = extractor.contar_celdas(anterior)      # primera importacion: la regla del 50 % frente al repo
-            info = extractor.extraer(R, game, cfg.juego_dir, ('ja', 'fr'), log, antes_de_cambiar=lambda tn, inf: ctx.update(hojas=self._calcular_novedades(R, anterior, tn, inf, log)),
+            info = extractor.extraer(R, game, cfg.juego_dir, ('ja', 'fr'), log, antes_de_cambiar=lambda tn, inf: self._pendiente(R, anterior, tn, inf, ctx, log),
                                      copias_dir=cfg.copias_dir, respaldo_raiz=anterior, previo_celdas=previo, forzar=bool(forzar))
-            version = info.get('version') or time.strftime('sin-version-%Y%m%d-%H%M%S')
-            # el cambio ya se hizo: ahora se guarda el informe (idempotente) y se completa el flujo (tambien al reimportar, por si un corte dejo algo a medias)
-            inf, escrito = parche.guardar_informe(cfg.parches_dir, parche.crear_informe(version, ctx.get('_base') or self._recomendada(), ctx.get('hojas') or {}, info.get('hojas_conservadas') or []))
+            version = ctx['version']
+            # el cambio ya se hizo: el informe PENDIENTE (calculado antes) pasa a definitivo (idempotente) y se completa el flujo (tambien al reimportar, por si un corte dejo algo a medias)
+            r = parche.promover_pendiente(cfg.parches_dir, version)
+            inf, escrito = r if r else (parche.leer_informe(cfg.parches_dir, version), False)
             log('novedades %s: %s%s' % (version, json.dumps(inf['conteos']), '' if escrito else ' (ya importado: se conserva el informe)'))
             info['flujo'] = parche.marcar_flujo(self.flujo, inf); log('flujo: %s' % json.dumps(info['flujo']))
             info['parche'] = {'version': inf['version'], 'conteos': inf['conteos'], 'ya_importado': not escrito, 'hojas_conservadas': info.get('hojas_conservadas') or []}
@@ -572,6 +587,7 @@ class Aplicacion(object):
 
     # ------------------------------------------------------------ novedades del parche
     def parches(self):
+        self.recuperar_parches()
         return {'parches': parche.listar_informes(self.cfg.parches_dir)}
 
     def _informe(self, version):
@@ -583,7 +599,9 @@ class Aplicacion(object):
     def parche_hojas(self, version=None, tipo=None, q=None):
         """hojas con novedades en el orden de traduccion (expansion y luego nombre, como el modo mision). tipo: nuevas|cambiadas|borradas|movidas|None (cualquiera)"""
         inf = self._informe(version); orden = self._orden_expansion(); ql = (q or '').lower(); res = []
-        parche.marcar_flujo(self.flujo, inf)       # idempotente: completa lo que un corte dejo a medias (no pisa lo ya procesado)
+        self.recuperar_parches()
+        ultimo = (parche.listar_informes(self.cfg.parches_dir) or [{}])[0].get('version')
+        if inf['version'] == ultimo: parche.marcar_flujo(self.flujo, inf)       # SOLO el ultimo parche: completa lo que un corte dejo a medias; un parche anterior nunca reprocesa celdas
         pend = {}
         for r in indexer.hojas_resumen_flujo(self.base): pend[r['hoja']] = (r['por_hacer'], r['hecho'])
         for hoja, d in inf['hojas'].items():

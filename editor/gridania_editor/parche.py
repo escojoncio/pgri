@@ -4,7 +4,7 @@ y escribe datos/parches/<version>.json y las marcas locales de flujo.
 Clases (por hoja+row+sub+col, solo celdas con japones CJK):
   NUEVA    = clave inexistente en la extraccion anterior.   CAMBIADA = clave en ambas con `text` ja distinto (el es se conserva; el indice la marca naranja = a revisar).
   BORRADA  = clave que ya no esta (se guarda su es, si lo tenia).   MOVIDA = NUEVA cuyo ja es identico (mismo h) a una BORRADA con es de la MISMA hoja: solo se PROPONE arrastrar su traduccion."""
-import collections, hashlib, json, os, time
+import collections, hashlib, json, os, re, time
 from . import extractor, indexer
 
 TIPOS = ('nuevas', 'cambiadas', 'borradas', 'movidas')
@@ -94,6 +94,57 @@ def crear_informe(version, base_version, hojas, no_leidas=()):
 def _ruta(parches_dir, version): return os.path.join(parches_dir, extractor.version_segura(version) + '.json')
 
 
+def _vkey(v):
+    """orden de versiones: los numeros de '2026.10.16.0000.0000' como tupla (si no hay, el texto)"""
+    n = re.findall(r'\d+', str(v or ''))
+    return (0, tuple(int(x) for x in n)) if n else (-1, (str(v or ''),))
+
+
+def _ruta_pend(parches_dir, version): return os.path.join(parches_dir, extractor.version_segura(version) + '.pendiente.json')
+
+
+def guardar_pendiente(parches_dir, informe):
+    """informe calculado ANTES del cambio de textos/: queda como <version>.pendiente.json hasta que el cambio termine (y se promueve) o se descarte"""
+    os.makedirs(parches_dir, exist_ok=True); ruta = _ruta_pend(parches_dir, informe['version']); tmp = ruta + '.tmp'
+    with open(tmp, 'w', encoding='utf-8') as f: json.dump(informe, f, ensure_ascii=False, separators=(',', ':'))
+    os.replace(tmp, ruta)
+
+
+def promover_pendiente(parches_dir, version):
+    """pendiente -> definitivo (guardar_informe, idempotente) y se borra el pendiente. -> (informe, escrito) o None si no hay pendiente"""
+    ruta = _ruta_pend(parches_dir, version)
+    try:
+        with open(ruta, encoding='utf-8') as f: inf = json.load(f)
+    except (OSError, ValueError): return None
+    r = guardar_informe(parches_dir, inf)
+    try: os.remove(ruta)
+    except OSError: pass
+    return r
+
+
+def descartar_pendiente(parches_dir, version):
+    try: os.remove(_ruta_pend(parches_dir, version))
+    except OSError: pass
+
+
+def recuperar_pendientes(parches_dir, version_actual):
+    """tras un corte: un pendiente cuya version coincide con la del info.json actual (el cambio SI se hizo) se promueve; los demas (el cambio no llego a hacerse) se descartan. -> versiones promovidas"""
+    out = []
+    try: nombres = os.listdir(parches_dir)
+    except OSError: return out
+    for n in nombres:
+        if not n.endswith('.pendiente.json'): continue
+        ruta = os.path.join(parches_dir, n)
+        try:
+            with open(ruta, encoding='utf-8') as f: v = json.load(f).get('version')
+        except (OSError, ValueError): v = None
+        if v and version_actual and extractor.version_segura(v) == extractor.version_segura(version_actual) and promover_pendiente(parches_dir, v): out.append(v)
+        else:
+            try: os.remove(ruta)
+            except OSError: pass
+    return out
+
+
 def leer_informe(parches_dir, version):
     try:
         with open(_ruta(parches_dir, version), encoding='utf-8') as f: return json.load(f)
@@ -105,12 +156,12 @@ def listar_informes(parches_dir):
     try: nombres = os.listdir(parches_dir)
     except OSError: return out
     for n in nombres:
-        if not n.endswith('.json'): continue
+        if not n.endswith('.json') or n.endswith('.pendiente.json'): continue
         try:
             with open(os.path.join(parches_dir, n), encoding='utf-8') as f: j = json.load(f)
             out.append({'version': j.get('version') or n[:-5], 'fecha': j.get('fecha'), 'base_version': j.get('base_version'), 'conteos': j.get('conteos') or {}})
         except (OSError, ValueError): continue
-    return sorted(out, key=lambda x: x.get('fecha') or '', reverse=True)
+    return sorted(out, key=lambda x: (x.get('fecha') or '', _vkey(x.get('version'))), reverse=True)
 
 
 def guardar_informe(parches_dir, informe):
@@ -144,7 +195,7 @@ def marcar_flujo(flujo, informe):
     Novedades tras un corte, completa lo que faltaba sin pisar lo que el usuario ya hizo). Las nuevas ya «Hecho» no se tocan (se etiquetan igual); una cambiada «Hecho» vuelve a
     «Por hacer». Solo escribe flujo.json y flujo_parche.json (nada de traducciones). -> {'por_hacer': n, 'respetadas_hecho': n, 'ya_procesadas': n}"""
     nu, ca = celdas_flujo(informe); v = informe['version']
-    def pend(lst): return [c for c in lst if (flujo.etiqueta(*c) or {}).get('version') != v]
+    def pend(lst): return [c for c in lst if _vkey((flujo.etiqueta(*c) or {}).get('version', '')) < _vkey(v) or not flujo.etiqueta(*c)]      # nunca se tocan celdas con etiqueta de esta version u otra MAS NUEVA
     nu, ca, ya = pend(nu), pend(ca), len(nu) + len(ca)
     ya -= len(nu) + len(ca)
     hechas = [c for c in nu if flujo.estado(*c) == 'hecho']
