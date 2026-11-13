@@ -7,6 +7,7 @@ _lock = threading.Lock()
 
 
 PREFIJO_DPAPI = 'dpapi:'
+CRYPTPROTECT_UI_FORBIDDEN = 1
 
 
 def dpapi_disponible():
@@ -17,12 +18,21 @@ def _dpapi(datos, proteger):
     import ctypes
     from ctypes import wintypes
     class BLOB(ctypes.Structure): _fields_ = [('cbData', wintypes.DWORD), ('pbData', ctypes.POINTER(ctypes.c_char))]
+    pb = ctypes.POINTER(BLOB)
+    crypt32, kernel32 = ctypes.windll.crypt32, ctypes.windll.kernel32
+    if proteger:
+        f = crypt32.CryptProtectData
+        f.argtypes = [pb, wintypes.LPCWSTR, pb, ctypes.c_void_p, ctypes.c_void_p, wintypes.DWORD, pb]
+    else:
+        f = crypt32.CryptUnprotectData
+        f.argtypes = [pb, ctypes.POINTER(wintypes.LPWSTR), pb, ctypes.c_void_p, ctypes.c_void_p, wintypes.DWORD, pb]
+    f.restype = wintypes.BOOL
+    kernel32.LocalFree.argtypes = [ctypes.c_void_p]; kernel32.LocalFree.restype = ctypes.c_void_p
     buf = ctypes.create_string_buffer(datos, len(datos))
     ent = BLOB(len(datos), ctypes.cast(buf, ctypes.POINTER(ctypes.c_char))); sal = BLOB()
-    f = ctypes.windll.crypt32.CryptProtectData if proteger else ctypes.windll.crypt32.CryptUnprotectData
-    if not f(ctypes.byref(ent), None, None, None, None, 0, ctypes.byref(sal)): raise OSError('DPAPI fallo')
+    if not f(ctypes.byref(ent), None, None, None, None, CRYPTPROTECT_UI_FORBIDDEN, ctypes.byref(sal)): raise OSError('DPAPI fallo')
     try: return ctypes.string_at(sal.pbData, sal.cbData)
-    finally: ctypes.windll.kernel32.LocalFree(sal.pbData)
+    finally: kernel32.LocalFree(ctypes.cast(sal.pbData, ctypes.c_void_p))
 
 
 def dpapi_proteger(texto):
@@ -92,7 +102,7 @@ def migrar_antigua(nuevo, antigua=None, log=None):
     antigua = antigua or carpeta_antigua()
     try:
         if not os.path.isdir(antigua) or os.path.abspath(antigua) == os.path.abspath(nuevo): return []
-        if any(n not in _IGNORAR_MIGRA for n in os.listdir(nuevo)): return []
+        if any(n not in _IGNORAR_MIGRA and n not in _NO_COPIAR for n in os.listdir(nuevo)): return []      # editor.db(-wal/-shm) ya los crea abrir_base
         copiados = []
         for n in sorted(os.listdir(antigua)):
             if n in _IGNORAR_MIGRA or n in _NO_COPIAR or n.endswith('.tmp'): continue

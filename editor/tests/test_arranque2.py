@@ -186,3 +186,78 @@ def test_arranque_con_backend_de_ventana_falso_sin_sin_abrir(tmp_path):
     t = _log(home)
     assert p.returncode == 0, p.stderr.decode()[-500:]
     assert 'primera peticion GET / de la UI' in t and 'webview.start ha vuelto' in t and not nav.exists()
+
+
+def test_migracion_real_con_base_ya_abierta(tmp_path):
+    from gridania_editor.aplicacion import Aplicacion
+    ant, nue = tmp_path / 'ant', tmp_path / 'datos'
+    (ant / 'ediciones' / 'x').mkdir(parents=True); (ant / 'ediciones' / 'x' / 'a.jsonl').write_text('1')
+    (ant / 'config.json').write_text('{"rama": "otra"}'); (ant / 'flujo.json').write_text('{}')
+    ap = Aplicacion(str(nue), diferir=True)
+    ap.abrir_base()                                           # crea editor.db(-wal/-shm) en el destino ANTES de migrar
+    assert (nue / 'editor.db').exists()
+    c = config.migrar_antigua(str(nue), str(ant))
+    assert 'config.json' in c and 'flujo.json' in c and 'ediciones' in c
+    assert (nue / 'ediciones' / 'x' / 'a.jsonl').read_text() == '1'
+    assert json.loads((nue / 'config.json').read_text())['rama'] == 'otra'
+
+
+def _windll_falso(monkeypatch):
+    import ctypes
+    from types import SimpleNamespace
+    class F(object):
+        def __init__(self): self.argtypes = None; self.restype = None
+        def __call__(self, *a): return 0
+    w = SimpleNamespace(crypt32=SimpleNamespace(CryptProtectData=F(), CryptUnprotectData=F()), kernel32=SimpleNamespace(LocalFree=F()))
+    monkeypatch.setattr(ctypes, 'windll', w, raising=False)
+    return w
+
+
+def test_dpapi_firmas_explicitas(monkeypatch):
+    w = _windll_falso(monkeypatch)
+    with pytest.raises(OSError): config._dpapi(b'x', True)
+    with pytest.raises(OSError): config._dpapi(b'x', False)
+    for f in (w.crypt32.CryptProtectData, w.crypt32.CryptUnprotectData):
+        assert len(f.argtypes) == 7 and f.restype is not None
+    assert config.CRYPTPROTECT_UI_FORBIDDEN == 1
+
+
+@pytest.mark.skipif(not sys.platform.startswith('win'), reason='DPAPI solo en Windows')
+def test_dpapi_cifra_y_descifra_de_verdad():
+    v = config.dpapi_proteger('ghp_secreto')
+    assert v.startswith('dpapi:') and 'secreto' not in v
+    assert config.dpapi_desproteger(v) == 'ghp_secreto'
+
+
+def _winreg_falso(monkeypatch, claves):
+    import types
+    m = types.ModuleType('winreg'); m.HKEY_LOCAL_MACHINE = 'HKLM'; m.HKEY_CURRENT_USER = 'HKCU'
+    class K(object):
+        def __init__(self, v): self.v = v
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+    def OpenKey(raiz, ruta):
+        k = (raiz, 'WOW' if 'WOW6432Node' in ruta else '')
+        if k not in claves: raise OSError('no')
+        return K(claves[k])
+    m.OpenKey = OpenKey; m.QueryValueEx = lambda k, n: (k.v, 1)
+    monkeypatch.setitem(sys.modules, 'winreg', m)
+    monkeypatch.setattr(sys, 'platform', 'win32')
+
+
+@pytest.mark.parametrize('claves,esperado', [
+    ({('HKLM', 'WOW'): '120.0'}, '120.0'),
+    ({('HKLM', ''): '121.0'}, '121.0'),
+    ({('HKCU', ''): '122.0'}, '122.0'),
+    ({}, None),
+])
+def test_webview2_instalado_registro(monkeypatch, claves, esperado):
+    from gridania_editor import app as app_mod
+    _winreg_falso(monkeypatch, claves)
+    assert app_mod.webview2_instalado() == esperado
+
+
+def test_webview2_pv_cero_cuenta_como_no_instalado(monkeypatch):
+    from gridania_editor import app as app_mod
+    _winreg_falso(monkeypatch, {('HKLM', 'WOW'): '0.0.0.0'})
+    assert app_mod._sin_runtime() is True

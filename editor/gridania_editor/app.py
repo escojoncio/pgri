@@ -211,7 +211,8 @@ def webview2_instalado():
                            (winreg.HKEY_LOCAL_MACHINE, r'SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}'),
                            (winreg.HKEY_CURRENT_USER, r'Software\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}')):
             try:
-                with winreg.OpenKey(raiz, ruta) as k: return winreg.QueryValueEx(k, 'pv')[0]
+                with winreg.OpenKey(raiz, ruta) as k: pv = winreg.QueryValueEx(k, 'pv')[0]
+                if pv and pv != '0.0.0.0': return pv       # '0.0.0.0' = desinstalado
             except OSError: continue
     except Exception as x:
         return 'error: %s' % x
@@ -236,11 +237,11 @@ def _servir(a, lg, app, tras_ui=None):
             threading.Thread(target=_vigilar_ui, args=(srv, app, estado, url), kwargs={'abrir': lambda u: estado['abrir'](u)}, daemon=True, name='vigilante-ui').start()
         try:
             webview = _abrir_ventana(srv, app, url, estado)
-            instancia.publicar(app.cfg.home, url, 'ventana', srv.clave)
             arrancar()                                  # tras pedir la ventana; en hilos, nunca la retrasa
             t0 = time.time()
             with estado['lock']:
                 if estado['navegador']: raise _Cancelada('el navegador gano justo antes de start')
+                instancia.publicar(app.cfg.home, url, 'ventana', srv.clave)
             registro.etapa('webview.start (bucle de la GUI)'); estado['etapa'] = 'webview.start'
             webview.start(lambda: registro.etapa('GUI iniciada (func de start)'))
             registro.etapa('webview.start ha vuelto')
