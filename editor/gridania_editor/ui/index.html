@@ -307,7 +307,7 @@ function colorear(l){return esc(l).replace(/\x01/g,'<span class="c">').replace(/
 function palabras(l){return l.replace(/[\x01\x02\x03]/g,'').trim().split(/\s+/).filter(Boolean).length}
 function ingame(v,opt){opt=opt||{};if(!v)return '';const seg=v.caja.seguro,dur=v.caja.duro,N=v.nventanas,MAXL=4;const nom=v.hablante;
  return v.ventanas.map((w,i)=>{const ult=i===N-1;const probs=[];
-  if(!opt.compacto){if(w.length>MAXL)probs.push(`mas de ${MAXL} lineas (${w.length})`);if(dur&&w.some(l=>anchoLinea(l)>dur))probs.push('linea mas ancha que la caja');if(ult&&N>1&&w.length===1&&palabras(w[0])<=2)probs.push('ventana final huerfana')}
+  if(!opt.compacto){if(v.caja.tipo!=='subtitulo'&&w.length>MAXL)probs.push(`mas de ${MAXL} lineas (${w.length})`);if(dur&&w.some(l=>anchoLinea(l)>dur))probs.push('linea mas ancha que la caja');if(ult&&N>1&&w.length===1&&palabras(w[0])<=2)probs.push('ventana final huerfana')}
   const lin=w.map(l=>{const a=anchoLinea(l);const cl=(!opt.compacto&&dur&&a>dur)?'mal':((!opt.compacto&&seg&&a>seg)?'aviso':'');
    return `<div class="ln ${cl}"><span class="t">${colorear(l)}</span><span class="nl" title="Salto de linea">\u21B5</span>${opt.compacto||!seg?'':`<span class="an" title="Caracteres de la linea / seguros (recomendado). Limite duro: ${dur}">${a}/${seg}</span>`}</div>`}).join('');
   return `<div class="vent ${opt.compacto?'compacto':''} ${probs.length?'mala':''}">${nom?`<div class="nom" title="Hablante">${esc(nom)}</div>`:''}${lin}<div class="vpie"><span>ventana ${i+1}/${N} \u00B7 ${w.length} lineas</span>${probs.length?`<span class="prob">\u26A0 ${esc(probs.join('; '))}</span>`:''}<span class="sig" title="${ult?'Ultima ventana':'Pulsa para continuar'}">${ult?'\u25A0':'\u25BC'}</span></div></div>`}).join('')}
@@ -318,7 +318,7 @@ function vistaES(r){const cont=$('vista');const sua=!!(r.suavizado&&r.suavizado.
  const s=r.suavizado;let t='';if(s){const m={aplicado:'Suavizado: <b>aplicado</b> (la vista muestra el espaciado corregido, igual que saldra en el .dat).',cumplia:'Suavizado: <b class="ok">ya cumplia</b>, no hace falta cambiar nada.',no_aplica:'Suavizado: no se aplica a este tipo de celda.'}[s.suavizado]||'';t=m;
   if(s.reflujo==='cambiada')t+=' Reflujo: la vista reajusta los saltos; pulsa «Usar texto con reflujo» para llevarlo al cuadro.'}
  $('estSuave').innerHTML=t}
-function info(v,sua){$('cajaInfo').textContent=`(caja ${v.caja.tipo}, ${v.caja.seguro}/${v.caja.duro} car., ${v.nlineas} lineas${sua?' tras el suavizado del .dat, que une saltos a media frase':''}, ${v.nventanas} ventanas)`}
+function info(v,sua){$('cajaInfo').textContent=`(caja ${v.caja.tipo}, ${v.caja.seguro}/${v.caja.duro} car., ${v.nlineas} lineas${sua&&v.caja.tipo==='subtitulo'?' tras el suavizado del .dat, que une saltos a media frase':''}, ${v.nventanas} ventanas)`}
 let ultimoTexto='';
 function pintar(r){vistaES(r);ultimoTexto=r.texto;if(r.vista_ja!==undefined){vistaFuente(r.vista_ja,'vja');vistaFuente(r.vista_fr,'vfr')}
  const li=[...r.errores.map(e=>`<li class="err">ERROR ${esc(e[0])}: ${esc(e[1])}</li>`),...r.avisos.map(e=>`<li class="avi">${esc(e[0])}: ${esc(e[1])}</li>`)];
