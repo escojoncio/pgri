@@ -1,12 +1,11 @@
 # Editor de traducciones Gridania (Windows)
 
-Programa de escritorio (un solo `.exe`) para editar cualquier texto del juego en tu PC. Python 3 + los scripts de `tools/py` del repo
-(se descargan al importar; el `.exe` NO lleva textos del juego ni del repo) + interfaz local en ventana propia (pywebview/WebView2; si no
-esta, abre el navegador por defecto).
+Programa de escritorio (carpeta `GridaniaEditor/` con `GridaniaEditor.exe`) para editar cualquier texto del juego en tu PC. Python 3 + los scripts de `tools/py` del repo
+(se descargan al importar; el `.exe` NO lleva textos del juego ni del repo) + interfaz local en ventana propia: la ventana usa Microsoft Edge en modo aplicacion (`msedge.exe --app=...`, o Chrome); no hace falta instalar nada. Sin Edge ni Chrome abre el navegador predeterminado.
 
 ## Obtener el .exe
 GitHub > Actions > workflow **editor** > ultima ejecucion > artefacto `GridaniaEditor-win64` (se genera en `windows-latest` con PyInstaller).
-Requiere el runtime WebView2 de Windows 10/11 (ya instalado normalmente). Sin el, usa `GridaniaEditor.exe --navegador`.
+Se descarga la carpeta (`--onedir`): descomprimela y ejecuta `GridaniaEditor.exe`. Edge viene con Windows 10/11. Ayuda > Abrir en el navegador, o `GridaniaEditor.exe --navegador`, usa el navegador predeterminado. El perfil de la ventana vive en `datos/perfil-ventana`.
 
 ## Datos
 Todo lo que genera el editor (editor.db, editor.log, faulthandler.log, config.json, flujo.json, ediciones/, exportado/, cache del repo descargado, instancia.*)
@@ -16,9 +15,9 @@ Si esa carpeta no es escribible se avisa y se usa `Documentos/GridaniaEditor`. A
 (se regeneran: Actualizar desde GitHub / Reindexar). No incluyas `datos/` al repartir el programa (contiene el token). Menu Ayuda > Abrir carpeta de datos y registros.
 
 ## Diagnostico de arranque
-`datos/editor.log` registra inicio y fin de cada fase (aplicacion, servidor, import webview, deteccion WebView2, create_window, start, primera peticion de la UI, migracion,
-vigencia) y, mientras algo tarde, un volcado cada 10 s con la etapa y las fases activas; `datos/faulthandler.log` vuelca las pilas de todos los hilos cada 30 s hasta que la UI carga.
-Si la UI no pide la pagina en 15 s se abre el navegador por defecto con la URL (el servidor sigue activo).
+`datos/editor.log` registra inicio y fin de cada fase (aplicacion, servidor, busqueda de Edge/Chrome, linea de comandos y pid de la ventana, primera peticion de la UI, migracion,
+vigencia, resultado y codigo de salida de la ventana) y, mientras algo tarde, un volcado cada 10 s con la etapa y las fases activas; `datos/faulthandler.log` vuelca las pilas de todos los hilos cada 30 s hasta que la UI carga.
+Si la UI no pide la pagina en 30 s se abre el navegador por defecto con la URL (el servidor sigue activo).
 
 ## Uso
 1. **Ajustes**: repo (`escojoncio/gridania`), rama, token personal de GitHub con lectura de *Contents* (se guarda solo en
@@ -69,5 +68,5 @@ Tras «Actualizar desde GitHub» el codigo de `tools/py` se recarga sin reinicia
 
 - Indice persistente (`editor.db`): firma por hoja (size+mtime de ja/fr/traducciones/ediciones). Solo se reindexan las hojas que cambian; "Actualizar indice" (Ctrl = reconstruir todo). Nunca se indexa solo: si falta el indice, la ventana ofrece construirlo (con barra de progreso real y boton Cancelar, que conserva el indice anterior); si esta desactualizado, aparece un aviso.
 - Indexado en una transaccion, un solo parseo por hoja y reparto por hojas en procesos (`GRIDANIA_EDITOR_PROCESOS=1` lo desactiva). Columnas `clase` y `flujo` materializadas con indices SQL; las `editor.db` antiguas se migran solas al abrir (ediciones y flujo intactos).
-- Registro rotativo `editor.log` en la carpeta de datos (Ayuda > Abrir carpeta de datos y registros): arranque, version, tiempo de cada fase, excepciones no capturadas, peticiones lentas y fallbacks. Si WebView2 falla, se abre el navegador con un aviso visible; si el servidor HTTP muere el proceso termina con mensaje.
-- Empaquetado: `--onefile` autoextrae en cada arranque (lento); preferir `--onedir` o `--onefile` con `--runtime-tmpdir` fijo si el arranque tarda.
+- Registro rotativo `editor.log` en la carpeta de datos (Ayuda > Abrir carpeta de datos y registros): arranque, version, tiempo de cada fase, excepciones no capturadas, peticiones lentas y fallbacks. Si la ventana Edge no carga o no hay Edge/Chrome, se abre el navegador con un aviso visible; si el servidor HTTP muere el proceso termina con mensaje.
+- Empaquetado: `--onedir --windowed` (arranque instantaneo, sin pywebview ni pythonnet).

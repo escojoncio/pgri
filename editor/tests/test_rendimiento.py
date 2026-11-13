@@ -357,36 +357,29 @@ def test_registro_tolera_fallo_de_rotacion(tmp_path, monkeypatch):
     assert open(str(tmp_path / 'x.log'), encoding='utf-8').read().count('linea larga') == 5
 
 
-def test_vigilante_espera_a_webview2_y_no_abre_dos_uis(tmp_path):
+def test_vigilante_espera_a_la_ventana_y_no_abre_dos_uis(tmp_path):
     from gridania_editor import app as app_mod
-    class Ev(object):
-        def __init__(self): self.e = threading.Event()
-        def is_set(self): return self.e.is_set()
-    class Win(object):
-        def __init__(self): self.events = type('E', (), {'closed': Ev()})(); self.destruida = False
-        def destroy(self): self.destruida = True
     class Srv(object):
         def __init__(self): self.ui_cargada = threading.Event(); self.salir = threading.Event()
+    class Proc(object):
+        terminada = False
+        def poll(self): return None
+        def terminate(self): self.terminada = True
     class Ap(object):
         aviso = ''; cfg = type('C', (), {'home': str(tmp_path)})()
+    nuevo = lambda: {'navegador': False, 'proc': Proc(), 'cerrada': threading.Event()}
     # la UI carga a tiempo: NO se abre el navegador
-    srv, win, ap, est, abiertas = Srv(), Win(), Ap(), {'navegador': False, 'win': None}, []
-    est['win'] = win
+    srv, ap, est, abiertas = Srv(), Ap(), nuevo(), []
     threading.Timer(0.1, srv.ui_cargada.set).start()
     app_mod._vigilar_ui(srv, ap, est, 'u', espera=1, paso=0.02, abrir=abiertas.append)
-    assert abiertas == [] and not win.destruida and not est['navegador']
-    # nunca carga: se cierra la ventana propia, se abre UN navegador y el servidor NO se cierra
-    srv, win, est = Srv(), Win(), {'navegador': False}
-    est['win'] = win
+    assert abiertas == [] and not est['proc'].terminada and not est['navegador']
+    # nunca carga: se termina la ventana, se abre UN navegador y el servidor NO se cierra
+    srv, est = Srv(), nuevo()
     app_mod._vigilar_ui(srv, ap, est, 'u', espera=0.1, paso=0.02, abrir=abiertas.append)
-    assert abiertas == ['u'] and win.destruida and est['navegador'] and 'ventana propia' in ap.aviso and not srv.salir.is_set()
-    # ni siquiera se llego a crear la ventana (import colgado): tambien se abre el navegador
-    srv, est, abiertas = Srv(), {'navegador': False, 'win': None, 'etapa': 'import webview'}, []
-    app_mod._vigilar_ui(srv, ap, est, 'u', espera=0.1, paso=0.02, abrir=abiertas.append)
-    assert abiertas == ['u'] and 'import webview' in ap.aviso
+    assert abiertas == ['u'] and est['proc'].terminada and est['navegador'] and 'ventana propia' in ap.aviso and not srv.salir.is_set()
     # el usuario cierra la ventana mientras carga: no se abre nada
-    srv, win, est, abiertas = Srv(), Win(), {'navegador': False}, []
-    est['win'] = win; win.events.closed.e.set()
+    srv, est, abiertas = Srv(), nuevo(), []
+    est['cerrada'].set()
     app_mod._vigilar_ui(srv, ap, est, 'u', espera=0.2, paso=0.02, abrir=abiertas.append)
     assert abiertas == [] and not est['navegador']
 

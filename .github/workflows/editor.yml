@@ -19,7 +19,7 @@ jobs:
         run: >
           pyinstaller --noconfirm --onedir --noupx --windowed --name GridaniaEditor
           --paths . --add-data "gridania_editor/ui;gridania_editor/ui"
-          --collect-all webview --collect-submodules gridania_editor
+          --collect-submodules gridania_editor
           --hidden-import gridania_editor.stdlib_para_scripts
           run_editor.py
       - name: Empaquetar zip

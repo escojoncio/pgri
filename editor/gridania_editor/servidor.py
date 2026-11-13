@@ -17,7 +17,7 @@ def dir_ui():
 
 class Servidor(object):
     def __init__(self, app, puerto=0):
-        self.app = app; self.clave = secrets.token_urlsafe(16); self.salir = threading.Event(); self.ui_cargada = threading.Event(); self.fallo = None; self.al_pedir_pagina = None
+        self.app = app; self.clave = secrets.token_urlsafe(16); self.salir = threading.Event(); self.ui_cargada = threading.Event(); self.fallo = None; self.al_pedir_pagina = None; self.url_navegador = None
         servidor = self
         class H(BaseHTTPRequestHandler):
             protocol_version = 'HTTP/1.1'
@@ -126,5 +126,9 @@ class Servidor(object):
         if ruta == '/api/buscar_exportar': return a.exportar_busqueda(b)
         if ruta == '/api/reemplazar': return a.reemplazar(b)
         if ruta == '/api/exportar': return a.exportar(b.get('destino') or None)
+        if ruta == '/api/abrir_navegador':
+            if self.url_navegador: self.url_navegador()
+            else: import webbrowser; webbrowser.open(self.url)
+            return {'ok': True}
         if ruta == '/api/salir': self.salir.set(); return {'ok': True}
         raise KeyError(ruta)

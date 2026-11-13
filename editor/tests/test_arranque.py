@@ -70,36 +70,31 @@ def test_faulthandler_a_fichero(tmp_path):
         registro.parar_faulthandler(); import faulthandler; faulthandler.disable()
 
 
-class _Ev(object):
-    def __init__(self): self.e = threading.Event()
-    def is_set(self): return self.e.is_set()
-    def __iadd__(self, f): return self
+class ProcFalso(object):
+    """Popen falso: modo 'ok' = la ventana pide la pagina y vive hasta cerrar(); 'cuelga' = vive sin pedir nada; 'muere' = termina al instante sin pedir nada"""
+    def __init__(self, url, modo):
+        self.url = url; self.modo = modo; self.pid = 4242; self._fin = threading.Event(); self.terminado = False; self.cod = None
+        if modo == 'muere': self.cod = 1; self._fin.set()
+        if modo == 'ok': threading.Thread(target=lambda: urllib.request.urlopen(url, timeout=5).read(), daemon=True).start()
+    def wait(self, timeout=None):
+        if not self._fin.wait(timeout): raise subprocess.TimeoutExpired('x', timeout)
+        return self.cod
+    def poll(self): return self.cod if self._fin.is_set() else None
+    def terminate(self): self.terminado = True; self.cod = 0; self._fin.set()
+    def cerrar(self): self.cod = 0; self._fin.set()          # el usuario cierra la ventana
 
 
-def _webview_falso(modo, registro_llamadas):
-    """modo 'ok': start pide la pagina y espera a destroy; 'cuelga': create_window no vuelve hasta liberar"""
-    m = types.ModuleType('webview'); liberar = threading.Event(); m.liberar = liberar
-    class Win(object):
-        def __init__(self, url): self.url = url; self.events = types.SimpleNamespace(loaded=_Ev(), shown=_Ev(), closed=_Ev()); self.cerrada = threading.Event()
-        def destroy(self): self.cerrada.set(); self.events.closed.e.set()
-    def create_window(titulo, url, **kw):
-        registro_llamadas.append(('create_window', time.time()))
-        if modo == 'cuelga': liberar.wait(30)
-        w = Win(url); m.win = w; return w
-    def start(func=None, *a, **k):
-        registro_llamadas.append(('start', time.time()))
-        if func: threading.Thread(target=func, daemon=True).start()
-        if modo == 'ok':
-            urllib.request.urlopen(m.win.url, timeout=5).read()
-        m.win.cerrada.wait(20)
-    m.create_window = create_window; m.start = start
-    return m
+class LanzadorFalso(object):
+    def __init__(self, modo): self.modo = modo; self.llamadas = []; self.proc = None
+    def __call__(self, url, home):
+        self.llamadas.append((url, home, time.time()))
+        if self.modo == 'sin_edge': return None
+        self.proc = ProcFalso(url, self.modo); return self.proc
 
 
 def _lanzar(tmp_path, monkeypatch, modo, espera=15):
     from gridania_editor import app as app_mod
-    llamadas = []; wv = _webview_falso(modo, llamadas)
-    monkeypatch.setitem(sys.modules, 'webview', wv)
+    lz = LanzadorFalso(modo); monkeypatch.setattr(app_mod, 'LANZADOR', lz)
     abiertas = []; monkeypatch.setattr(app_mod.webbrowser, 'open', abiertas.append); monkeypatch.setattr(app_mod, 'ESPERA_UI_S', espera)
     srvs = []
     orig = app_mod.Servidor
@@ -107,7 +102,7 @@ def _lanzar(tmp_path, monkeypatch, modo, espera=15):
     home = str(tmp_path / 'datos'); r = {}
     t0 = time.time()
     th = threading.Thread(target=lambda: r.update(cod=app_mod.main(['--carpeta', home, '--puerto', '0'])), daemon=True, name='principal'); th.start()
-    return app_mod, wv, llamadas, abiertas, srvs, home, th, r, t0
+    return app_mod, lz, lz.llamadas, abiertas, srvs, home, th, r, t0
 
 
 @pytest.fixture(autouse=True)
@@ -119,48 +114,63 @@ def _limpiar_log():
     lg._ge_listo = False
 
 
-def test_la_ventana_se_pide_lo_primero_y_cada_fase_queda_en_el_registro(tmp_path, monkeypatch):
-    app_mod, wv, llamadas, abiertas, srvs, home, th, r, t0 = _lanzar(tmp_path, monkeypatch, 'ok')
-    for _ in range(100):
-        if any(x[0] == 'create_window' for x in llamadas): break
+def _esperar(cond, n=200):
+    for _ in range(n):
+        if cond(): return True
         time.sleep(0.05)
-    assert llamadas and llamadas[0][0] == 'create_window' and llamadas[0][1] - t0 < 1.5      # la ventana se pide en < 1,5 s (margen de CI)
-    for _ in range(100):
-        if srvs and srvs[0].ui_cargada.is_set() and srvs[0].app.arranque['listo']: break
-        time.sleep(0.05)
-    srvs[0].salir.set(); th.join(15); assert not th.is_alive() and r['cod'] == 0 and abiertas == []
+    return False
+
+
+def test_la_ventana_se_lanza_y_al_cerrarla_se_cierra_limpio(tmp_path, monkeypatch):
+    app_mod, lz, llamadas, abiertas, srvs, home, th, r, t0 = _lanzar(tmp_path, monkeypatch, 'ok')
+    assert _esperar(lambda: llamadas) and llamadas[0][2] - t0 < 1.5 and llamadas[0][1] == home
+    assert _esperar(lambda: srvs and srvs[0].ui_cargada.is_set() and srvs[0].app.arranque['listo'])
+    assert th.is_alive() and abiertas == []                      # mientras la ventana vive, el proceso sigue
+    lz.proc.cerrar()                                             # el usuario cierra la ventana
+    th.join(15); assert not th.is_alive() and r['cod'] == 0 and abiertas == [] and not lz.proc.terminado
     t = _log(home)
-    ordenado = ['fase aplicacion: inicio', 'fase servidor: inicio', 'fase import webview: inicio', 'fase deteccion WebView2: inicio', 'fase create_window: inicio',
-                'fase create_window:', 'fase migracion de la base: inicio', 'webview.start (bucle de la GUI)', 'GUI iniciada', 'primera peticion GET / de la UI']
-    pos = [t.index(x) for x in ordenado]
-    assert pos[:6] == sorted(pos[:6])
-    assert t.index('fase create_window:') < t.index('fase migracion de la base: inicio')       # la base se prepara DESPUES de pedir la ventana
-    assert 'fase flujo -> columna: inicio' in t and 'faulthandler activo' in t and 'faulthandler: volcados periodicos cancelados' in t
+    assert 'fase lanzar ventana: inicio' in t and 'primera peticion GET / de la UI' in t and 'ventana cerrada por el usuario: cierre limpio' in t
+    assert 'ventana: resultado cerrada' in t and 'faulthandler activo' in t and 'faulthandler: volcados periodicos cancelados' in t
+    with pytest.raises(Exception): urllib.request.urlopen(srvs[0].url, timeout=2)      # servidor parado
 
 
-def test_si_la_ventana_se_cuelga_se_abre_el_navegador_y_el_servidor_sigue(tmp_path, monkeypatch):
-    app_mod, wv, llamadas, abiertas, srvs, home, th, r, t0 = _lanzar(tmp_path, monkeypatch, 'cuelga', espera=0.5)
-    for _ in range(100):
-        if abiertas: break
-        time.sleep(0.05)
-    assert len(abiertas) == 1 and abiertas[0] == srvs[0].url and not srvs[0].salir.is_set()
+def test_si_la_ventana_no_carga_se_abre_el_navegador_una_vez_y_se_termina_la_ventana(tmp_path, monkeypatch):
+    app_mod, lz, llamadas, abiertas, srvs, home, th, r, t0 = _lanzar(tmp_path, monkeypatch, 'cuelga', espera=0.5)
+    assert _esperar(lambda: abiertas)
+    assert abiertas == [srvs[0].url] and not srvs[0].salir.is_set() and _esperar(lambda: lz.proc.terminado)      # sin dos UIs
     rq = urllib.request.Request(srvs[0].url + 'api/estado', headers={'X-K': srvs[0].clave})
     assert urllib.request.urlopen(rq, timeout=5).status == 200                                   # el servidor sigue vivo
-    wv.liberar.set(); srvs[0].salir.set(); th.join(20)
-    assert 'se ha abierto el navegador' in _log(home) and 'create_window' in _log(home)
+    time.sleep(0.5); assert th.is_alive() and len(abiertas) == 1                                  # cerrar la ventana Edge muerta no cierra el editor
+    srvs[0].salir.set(); th.join(20)
+    assert 'no ha cargado' in _log(home)
 
 
-def test_sin_webview_importable_cae_al_navegador(tmp_path, monkeypatch):
+def test_sin_edge_ni_chrome_abre_el_navegador_y_mantiene_el_servidor(tmp_path, monkeypatch):
+    app_mod, lz, llamadas, abiertas, srvs, home, th, r, t0 = _lanzar(tmp_path, monkeypatch, 'sin_edge')
+    assert _esperar(lambda: abiertas) and abiertas == [srvs[0].url] and 'No se ha encontrado Microsoft Edge' in srvs[0].app.aviso
+    assert th.is_alive(); srvs[0].salir.set(); th.join(15); assert not th.is_alive() and r['cod'] == 0
+
+
+def test_ventana_que_muere_al_abrirse_cae_al_navegador(tmp_path, monkeypatch):
+    app_mod, lz, llamadas, abiertas, srvs, home, th, r, t0 = _lanzar(tmp_path, monkeypatch, 'muere')
+    assert _esperar(lambda: abiertas) and len(abiertas) == 1 and 'se cerro al abrirse' in srvs[0].app.aviso
+    srvs[0].salir.set(); th.join(15)
+
+
+def test_boton_salir_termina_la_ventana_y_el_proceso(tmp_path, monkeypatch):
+    app_mod, lz, llamadas, abiertas, srvs, home, th, r, t0 = _lanzar(tmp_path, monkeypatch, 'ok')
+    assert _esperar(lambda: srvs and srvs[0].ui_cargada.is_set())
+    srvs[0].salir.set(); th.join(15); assert not th.is_alive() and r['cod'] == 0 and lz.proc.terminado
+
+
+def test_navegador_forzado_no_lanza_ventana(tmp_path, monkeypatch):
     from gridania_editor import app as app_mod
-    monkeypatch.setitem(sys.modules, 'webview', None)          # import falla
+    lz = LanzadorFalso('ok'); monkeypatch.setattr(app_mod, 'LANZADOR', lz)
     abiertas = []; monkeypatch.setattr(app_mod.webbrowser, 'open', abiertas.append)
     srvs = []; orig = app_mod.Servidor
     monkeypatch.setattr(app_mod, 'Servidor', lambda *a, **k: srvs.append(orig(*a, **k)) or srvs[-1])
-    th = threading.Thread(target=lambda: app_mod.main(['--carpeta', str(tmp_path / 'd')]), daemon=True); th.start()
-    for _ in range(100):
-        if abiertas: break
-        time.sleep(0.05)
-    assert len(abiertas) == 1; srvs[0].salir.set(); th.join(15)
+    th = threading.Thread(target=lambda: app_mod.main(['--navegador', '--carpeta', str(tmp_path / 'd')]), daemon=True); th.start()
+    assert _esperar(lambda: abiertas) and lz.llamadas == []; srvs[0].salir.set(); th.join(15)
 
 
 @pytest.mark.skipif(not sys.platform.startswith('linux'), reason='usa /proc')

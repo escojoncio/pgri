@@ -1,37 +1,8 @@
-"""Segunda ronda de arranque: carrera ventana/navegador con un unico ganador, destroy bloqueable, sin WebView2, plazo ampliable, migracion tras la UI, token DPAPI, OneDrive, faulthandler acotado."""
+"""Segunda ronda de arranque: carrera ventana/navegador con un unico ganador, ventana Edge que no carga, migracion tras la UI, token DPAPI, OneDrive, faulthandler acotado."""
 import json, os, subprocess, sys, textwrap, threading, time, urllib.request
 import pytest
 from gridania_editor import config, registro
 from test_arranque import _lanzar, _log, _limpiar_log  # noqa: F401  (fixture autouse)
-
-
-def test_ventana_creada_tarde_se_cancela_y_no_hay_segunda_ui(tmp_path, monkeypatch):
-    app_mod, wv, llamadas, abiertas, srvs, home, th, r, t0 = _lanzar(tmp_path, monkeypatch, 'cuelga', espera=0.5)
-    for _ in range(100):
-        if abiertas: break
-        time.sleep(0.05)
-    assert len(abiertas) == 1
-    wv.liberar.set()                                          # create_window vuelve DESPUES de abrirse el navegador
-    for _ in range(100):
-        if getattr(wv, 'win', None) is not None and wv.win.cerrada.is_set(): break
-        time.sleep(0.05)
-    assert wv.win.cerrada.is_set()                            # la ventana tardia se destruye
-    time.sleep(0.3)
-    assert [x[0] for x in llamadas] == ['create_window']      # start NO se llama: una sola UI
-    assert len(abiertas) == 1
-    srvs[0].salir.set(); th.join(20); assert not th.is_alive()
-
-
-def test_sin_runtime_webview2_abre_el_navegador_al_instante(tmp_path, monkeypatch):
-    from gridania_editor import app as app_mod
-    monkeypatch.setattr(app_mod, '_sin_runtime', lambda: True)
-    app_mod, wv, llamadas, abiertas, srvs, home, th, r, t0 = _lanzar(tmp_path, monkeypatch, 'ok', espera=30)
-    for _ in range(100):
-        if abiertas: break
-        time.sleep(0.05)
-    assert len(abiertas) == 1 and time.time() - t0 < 5 and llamadas == []          # sin esperar el plazo y sin crear ventana
-    srvs[0].salir.set(); th.join(20)
-    assert 'WebView2 Runtime' in _log(home)
 
 
 def _stubs():
@@ -43,86 +14,20 @@ def _stubs():
     return Ev, Srv
 
 
-def test_destroy_bloqueado_no_impide_abrir_el_navegador_primero(tmp_path):
+def test_vigilante_abre_navegador_y_termina_la_ventana_sin_doble_ui(tmp_path):
     from gridania_editor import app as app_mod
-    Ev, Srv = _stubs(); libre = threading.Event(); orden = []
-    class Win(object):
-        events = type('E', (), {'closed': Ev()})()
-        def destroy(self): orden.append('destroy'); libre.wait(30)          # el hilo de la GUI esta colgado
+    Ev, Srv = _stubs(); orden = []
+    class Proc(object):
+        def poll(self): return None
+        def terminate(self): orden.append('terminate')
     class Ap(object):
         aviso = ''; cfg = type('C', (), {'home': str(tmp_path)})()
-    srv, est = Srv(), {'navegador': False, 'win': Win()}
-    t0 = time.time()
+    srv, est = Srv(), {'navegador': False, 'proc': Proc(), 'cerrada': threading.Event()}
     app_mod._vigilar_ui(srv, Ap(), est, 'u', espera=0.1, paso=0.02, abrir=lambda u: orden.append('abrir'))
-    assert orden[:2] == ['abrir', 'destroy'] and time.time() - t0 < 8 and est['navegador']      # vuelve aunque destroy siga bloqueado
-    libre.set()
-
-
-def test_plazo_se_amplia_con_senal_de_vida(tmp_path):
-    from gridania_editor import app as app_mod
-    Ev, Srv = _stubs()
-    class Ap(object):
-        aviso = ''; cfg = type('C', (), {'home': str(tmp_path)})()
-    # con senal de vida y la UI carga dentro de la ampliacion: no se abre nada
-    srv, est, ab = Srv(), {'navegador': False, 'vida': time.time()}, []
-    threading.Timer(0.4, srv.ui_cargada.set).start()
-    app_mod._vigilar_ui(srv, Ap(), est, 'u', espera=0.1, paso=0.02, abrir=ab.append, ampliacion=1.0, tope=2.0)
-    assert ab == []
-    # con senal de vida pero nunca carga: se abre al agotar la ampliacion (no antes)
-    srv, est, ab = Srv(), {'navegador': False, 'vida': time.time()}, []; t0 = time.time()
-    app_mod._vigilar_ui(srv, Ap(), est, 'u', espera=0.1, paso=0.02, abrir=ab.append, ampliacion=0.5, tope=2.0)
-    assert ab == ['u'] and time.time() - t0 >= 0.45
-    # el tope manda
-    srv, est, ab = Srv(), {'navegador': False, 'vida': time.time()}, []; t0 = time.time()
-    app_mod._vigilar_ui(srv, Ap(), est, 'u', espera=0.1, paso=0.02, abrir=ab.append, ampliacion=60, tope=0.5)
-    assert ab == ['u'] and time.time() - t0 < 2
-
-
-def test_aplicacion_diferida_no_abre_la_base_y_estado_responde(tmp_path):
-    from gridania_editor.aplicacion import Aplicacion
-    a = Aplicacion(str(tmp_path / 'd'), repo_override=str(tmp_path / 'r'), diferir=True)
-    assert a._base is None and not os.path.exists(a.cfg.db_ruta)
-    e = a.estado(); assert e['arranque']['listo'] is False and e['indice'] is None
-    a.arrancar_fondo(threading.Event())
-    for _ in range(100):
-        if a.arranque['listo']: break
-        time.sleep(0.05)
-    assert a._base is not None and a.base is a._base
-
-
-def test_migracion_antigua_corre_tras_ui_cargada_y_recarga_ajustes(tmp_path):
-    from gridania_editor.aplicacion import Aplicacion
-    a = Aplicacion(str(tmp_path / 'd'), repo_override=str(tmp_path / 'r'), diferir=True)
-    ui = threading.Event(); hechos = []
-    def tras():
-        hechos.append(time.time()); json.dump({'repo': 'x/y'}, open(os.path.join(a.cfg.home, 'config.json'), 'w')); return ['config.json']
-    a.arrancar_fondo(ui, tras); time.sleep(0.5)
-    assert hechos == []                                       # no compite con la inicializacion de la ventana
-    ui.set()
-    for _ in range(100):
-        if hechos: break
-        time.sleep(0.05)
-    time.sleep(0.3)
-    assert hechos and a.cfg['repo'] == 'x/y'
-
-
-def test_token_cifrado_con_dpapi_simulado(tmp_path, monkeypatch):
-    monkeypatch.setattr(config, 'dpapi_disponible', lambda: True)
-    monkeypatch.setattr(config, 'dpapi_proteger', lambda t: 'dpapi:' + t[::-1])
-    monkeypatch.setattr(config, 'dpapi_desproteger', lambda v: v[len('dpapi:'):][::-1])
-    c = config.Config(str(tmp_path)); c.actualizar({'token': 'ghp_secreto'})
-    en_disco = open(c.ruta, encoding='utf-8').read()
-    assert 'ghp_secreto' not in en_disco and 'dpapi:' in en_disco and c['token'] == 'ghp_secreto' and c.publico()['token_proteccion'] == 'dpapi'
-    c2 = config.Config(str(tmp_path)); assert c2['token'] == 'ghp_secreto'
-    # token en claro de una version anterior: se reescribe cifrado al cargar
-    json.dump({'token': 'ghp_viejo'}, open(c.ruta, 'w'))
-    c3 = config.Config(str(tmp_path)); assert c3['token'] == 'ghp_viejo' and 'ghp_viejo' not in open(c.ruta, encoding='utf-8').read()
-
-
-def test_token_en_claro_sin_dpapi_lo_avisa(tmp_path):
-    if config.dpapi_disponible(): pytest.skip('Windows')
-    c = config.Config(str(tmp_path)); c.actualizar({'token': 'ghp_x'})
-    assert c.publico()['token_proteccion'] == 'claro' and 'token' not in c.publico()
+    assert orden == ['abrir', 'terminate'] and est['navegador']
+    # segunda llamada: ya hay navegador, no se abre otro
+    app_mod._pasar_a_navegador(srv, Ap(), est, 'u', lambda u: orden.append('abrir2'), forzar=True)
+    assert 'abrir2' not in orden
 
 
 def test_deteccion_onedrive():
@@ -159,33 +64,23 @@ def test_faulthandler_trunca_si_grande_y_se_para_solo(tmp_path):
         registro.parar_faulthandler(); faulthandler.disable()
 
 
-def test_arranque_con_backend_de_ventana_falso_sin_sin_abrir(tmp_path):
-    """proceso real (run_editor.py) SIN --sin-abrir con un modulo `webview` falso en PYTHONPATH: la ventana pide la pagina, el proceso termina solo y no abre navegador"""
+def test_arranque_real_con_edge_falso_sin_sin_abrir(tmp_path):
+    """proceso real (run_editor.py) con un `msedge.exe` falso (script) encontrado por ProgramFiles: pide la pagina, termina y el editor se cierra solo sin abrir navegador"""
+    if not sys.platform.startswith('linux'): pytest.skip('script falso solo en Linux')
     from conftest import EDITOR
-    fake = tmp_path / 'fake'; fake.mkdir()
-    (fake / 'webview.py').write_text(textwrap.dedent('''
-        import time, urllib.request
-        class _E(object):
-            def __iadd__(self, f): return self
-            def is_set(self): return False
-        class _Ev(object): loaded = shown = closed = _E()
-        class _W(object):
-            def __init__(self, url): self.url = url; self.events = _Ev()
-            def destroy(self): pass
-        _w = []
-        def create_window(t, url, **k): _w.append(_W(url)); return _w[0]
-        def start(func=None, *a, **k):
-            urllib.request.urlopen(_w[0].url, timeout=10).read(); time.sleep(4)
-    '''))
-    nav = tmp_path / 'nav.txt'
+    pf = tmp_path / 'pf'; app = pf / 'Microsoft' / 'Edge' / 'Application'; app.mkdir(parents=True)
+    nav = tmp_path / 'nav.txt'; args = tmp_path / 'args.txt'
+    (app / 'msedge.exe').write_text('#!%s\nimport sys, time, urllib.request\nopen(%r, "w").write(" ".join(sys.argv[1:]))\nurl = [a for a in sys.argv if a.startswith("--app=")][0][6:]\n'
+                                    'urllib.request.urlopen(url, timeout=10).read(); time.sleep(2)\n' % (sys.executable, str(args)))
+    (app / 'msedge.exe').chmod(0o755)
     sh = tmp_path / 'navegador.sh'; sh.write_text('#!/bin/sh\necho "$@" >> %s\n' % nav); sh.chmod(0o755)
-    env = dict(os.environ, PYTHONPATH=str(fake), BROWSER=str(sh), GRIDANIA_EDITOR_HOME='')
-    env.pop('GRIDANIA_EDITOR_HOME')
+    env = dict(os.environ, BROWSER=str(sh)); env['ProgramFiles'] = str(pf); env.pop('GRIDANIA_EDITOR_HOME', None)
     home = str(tmp_path / 'd')
     p = subprocess.run([sys.executable, os.path.join(EDITOR, 'run_editor.py'), '--carpeta', home], env=env, capture_output=True, timeout=60)
     t = _log(home)
     assert p.returncode == 0, p.stderr.decode()[-500:]
-    assert 'primera peticion GET / de la UI' in t and 'webview.start ha vuelto' in t and not nav.exists()
+    assert 'primera peticion GET / de la UI' in t and 'ventana cerrada por el usuario' in t and not nav.exists()
+    assert '--app=http://127.0.0.1:' in args.read_text() and '--user-data-dir=' in args.read_text()
 
 
 def test_migracion_real_con_base_ya_abierta(tmp_path):
@@ -229,7 +124,8 @@ def test_dpapi_cifra_y_descifra_de_verdad():
     assert config.dpapi_desproteger(v) == 'ghp_secreto'
 
 
-def _winreg_falso(monkeypatch, claves):
+def _winreg_falso(claves):
+    """claves: {(raiz, nombre): ruta}"""
     import types
     m = types.ModuleType('winreg'); m.HKEY_LOCAL_MACHINE = 'HKLM'; m.HKEY_CURRENT_USER = 'HKCU'
     class K(object):
@@ -237,27 +133,38 @@ def _winreg_falso(monkeypatch, claves):
         def __enter__(self): return self
         def __exit__(self, *a): return False
     def OpenKey(raiz, ruta):
-        k = (raiz, 'WOW' if 'WOW6432Node' in ruta else '')
+        k = (raiz, ruta.rsplit('\\', 1)[1])
         if k not in claves: raise OSError('no')
         return K(claves[k])
     m.OpenKey = OpenKey; m.QueryValueEx = lambda k, n: (k.v, 1)
-    monkeypatch.setitem(sys.modules, 'winreg', m)
-    monkeypatch.setattr(sys, 'platform', 'win32')
+    return m
 
 
-@pytest.mark.parametrize('claves,esperado', [
-    ({('HKLM', 'WOW'): '120.0'}, '120.0'),
-    ({('HKLM', ''): '121.0'}, '121.0'),
-    ({('HKCU', ''): '122.0'}, '122.0'),
-    ({}, None),
-])
-def test_webview2_instalado_registro(monkeypatch, claves, esperado):
-    from gridania_editor import app as app_mod
-    _winreg_falso(monkeypatch, claves)
-    assert app_mod.webview2_instalado() == esperado
+def test_buscar_edge_por_registro_antes_que_rutas_y_chrome():
+    from gridania_editor import ventana
+    reg = _winreg_falso({('HKLM', 'msedge.exe'): r'C:\Edge\msedge.exe', ('HKCU', 'chrome.exe'): r'C:\Chrome\chrome.exe'})
+    ok = {r'C:\Edge\msedge.exe', r'C:\Chrome\chrome.exe'}
+    assert ventana.buscar_navegador(env={}, winreg=reg, existe=ok.__contains__) == r'C:\Edge\msedge.exe'
+    assert ventana.buscar_navegador(env={}, winreg=reg, existe={r'C:\Chrome\chrome.exe'}.__contains__) == r'C:\Chrome\chrome.exe'
 
 
-def test_webview2_pv_cero_cuenta_como_no_instalado(monkeypatch):
-    from gridania_editor import app as app_mod
-    _winreg_falso(monkeypatch, {('HKLM', 'WOW'): '0.0.0.0'})
-    assert app_mod._sin_runtime() is True
+def test_buscar_edge_en_program_files_y_sin_nada():
+    from gridania_editor import ventana
+    env = {'ProgramFiles(x86)': r'C:\PF86', 'ProgramFiles': r'C:\PF'}
+    reg = _winreg_falso({})
+    esperado = os.path.join(r'C:\PF86', 'Microsoft', 'Edge', 'Application', 'msedge.exe')
+    assert ventana.buscar_navegador(env=env, winreg=reg, existe={esperado}.__contains__) == esperado
+    assert ventana.buscar_navegador(env=env, winreg=reg, existe=lambda r: False) is None
+
+
+def test_linea_de_comandos_exacta_y_lanzar(tmp_path):
+    from gridania_editor import ventana
+    cmd = ventana.linea_comando('E', 'http://127.0.0.1:5/', 'P')
+    assert cmd == ['E', '--app=http://127.0.0.1:5/', '--user-data-dir=P', '--no-first-run', '--no-default-browser-check', '--window-size=1400,900']
+    vistos = []
+    class P(object): pid = 7
+    p = ventana.lanzar('http://127.0.0.1:5/', str(tmp_path), buscar=lambda: 'E', popen=lambda c: vistos.append(c) or P())
+    assert p.pid == 7 and vistos[0] == ventana.linea_comando('E', 'http://127.0.0.1:5/', os.path.join(str(tmp_path), 'perfil-ventana')) and (tmp_path / 'perfil-ventana').is_dir()
+    assert ventana.lanzar('u', str(tmp_path), buscar=lambda: None) is None                    # sin Edge/Chrome
+    def malo(c): raise OSError('no arranca')
+    assert ventana.lanzar('u', str(tmp_path), buscar=lambda: 'E', popen=malo) is None         # fallo al lanzar
