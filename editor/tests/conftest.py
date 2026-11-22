@@ -4,7 +4,7 @@ import pytest
 AQUI = os.path.dirname(os.path.abspath(__file__))
 EDITOR = os.path.dirname(AQUI)
 sys.path.insert(0, EDITOR)
-REPO = os.path.abspath(os.path.join(EDITOR, '..', '..'))
+REPO = os.environ.get('GRIDANIA_TEST_REPO') or os.path.abspath(os.path.join(EDITOR, '..', '..'))   # GRIDANIA_TEST_REPO: checkout completo (tools/py + textos) para las pruebas que lo necesitan
 JUEGO = '/mnt/user-data/uploads/game-nuevo/game/sqpack/ffxiv'
 HOJA = 'quest/000/ManFst002_00085'
 

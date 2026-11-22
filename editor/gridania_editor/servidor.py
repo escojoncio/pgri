@@ -48,9 +48,9 @@ class Servidor(object):
                         try: servidor.al_pedir_pagina and servidor.al_pedir_pagina()
                         except Exception: log.warning('al_pedir_pagina', exc_info=True)
                     b = html.encode('utf-8'); self.send_response(200); self.send_header('Content-Type', 'text/html; charset=utf-8'); self.send_header('Content-Length', str(len(b))); self.send_header('Cache-Control', 'no-store'); self.end_headers(); self.wfile.write(b); return
-                if u.path == '/borradores.js':                      # codigo estatico de la UI (sin secretos)
-                    try: b = open(os.path.join(dir_ui(), 'borradores.js'), 'rb').read()
-                    except OSError: return self._err(500, 'falta ui/borradores.js')
+                if u.path in ('/borradores.js', '/vista.js'):                      # codigo estatico de la UI (sin secretos)
+                    try: b = open(os.path.join(dir_ui(), u.path[1:]), 'rb').read()
+                    except OSError: return self._err(500, 'falta ui/' + u.path[1:])
                     self.send_response(200); self.send_header('Content-Type', 'text/javascript; charset=utf-8'); self.send_header('Content-Length', str(len(b))); self.send_header('Cache-Control', 'no-store'); self.end_headers(); self.wfile.write(b); return
                 if not u.path.startswith('/api/'): return self._err(404, 'no existe')
                 if not self._auth(): return self._err(401, 'clave invalida')
@@ -196,6 +196,7 @@ class Servidor(object):
         if ruta == '/api/parche_hoja': return a.parche_hoja(q.get('version') or None, q['hoja'], q.get('filtro') or None)
         if ruta == '/api/parche_movidas': return a.parche_movidas(q.get('version') or None, q.get('hoja') or None)
         if ruta == '/api/hoja_celdas': return a.hoja_celdas(q['hoja'])
+        if ruta == '/api/espaciado_registros': return a.espaciado_registros()
         if ruta == '/api/celda': return a.celda(int(q['id']))
         if ruta == '/api/tarea': return a.tarea.ver(int(q.get('desde') or 0))
         if ruta == '/api/borradores': return self.leer_borradores()
@@ -223,6 +224,8 @@ class Servidor(object):
         if ruta == '/api/suavizar_aplicar': return a.suavizar_aplicar(b)
         if ruta == '/api/sin_saltos_texto': return a.sin_saltos_texto(int(b['id']), b['texto'], bool(b.get('resuavizar')))
         if ruta == '/api/suavizar_deshacer': return a.suavizar_deshacer()
+        if ruta == '/api/espaciado_masivo': a.tarea_espaciado(b.get('modo')); return {'ok': True}
+        if ruta == '/api/espaciado_deshacer': a.tarea_espaciado_deshacer(); return {'ok': True}
         if ruta == '/api/buscar': return a.buscar(b)
         if ruta == '/api/buscar_exportar': return a.exportar_busqueda(b)
         if ruta == '/api/reemplazar': return a.reemplazar(b)

@@ -1,0 +1,108 @@
+# perfiles de caja; la primera fila que coincide (patron fnmatch sobre hoja, col, filas, clave_re) manda; sin fila -> desconocido. Generado por generar_perfiles.py
+patron	col	filas	clave_re	tipo	ancho_seguro	ancho_duro	lineas_ventana	exp_string	exp_num	exp_sheet	fr_ref	fr_rel	fuente	nota
+Lobby	3	2045		sistema	48	50	0	12	4	16	0	0	medido_propietario	caja A: dialogo de sistema (Lobby 2045)
+Lobby	3	1984,1985,2105		sistema	58	58	0	12	4	16	0	0	medido_propietario	caja B: reglas del nombre
+Lobby	3			desconocido				12	4	16	0	0	desconocido	cajas de sistema sin medir; se avisa si una linea expandida pasa de 46
+Lobby	5			descripcion	49	51	0	12	4	16	0	0	medido_propietario	descripcion del creador de personaje (49 seguro, 51 maximo), sin limite de lineas
+quest/*	1		_(?:SEQ|TODO)_\d+$	autoajuste				12	4	16	0	0	fr_p99	diario de misiones: ventana que autoajusta, sin ventanas de dialogo
+quest/*	1		_\d{6}_(?:NARRATION|HYDAELYN|MOTHERCRYSTAL)$	subtitulo	58	58	0	12	4	16	0	1	provisional_propietario	NARRADOR/voz sin recuadro de las misiones iniciales Man* (clave ..._NARRATION): sin caja ni autoajuste; tope por celda = min(90, max(fr_ancho, 58)), lineas <= max(fr, ja, 3); sin fr: 58
+quest/*	*			dialogo	58	61	4	10	4	16	0	0	medido_propietario	dialogo NPC: 58 seguro, 61 maximo con puntuacion; ventana: media 3 lineas, TOPE 4 (propietario 2026-11-04; lineas_ventana = tope)
+DefaultTalk	*			dialogo	58	61	4	10	4	16	0	0	medido_propietario	
+GoldSaucerTalk	*			dialogo	58	61	4	10	4	16	0	0	supuesto_dialogo	
+CustomTalk	*			dialogo	58	61	4	10	4	16	0	0	supuesto_dialogo	
+custom/*	*			dialogo	58	61	4	10	4	16	0	0	supuesto_dialogo	
+cut_scene/*	*			subtitulo	58	58	0	12	4	16	0	1	provisional_propietario	sin recuadro ni autoajuste; 95 car. sale cortada, 42-45 caben; criterio RELATIVO AL FRANCES por celda: linea <= min(90, max(fr_ancho, 58)) y lineas <= max(fr, ja, 3); sin fr: 58
+opening/*	*			subtitulo	58	58	0	12	4	16	0	1	provisional_propietario	igual que cut_scene
+Addon	0	841,847		guia	56	59	0	12	4	16	1	0	medido_propietario	pie amarillo de la ventana de guia HowTo (marco verde con ?): envuelve a ~59 (tope seguro 56); maximo = lineas del fr (3), no 4; ver trabajo/informes/tutoriales_familia.tsv
+Addon	0	14734		guia	44	46	0	12	4	16	1	0	medido_propietario	ventana de ayuda «Editar retrato» (fila 14734 medida por el propietario: el juego envuelve a ~46 car.; seguro 44, duro 46). Fila explicita: sin criterio de texto fiable para el resto de ventanas de ayuda del Addon (ver informe)
+Addon	0			guia	59	59	0	12	4	16	1	0	medido_propietario	ventanas de guia/HUD de tamaño variable (Addon row 841: envuelve a ~59, caja de 3 lineas); alto = lineas del fr de la misma celda
+CompanionTransient	2			hud_fijo	40	40	0	12	4	16	1	0	fr_max	anchura fija: es <= fr (fr_p99=40)
+CompleteJournal	5			hud_fijo	28	28	0	12	4	16	1	0	fr_max	anchura fija: es <= fr (fr_p99=28)
+FateEvent	59			hud_fijo	62	62	0	12	4	16	1	0	fr_max	anchura fija: es <= fr (fr_p99=62)
+PlaceName	0			hud_fijo	33	33	0	12	4	16	1	0	fr_max	anchura fija: es <= fr (fr_p99=33)
+Quest	0			hud_fijo	28	28	0	12	4	16	1	0	fr_max	anchura fija: es <= fr (fr_p99=28)
+Warp	11			hud_fijo	43	43	0	12	4	16	1	0	fr_max	anchura fija: es <= fr (fr_p99=43)
+dungeon/000/DungeonCrystaltower3_00000	1			hud_fijo	35	35	0	12	4	16	1	0	fr_max	anchura fija: es <= fr (fr_p99=35)
+dungeon/000/DungeonDomacastle_00000	1			hud_fijo	29	29	0	12	4	16	1	0	fr_max	anchura fija: es <= fr (fr_p99=29)
+shop/LotteryExchangeShopEureka1Crystal	1			hud_fijo	38	38	0	12	4	16	1	0	fr_max	anchura fija: es <= fr (fr_p99=38)
+shop/LotteryExchangeShopEureka3Shard	1			hud_fijo	28	28	0	12	4	16	1	0	fr_max	anchura fija: es <= fr (fr_p99=28)
+shop/LotteryExchangeShopMycTemporaryItem	1			hud_fijo	28	28	0	12	4	16	1	0	fr_max	anchura fija: es <= fr (fr_p99=28)
+shop/LotteryExchangeShopWksTreasure	1			hud_fijo	27	27	0	12	4	16	1	0	fr_max	anchura fija: es <= fr (fr_p99=27)
+warp/*	*			dialogo	58	61	3	10	4	16	0	0	supuesto_dialogo	ventana de dialogo de evento; ancho heredado del dialogo NPC, no medido
+transport/*	*			dialogo	58	61	3	10	4	16	0	0	supuesto_dialogo	ventana de dialogo de evento; ancho heredado del dialogo NPC, no medido
+raid/*	*			dialogo	58	61	3	10	4	16	0	0	supuesto_dialogo	ventana de dialogo de evento; ancho heredado del dialogo NPC, no medido
+dungeon/*	*			dialogo	58	61	3	10	4	16	0	0	supuesto_dialogo	ventana de dialogo de evento; ancho heredado del dialogo NPC, no medido
+content/*	*			dialogo	58	61	3	10	4	16	0	0	supuesto_dialogo	ventana de dialogo de evento; ancho heredado del dialogo NPC, no medido
+leve/*	*			dialogo	58	61	3	10	4	16	0	0	supuesto_dialogo	ventana de dialogo de evento; ancho heredado del dialogo NPC, no medido
+guild_order/*	*			dialogo	58	61	3	10	4	16	0	0	supuesto_dialogo	ventana de dialogo de evento; ancho heredado del dialogo NPC, no medido
+shop/*	*			dialogo	58	61	3	10	4	16	0	0	supuesto_dialogo	ventana de dialogo de evento; ancho heredado del dialogo NPC, no medido
+system/*	*			dialogo	58	61	3	10	4	16	0	0	supuesto_dialogo	ventana de dialogo de evento; ancho heredado del dialogo NPC, no medido
+story/*	*			dialogo	58	61	3	10	4	16	0	0	supuesto_dialogo	ventana de dialogo de evento; ancho heredado del dialogo NPC, no medido
+Balloon	*			autoajuste				12	4	16	0	0	fr_p99	burbuja que autoajusta (fr 49-144); ancho sin medir
+NpcYell	*			autoajuste				12	4	16	0	0	fr_p99	grito/chat que autoajusta; ancho sin medir
+Item	*			desconocido				12	4	16	0	0	desconocido	descripcion de objeto: ancho por verificar en el juego
+ActionComboRouteTransient	0			autoajuste				12	4	16	0	0	fr_p99	widget que autoajusta (fr_p99=96, fr_max=167); ancho sin medir
+ActionTransient	0			autoajuste				12	4	16	0	0	fr_p99	widget que autoajusta (fr_p99=161, fr_max=296); ancho sin medir
+AddonTransient	0			autoajuste				12	4	16	0	0	fr_p99	widget que autoajusta (fr_p99=460, fr_max=798); ancho sin medir
+CompanionTransient	0			autoajuste				12	4	16	0	0	fr_p99	widget que autoajusta (fr_p99=89, fr_max=89); ancho sin medir
+CompanionTransient	4			autoajuste				12	4	16	0	0	fr_p99	widget que autoajusta (fr_p99=138, fr_max=161); ancho sin medir
+ContentsTutorialPage	1			dialogo	34	36		12	4	16	0	0	fr_p99	widget que autoajusta (fr_p99=370, fr_max=370); ancho sin medir | salto suave: el panel autoajusta (propietario 2026-11-06, captura Efecto de las zonas de descanso)
+CraftAction	1			autoajuste				12	4	16	0	0	fr_p99	widget que autoajusta (fr_p99=129, fr_max=190); ancho sin medir
+DescriptionString	0			guia	62	64	0	12	4	16	0	0	medido_propietario	guía ancha (caja de la guía de retratos), medida en pantalla con row 517; seguro 62, duro 64; sin alto (fr_ref 0)
+DescriptionString	0			autoajuste				12	4	16	0	0	fr_p99	widget que autoajusta (fr_p99=340, fr_max=671); ancho sin medir
+Error	0			autoajuste				12	4	16	0	0	fr_p99	widget que autoajusta (fr_p99=207, fr_max=207); ancho sin medir
+EventItemHelp	0			autoajuste				12	4	16	0	0	fr_p99	widget que autoajusta (fr_p99=118, fr_max=118); ancho sin medir
+EventTutorialPage	2			dialogo	34	36		12	4	16	0	0	fr_p99	widget que autoajusta (fr_p99=198, fr_max=198); ancho sin medir | salto suave: el panel autoajusta (propietario 2026-11-06, captura Efecto de las zonas de descanso)
+Fate	1			dialogo	58	61	4	10	4	16	0	0	medido_propietario	descripcion de FATE (HUD derecha): el widget autoajusta; salto suave (propietario 2026-11-06, captura rio Rogue)
+Fate	2			dialogo	58	61	4	10	4	16	0	0	medido_propietario	texto de FATE (HUD): el widget autoajusta; salto suave (propietario 2026-11-06)
+FateEvent	56			dialogo	58	61	4	10	4	16	0	0	medido_propietario	texto de FATE (HUD): el widget autoajusta; salto suave (propietario 2026-11-06)
+FateEvent	57			autoajuste				12	4	16	0	0	fr_p99	widget que autoajusta (fr_p99=86, fr_max=86); ancho sin medir
+FateEvent	58			autoajuste				12	4	16	0	0	fr_p99	widget que autoajusta (fr_p99=108, fr_max=108); ancho sin medir
+FateEvent	60			dialogo	58	61	4	10	4	16	0	0	medido_propietario	texto de FATE (HUD): el widget autoajusta; salto suave (propietario 2026-11-06)
+FateEvent	62			dialogo	58	61	4	10	4	16	0	0	medido_propietario	texto de FATE (HUD): el widget autoajusta; salto suave (propietario 2026-11-06)
+GeneralAction	1			autoajuste				12	4	16	0	0	fr_p99	widget que autoajusta (fr_p99=153, fr_max=153); ancho sin medir
+GoldSaucerTalk	17			autoajuste				12	4	16	0	0	fr_p99	widget que autoajusta (fr_p99=217, fr_max=217); ancho sin medir
+GuardianDeity	1			autoajuste				12	4	16	0	0	fr_p99	widget que autoajusta (fr_p99=211, fr_max=211); ancho sin medir
+HowToPage	*			dialogo	32	34	0	12	4	16	0	0	medido_propietario	tutoriales (HowToPage, cols 4-6 todas con texto): ventana ~34 car. visibles (medido propietario); seguro 32, duro 34; sin paginado (lineas 0) ni altura fr (caja autoajustable). Los trozos vacios de la lista son marcadores de color (ancho 0), no lineas nuevas | salto suave: el panel autoajusta (propietario 2026-11-06, captura Efecto de las zonas de descanso)
+HowToPage	4			dialogo	34	36		12	4	16	0	0	fr_p99	widget que autoajusta (fr_p99=275, fr_max=344); ancho sin medir | salto suave: el panel autoajusta (propietario 2026-11-06, captura Efecto de las zonas de descanso)
+HowToPage	5			dialogo	34	36		12	4	16	0	0	fr_p99	widget que autoajusta (fr_p99=168, fr_max=168); ancho sin medir | salto suave: el panel autoajusta (propietario 2026-11-06, captura Efecto de las zonas de descanso)
+HowToPage	6			dialogo	34	36		12	4	16	0	0	fr_p99	widget que autoajusta (fr_p99=168, fr_max=168); ancho sin medir | salto suave: el panel autoajusta (propietario 2026-11-06, captura Efecto de las zonas de descanso)
+InstanceContentTextData	0			autoajuste				12	4	16	0	0	fr_p99	widget que autoajusta (fr_p99=88, fr_max=98); ancho sin medir
+LogMessage	5			autoajuste				12	4	16	0	0	fr_p99	widget que autoajusta (fr_p99=137, fr_max=187); ancho sin medir
+MultipleHelpString	1			dialogo	34	36		12	4	16	0	0	fr_p99	widget que autoajusta (fr_p99=247, fr_max=247); ancho sin medir | salto suave: el panel autoajusta (propietario 2026-11-06, captura Efecto de las zonas de descanso)
+PetAction	1			autoajuste				12	4	16	0	0	fr_p99	widget que autoajusta (fr_p99=171, fr_max=171); ancho sin medir
+PublicContentTextData	0			autoajuste				12	4	16	0	0	fr_p99	widget que autoajusta (fr_p99=169, fr_max=169); ancho sin medir
+Status	1			autoajuste				12	4	16	0	0	fr_p99	widget que autoajusta (fr_p99=133, fr_max=133); ancho sin medir
+TextCommand	7			autoajuste				12	4	16	0	0	fr_p99	widget que autoajusta (fr_p99=189, fr_max=727); ancho sin medir
+TraitTransient	0			autoajuste				12	4	16	0	0	fr_p99	widget que autoajusta (fr_p99=168, fr_max=230); ancho sin medir
+content/DeepDungeon2Reward	1			autoajuste				12	4	16	0	0	fr_p99	widget que autoajusta (fr_p99=8, fr_max=8); ancho sin medir
+content/DeepDungeonReward	1			autoajuste				12	4	16	0	0	fr_p99	widget que autoajusta (fr_p99=8, fr_max=8); ancho sin medir
+content/HalloweenEntrance	1			autoajuste				12	4	16	0	0	fr_p99	widget que autoajusta (fr_p99=257, fr_max=257); ancho sin medir
+dungeon/000/DungeonCrystaltower_00000	1			autoajuste				12	4	16	0	0	fr_p99	widget que autoajusta (fr_p99=46, fr_max=46); ancho sin medir
+dungeon/000/DungeonDaimyoyashiki_00000	1			autoajuste				12	4	16	0	0	fr_p99	widget que autoajusta (fr_p99=60, fr_max=60); ancho sin medir
+dungeon/000/DungeonDeepdungeon_00000	1			autoajuste				12	4	16	0	0	fr_p99	widget que autoajusta (fr_p99=116, fr_max=116); ancho sin medir
+dungeon/000/DungeonDragonsongwar_00000	1			autoajuste				12	4	16	0	0	fr_p99	widget que autoajusta (fr_p99=75, fr_max=75); ancho sin medir
+dungeon/000/DungeonElfpalace_00000	1			autoajuste				12	4	16	0	0	fr_p99	widget que autoajusta (fr_p99=52, fr_max=52); ancho sin medir
+dungeon/000/DungeonOmega_00000	1			autoajuste				12	4	16	0	0	fr_p99	widget que autoajusta (fr_p99=71, fr_max=71); ancho sin medir
+dungeon/000/DungeonPandemonium_00000	1			autoajuste				12	4	16	0	0	fr_p99	widget que autoajusta (fr_p99=77, fr_max=77); ancho sin medir
+dungeon/000/DungeonSastasha_00000	1			autoajuste				12	4	16	0	0	fr_p99	widget que autoajusta (fr_p99=43, fr_max=43); ancho sin medir
+dungeon/000/DungeonTamtara_00000	1			autoajuste				12	4	16	0	0	fr_p99	widget que autoajusta (fr_p99=59, fr_max=59); ancho sin medir
+dungeon/000/DungeonWeapons_00000	1			autoajuste				12	4	16	0	0	fr_p99	widget que autoajusta (fr_p99=59, fr_max=59); ancho sin medir
+leve/CraftLeveClient	1			autoajuste				12	4	16	0	0	fr_p99	widget que autoajusta (fr_p99=40, fr_max=40); ancho sin medir
+leve/GuildleveAssignment	1			autoajuste				12	4	16	0	0	fr_p99	widget que autoajusta (fr_p99=261, fr_max=261); ancho sin medir
+raid/BahamutGuideEntrance	1			autoajuste				12	4	16	0	0	fr_p99	widget que autoajusta (fr_p99=60, fr_max=60); ancho sin medir
+raid/BahamutGuideEntranceForest	1			autoajuste				12	4	16	0	0	fr_p99	widget que autoajusta (fr_p99=60, fr_max=60); ancho sin medir
+raid/BahamutGuideEntranceWild	1			autoajuste				12	4	16	0	0	fr_p99	widget que autoajusta (fr_p99=60, fr_max=60); ancho sin medir
+raid/BahamutGuideEntranceWild2	1			autoajuste				12	4	16	0	0	fr_p99	widget que autoajusta (fr_p99=60, fr_max=60); ancho sin medir
+raid/BahamutGuideTravel	1			autoajuste				12	4	16	0	0	fr_p99	widget que autoajusta (fr_p99=60, fr_max=60); ancho sin medir
+raid/BahamutGuideTravelForest	1			autoajuste				12	4	16	0	0	fr_p99	widget que autoajusta (fr_p99=60, fr_max=60); ancho sin medir
+raid/BahamutGuideTravelWild	1			autoajuste				12	4	16	0	0	fr_p99	widget que autoajusta (fr_p99=60, fr_max=60); ancho sin medir
+raid/BahamutGuideTravelWild2	1			autoajuste				12	4	16	0	0	fr_p99	widget que autoajusta (fr_p99=60, fr_max=60); ancho sin medir
+raid/RaidGuideEntrance30	1			autoajuste				12	4	16	0	0	fr_p99	widget que autoajusta (fr_p99=56, fr_max=56); ancho sin medir
+raid/RaidGuideEntrance32	1			autoajuste				12	4	16	0	0	fr_p99	widget que autoajusta (fr_p99=56, fr_max=56); ancho sin medir
+raid/RaidGuideTravel30	1			autoajuste				12	4	16	0	0	fr_p99	widget que autoajusta (fr_p99=56, fr_max=56); ancho sin medir
+raid/RaidGuideTravel32	1			autoajuste				12	4	16	0	0	fr_p99	widget que autoajusta (fr_p99=56, fr_max=56); ancho sin medir
+transport/Aetheryte	1			autoajuste				12	4	16	0	0	fr_p99	widget que autoajusta (fr_p99=128, fr_max=128); ancho sin medir
+transport/ChocoboTaxiStand	1			autoajuste				12	4	16	0	0	fr_p99	widget que autoajusta (fr_p99=72, fr_max=72); ancho sin medir
+warp/WarpInnIshgard	1			autoajuste				12	4	16	0	0	fr_p99	widget que autoajusta (fr_p99=38, fr_max=38); ancho sin medir
+warp/WarpWeddingPlaceDesk	1			autoajuste				12	4	16	0	0	fr_p99	widget que autoajusta (fr_p99=172, fr_max=172); ancho sin medir

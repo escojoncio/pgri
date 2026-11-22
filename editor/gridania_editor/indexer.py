@@ -374,11 +374,16 @@ def _arbol(base, quitar_part):
     return out
 
 
+def es_mismo(repo_dir, raiz_nuevo):
+    """True si el japones nuevo ES el de referencia: la misma carpeta, o no hay japones previo (sin copia de GitHub): entonces nada es «nuevo» frente a un previo inexistente"""
+    return os.path.abspath(raiz_nuevo) == os.path.abspath(repo_dir) or not os.path.isdir(os.path.join(repo_dir, 'textos', 'ja'))
+
+
 def firmas(repo_dir, raiz_nuevo, ed_dir):
     """-> (hojas ordenadas, {hoja: firma}). La firma cambia si cambia size/mtime de cualquiera de los ficheros de la hoja
     (ja, fr, ja previo, traducciones del repo y del usuario). Termina en '!' si algun fichero es demasiado reciente (mtime ~ ahora:
     no se puede garantizar que un cambio posterior en el mismo instante cambie la firma), y entonces nunca se da por vigente."""
-    mismo = os.path.abspath(raiz_nuevo) == os.path.abspath(repo_dir)
+    mismo = es_mismo(repo_dir, raiz_nuevo)
     ahora = time.time_ns()
     a_ja = _arbol(os.path.join(raiz_nuevo, 'textos', 'ja'), True)
     a_fr = _arbol(os.path.join(raiz_nuevo, 'textos', 'fr'), True)
@@ -396,7 +401,7 @@ def firmas(repo_dir, raiz_nuevo, ed_dir):
 
 def _firma_hoja(repo_dir, raiz_nuevo, ed_dir, hoja):
     """firma de UNA hoja (para refirmar tras guardar una edicion)"""
-    mismo = os.path.abspath(raiz_nuevo) == os.path.abspath(repo_dir)
+    mismo = es_mismo(repo_dir, raiz_nuevo)
     def estat(raiz, sub, quitar):
         base = os.path.join(raiz, *sub); out = []
         h = os.path.join(base, *hoja.split('/'))
@@ -517,7 +522,8 @@ def indexar(R, base, repo_dir, raiz_ja_nuevo, ediciones_dir, progreso=print, for
     avance(fase, hecho, total) = progreso real para la UI."""
     t0 = time.time(); tiempos = {}
     previo = repo_dir
-    mismo = os.path.abspath(raiz_ja_nuevo) == os.path.abspath(previo)
+    mismo = es_mismo(repo_dir, raiz_ja_nuevo)
+    local = os.path.abspath(raiz_ja_nuevo) != os.path.abspath(previo)
     avance = avance or (lambda *a: None)
     def chequear():
         if cancelar is not None and cancelar.is_set(): raise Cancelado('indexado cancelado')
@@ -586,7 +592,7 @@ def indexar(R, base, repo_dir, raiz_ja_nuevo, ediciones_dir, progreso=print, for
         total = sum(cnt.values()); elim = w.execute('SELECT COALESCE(SUM(elim),0) FROM hojas_idx').fetchone()[0]
         tiempos['total'] = round(time.time() - t0, 2)
         meta_ = {'fecha': time.strftime('%Y-%m-%d %H:%M:%S'), 'celdas': total, 'eliminadas_del_juego': elim, 'contadores': cnt,
-                 'fuente': 'juego' if not mismo else 'repo', 'hojas_reindexadas': len(cambiadas), 'incremental': not completo, 'segundos': tiempos['total'], 'tiempos': tiempos}
+                 'fuente': 'juego' if local else 'repo', 'hojas_reindexadas': len(cambiadas), 'incremental': not completo, 'segundos': tiempos['total'], 'tiempos': tiempos}
         w.execute('INSERT OR REPLACE INTO meta(k,v) VALUES (?,?)', ('indexado', json.dumps(meta_)))
         w.execute('INSERT OR REPLACE INTO meta(k,v) VALUES (?,?)', ('contexto', json.dumps({'repo_dir': repo_dir, 'raiz_nuevo': raiz_ja_nuevo, 'ed_dir': ediciones_dir})))
         w.execute('INSERT OR REPLACE INTO meta(k,v) VALUES (?,?)', ('esquema', str(ESQUEMA_VERSION)))

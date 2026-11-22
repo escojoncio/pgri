@@ -174,8 +174,9 @@ class Motor(object):
                 st, a, b = 'excepcion', 'error_interno', '%s: %s' % (type(x).__name__, x)
             if st == 'cambiada': es2 = a; info['reflujo'] = 'cambiada'
             elif st == 'excepcion': info['reflujo'] = 'error'; avisos.append(('REFLUJO_NO_APLICADO', '%s %s' % (a, b)))
-        modo, cap = SS.modo_de(c.pf, c.fr_text)
+        modo, cap, motivo_sin = self.modo_suavizado(c)
         info['modo'] = modo
+        if modo is None: info['motivo'] = motivo_sin       # excluida | narrador | caja_fija: el .dat NO la suaviza y la vista tampoco
         es3 = es2
         if modo is not None:
             try:
@@ -193,6 +194,17 @@ class Motor(object):
             avisos.append(('CAJA_' + cod, self.TXT_CAJA.get(cod, cod)))
         res['ok'] = not errores
         return res
+
+    def modo_suavizado(self, c):
+        """-> (modo, cap, motivo): MISMAS exclusiones que el suavizado del .dat (suavizar_saltos.procesar_hoja / main): hojas excluidas (Balloon, NpcYell, ENpcResident, Lobby, CharaMake*),
+        narrador (perfil subtitulo: sus trozos no se funden) y cajas fijas (hud_fijo, descripcion, sistema). modo None = no se toca; motivo: 'excluida' | 'narrador' | 'caja_fija' | ''"""
+        SS = self.R.SS
+        if SS.excluida(c.hoja): return None, 0, 'excluida'
+        es_n = getattr(SS, 'es_narrador', None)      # repos antiguos descargados no lo tienen
+        if es_n is not None and es_n(c.pf, c.clave if c.col != 0 else None): return None, 0, 'narrador'
+        modo, cap = SS.modo_de(c.pf, c.fr_text)
+        if modo is None: return None, 0, 'caja_fija'
+        return modo, cap, ''
 
     @staticmethod
     def tiene_genero(s):
@@ -294,7 +306,8 @@ class Motor(object):
                 if tope: seguro = duro = tope
             except Exception: pass
         return {'ventanas': vent, 'genero': genero, 'nlineas': len(lineas), 'nventanas': len(vent), 'hablante': hablante,
-                'caja': {'tipo': pf.tipo, 'seguro': seguro, 'duro': duro, 'lineas': pf.lineas or 4}}
+                'caja': {'tipo': pf.tipo, 'seguro': seguro, 'duro': duro, 'lineas': pf.lineas or 4, 'envuelve': bool(pf.envuelve), 'fija': pf.tipo in ('hud_fijo', 'sistema', 'descripcion') or c.hoja == 'Lobby' or c.hoja.startswith('CharaMake'),
+                         'creador': c.hoja == 'Lobby' or c.hoja.startswith('CharaMake')}}
 
     def _envolver(self, txt, pf):
         return self.R.NC.envolver(txt, pf) if pf.envuelve else [txt]

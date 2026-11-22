@@ -70,6 +70,24 @@ def comprobar_ruta(ruta):
         raise ValueError('La carpeta debe ser sqpack/ffxiv (con 0a0000.win32.index): %r' % ruta)
 
 
+_SUBRUTAS_JUEGO = (('SquareEnix', 'FINAL FANTASY XIV - A Realm Reborn'), ('Steam', 'steamapps', 'common', 'FINAL FANTASY XIV Online'), ('SteamLibrary', 'steamapps', 'common', 'FINAL FANTASY XIV Online'),
+                   ('Steam', 'steamapps', 'common', 'FINAL FANTASY XIV - A Realm Reborn'))
+
+
+def detectar_ruta_juego(env=None, existe=os.path.isfile):
+    """-> primera carpeta sqpack/ffxiv de una instalacion habitual (SE launcher o Steam, Program Files y raiz de C:-F:) que exista, o ''. Solo lectura; no guarda nada."""
+    env = os.environ if env is None else env
+    bases = [env.get('ProgramFiles(x86)'), env.get('ProgramFiles')] + ['%s:\\' % d for d in 'CDEF']
+    for b in bases:
+        if not b: continue
+        for sub in _SUBRUTAS_JUEGO:
+            ruta = os.path.join(b, *sub, 'game', 'sqpack', 'ffxiv')
+            try:
+                if existe(os.path.join(ruta, '0a0000.win32.index')): return ruta
+            except OSError: continue
+    return ''
+
+
 def version_segura(v):
     """version -> nombre de fichero/carpeta seguro (sin separadores ni '..')"""
     s = re.sub(r'[^0-9A-Za-z._-]+', '_', str(v or '')).strip('._')

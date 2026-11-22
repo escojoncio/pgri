@@ -1,4 +1,5 @@
-"""Carga los modulos de tools/py de una copia del repo (la descargada en la carpeta de trabajo, o el propio repo en las pruebas). El .exe no los contiene."""
+"""Carga los modulos de tools/py: de una copia descargada de GitHub (OPCIONAL: datos/repo, o el propio repo en las pruebas) o, si no la hay, de la copia EMBEBIDA
+(gridania_editor/embebido/tools/py, empaquetada con el .exe: solo codigo y tablas de caja, sin textos). GitHub nunca es requisito."""
 import importlib, os, sys
 from . import zstshim
 
@@ -21,10 +22,27 @@ def hay_repo(raiz):
     return os.path.exists(os.path.join(raiz, 'tools', 'py', 'construir_dat.py'))
 
 
+def raiz_embebida():
+    """carpeta con tools/py empaquetada junto al editor (en el .exe: <_MEIPASS>/gridania_editor/embebido; en desarrollo: junto a este modulo); None si falta"""
+    base = getattr(sys, '_MEIPASS', None)
+    cand = [os.path.join(base, 'gridania_editor', 'embebido')] if base else []
+    cand.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'embebido'))
+    for c in cand:
+        if hay_repo(c): return c
+    return None
+
+
+def raiz_codigo(raiz):
+    """raiz de la que se cargan los modulos: la copia descargada si existe (`raiz`), si no la embebida; None si no hay ninguna"""
+    if raiz and hay_repo(raiz): return os.path.abspath(raiz)
+    return raiz_embebida()
+
+
 def cargar(raiz, forzar=False):
     """-> objeto con atributos G, S, C, ... (modulos del repo). Recarga si cambia la raiz o forzar (tras actualizar desde GitHub)."""
-    raiz = os.path.abspath(raiz)
-    if not hay_repo(raiz): raise FaltaRepo('No hay tools/py en %s: pulsa «Actualizar desde GitHub» primero.' % raiz)
+    dato = os.path.abspath(raiz)
+    raiz = raiz_codigo(dato)
+    if raiz is None: raise FaltaRepo('No hay tools/py en %s ni embebido en el programa.' % dato)
     if _actual['raiz'] == raiz and not forzar and _actual['mods'] is not None: return _actual['mods']
     # purga de modulos del repo anterior
     rutas = [os.path.normcase(p) for p in _rutas(raiz)]

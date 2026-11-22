@@ -93,7 +93,7 @@ def carpeta_trabajo():
 
 
 _IGNORAR_MIGRA = ('editor.log', 'editor.log.1', 'editor.log.2', 'editor.log.3', 'faulthandler.log', 'instancia.lock', 'instancia.json')
-_NO_COPIAR = ('editor.db', 'editor.db-wal', 'editor.db-shm', 'repo', 'juego')   # regenerables (indice, cache del repo, extraccion): se rehacen; copiarlos retrasaria la ventana
+_NO_COPIAR = ('editor.db', 'editor.db-wal', 'editor.db-shm', 'repo', 'juego', 'perfil-ventana')   # regenerables (indice, cache del repo, extraccion): se rehacen; copiarlos retrasaria la ventana
 
 
 def migrar_antigua(nuevo, antigua=None, log=None):

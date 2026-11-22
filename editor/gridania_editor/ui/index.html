@@ -36,20 +36,27 @@ mark{background:#ffd24d;color:#111} .res{border-bottom:1px solid #333;padding:3p
 .ctx{font-size:12px;color:#bbb;border:1px dashed #444;padding:4px;margin:4px 0;cursor:pointer;white-space:pre-wrap;overflow-wrap:anywhere;max-height:90px;overflow:auto}
 .hab{color:#9fd;font-weight:600;overflow-wrap:anywhere}
 #meta{color:#9aa;overflow-wrap:anywhere}
-/* vista ingame */
-.vgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:10px;min-width:0}
-.vtit{font-weight:700;color:#9ad;margin:2px 0}
-.vent{margin:6px 0;border:2px solid #8d7d4a;background:rgba(14,22,40,.88);border-radius:8px;padding:6px 10px 4px;font:15px/1.35 Consolas,'Courier New',monospace;min-width:0;max-width:100%;position:relative}
+/* vista ingame: fuente monoespaciada, cuadro de ancho fijo en columnas (ch), sin partir lineas por el ancho del panel */
+.vgrid{display:flex;flex-wrap:wrap;gap:10px 16px;min-width:0;align-items:flex-start}
+.vv{flex:0 1 auto;max-width:100%;overflow-x:auto;padding-top:14px;min-width:0}
+.vtit{font-weight:700;color:#9ad;margin:0 0 6px}
+.vent{margin:6px 0 10px;border:2px solid #8d7d4a;background:rgba(14,22,40,.88);border-radius:8px;padding:6px 10px 4px;font:15px/1.4 "Cascadia Mono",Consolas,"Courier New",monospace;position:relative;display:inline-block;max-width:none;box-sizing:content-box}
 .vent.mala{border-color:#e55}
 .vent .nom{display:inline-block;background:#2b3a5c;border:1px solid #8d7d4a;border-radius:4px;padding:0 8px;margin:-16px 0 4px -4px;font-size:13px;font-weight:700;color:#fff;overflow-wrap:anywhere}
-.ln{display:flex;gap:6px;align-items:baseline;min-height:1.35em;border-radius:3px}
-.ln .t{flex:1;min-width:0;white-space:pre-wrap;overflow-wrap:anywhere;color:#f4f4f4}
+.vent .cuerpo{position:relative;box-sizing:content-box}
+.vent .regla{position:absolute;top:0;bottom:0;width:0;border-left:1px dotted rgba(255,210,77,.45);pointer-events:none}
+.vent .regla.duro{border-left:1px dotted rgba(255,90,90,.6)}
+.ln{display:flex;gap:6px;align-items:baseline;min-height:1.4em;border-radius:3px;position:relative}
+.ln .t{flex:0 0 auto;white-space:pre;color:#f4f4f4;font:inherit}
+.vent:not(.compacto) .cuerpo{width:calc(var(--w)*1ch + 84px)} .vent:not(.compacto) .ln .t{width:calc(var(--w)*1ch)}
 .ln .nl{color:#4a5775;font-size:11px;flex:none} .ln .an{color:#778;font-size:11px;flex:none;min-width:44px;text-align:right}
-.ln.aviso .an{color:#ffd24d} .ln.mal{background:rgba(255,60,60,.28)} .ln.mal .an{color:#ff8a8a;font-weight:700}
-.c{color:#ffd24d}
+.ln.aviso .an{color:#ffd24d} .ln.mal{background:rgba(255,60,60,.18)} .ln.mal .an{color:#ff8a8a;font-weight:700}
+.t .c{color:#ffd24d} .t .ex{background:rgba(255,210,77,.22)} .t .xx{background:rgba(255,60,60,.5)}
+.t .mac{background:rgba(120,160,255,.28);border-radius:3px;color:#cfe0ff} .t .ico{display:inline-block;width:2ch;text-align:center;color:#9ad}
 .vpie{display:flex;justify-content:space-between;font:11px system-ui;color:#889;margin-top:2px;gap:6px;flex-wrap:wrap}
 .vpie .sig{color:#e8d98a;font-size:13px} .vpie .prob{color:#ff9a9a;font-weight:700}
-.vent.compacto{font-size:13px;padding:4px 8px} .vent.compacto .nom{margin-top:-14px}
+.vent.compacto{font-size:13px;padding:4px 8px;display:block} .vent.compacto .nom{margin-top:-14px} .vent.compacto .cuerpo{overflow-x:auto}
+#selGen{font-size:12px;color:#9aa;margin-left:8px} #selGen label{margin-right:8px;cursor:pointer}
 #estSuave{font-size:12px;margin:4px 0} .ok{color:#8fd68f}
 #mis{display:none;width:36%;flex:none;min-width:0;flex-direction:column;border-right:1px solid #444}
 .mtop,.mnav{display:flex;gap:5px;padding:5px 6px;flex-wrap:wrap;align-items:center;flex:none} .mtop input,.mtop select{min-width:0}
@@ -76,9 +83,12 @@ mark{background:#ffd24d;color:#111} .res{border-bottom:1px solid #333;padding:3p
  <b>Editor Gridania</b>
  <span id="chips"></span>
  <span style="flex:1"></span>
- <button id="bSync" title="Descarga del repositorio de GitHub la traduccion, los glosarios y los textos japones/frances. Hace falta haber puesto repo y token en Ajustes.">Actualizar desde GitHub</button>
- <button id="bExt" class="sec" title="IMPORTAR PARCHE: lee el japones y el frances del juego instalado (carpeta sqpack/ffxiv de Ajustes) SIN tocar tus traducciones ni ediciones, hace copia de la extraccion anterior, calcula las novedades (nuevas, cambiadas, borradas, movidas) y deja lo nuevo y lo cambiado en «Por hacer». Despues abre «Novedades» y traduce.">Importar parche</button>
+ <button id="bSync" class="sec" title="OPCIONAL. Descarga del repositorio de GitHub la traduccion ES de partida, los glosarios y (si quieres) una copia del codigo. NO hace falta para tener el japones y el frances: eso se extrae del juego instalado con «Importar parche». Requiere repo y token en Ajustes.">Actualizar desde GitHub (opcional)</button>
+ <button id="bExt" title="IMPORTAR PARCHE / EXTRAER JA Y FR: lee el japones y el frances del juego instalado (carpeta sqpack/ffxiv de Ajustes), en este PC y sin descargar nada, SIN tocar tus traducciones ni ediciones, hace copia de la extraccion anterior, calcula las novedades (nuevas, cambiadas, borradas, movidas) y deja lo nuevo y lo cambiado en «Por hacer». Despues abre «Novedades» y traduce. La primera vez solo extrae los textos (no hay version anterior con la que comparar).">Importar parche (extraer JA/FR)</button>
  <button id="bNov" class="sec" title="NOVEDADES DEL PARCHE: lo nuevo y lo cambiado del ultimo parche importado, en el orden de traduccion (mision / escena con contexto), con filtro solo nuevas / solo cambiadas, filas borradas y traducciones que se pueden arrastrar.">Novedades</button>
+ <button id="bEspAp" class="sec" title="ESPACIADO AUTOMATICO MASIVO: aplica a TODAS las hojas el reflujo del editor (dialogo de misiones y PNJ a 58 caracteres y maximo 4 lineas por ventana; creador de personaje a 49). Reconoce el tipo de contenido: Balloon y NpcYell, narrador y cajas de ancho fijo no se tocan. Barra de progreso, registro en datos/espaciado y deshacer.">Aplicar espaciado automatico a todo</button>
+ <button id="bEspQu" class="sec" title="Quita los saltos de linea de presentacion de TODAS las hojas donde el .dat los suaviza (dialogo, objetivos, menus...), uniendo con un espacio; los saltos que exige el japones se conservan. Balloon, NpcYell, narrador, creador y cajas de ancho fijo no se tocan. Progreso, registro y deshacer.">Quitar espaciado automatico de todo</button>
+ <button id="bEspDe" class="sec" title="Deshace el ultimo espaciado masivo (aplicar o quitar): cada celda vuelve a su texto anterior. Las celdas que editaste despues no se tocan.">Deshacer espaciado masivo</button>
  <button id="bGen" title="Crea el fichero translations.dat con el repo + tus cambios. Aplica antes el suavizado de saltos de linea (el mismo del repo) y las comprobaciones. Tarda decenas de minutos.">Generar translations.dat</button>
  <button id="bExp" class="sec" title="Copia tus ediciones (un fichero por hoja) a una carpeta cambios_FECHA para subirlas al repositorio.">Exportar cambios</button>
  <button id="bMis" class="sec" title="Vista «Por mision / escena / hoja»: carga una hoja completa como conversacion continua, en orden, con lista de misiones, contadores y navegacion.">Por mision / hoja</button>
@@ -165,7 +175,7 @@ mark{background:#ffd24d;color:#111} .res{border-bottom:1px solid #333;padding:3p
      <button id="bBorDesc" class="sec" style="display:none" title="Borra el borrador de esta celda y vuelve al texto guardado.">Descartar borrador</button><button id="bGuardar" title="Guarda la traduccion en tus ediciones (Ctrl+S). Solo si no hay errores.">Guardar (Ctrl+S)</button><button id="bReflujo" class="sec" title="Pone en el cuadro el texto con los saltos de linea reajustados al ancho de la caja (58 car., max. 4 lineas por ventana). No cambia palabras.">Usar texto con reflujo</button>
      <button id="bSuaveCelda" class="sec" title="Muestra el antes y el despues del espaciado corregido (saltos de linea) de esta celda y, si aceptas, lo pone en el cuadro. Puedes deshacerlo.">Suavizar saltos</button><button id="bNoNL" class="sec" title="Quita los saltos de linea de presentacion de esta celda (los une con un espacio). Muestra antes/despues. No pierde palabras, macros ni separadores del original; si la celda no lo admite, avisa.">Eliminar saltos</button><button id="bNoNLS" class="sec" title="Quita todos los saltos y despues vuelve a suavizar (espaciado corregido).">Eliminar y suavizar</button><button id="bGuardarSig" title="Guarda esta celda y abre la siguiente de la mision (Por mision / hoja).">Guardar y siguiente</button><button id="bSuaveDesh" class="sec" style="display:none" title="Devuelve el cuadro al texto que tenia antes de suavizar.">Deshacer</button>
      <label title="Si esta activo, la vista previa reajusta los saltos de linea automaticamente."><input type="checkbox" id="cReflujo" checked> reflujo</label><span id="msg"></span></div>
-    <div class="lbl">Vista previa «como en el juego» <span id="cajaInfo"></span></div><div id="estSuave"></div><div id="vista" class="vgrid"></div>
+    <div class="lbl">Vista previa «como en el juego» <span id="cajaInfo"></span><span id="selGen" style="display:none" title="El texto lleva la macro de genero: elige ver las dos variantes o una sola."> Ver: <label><input type="radio" name="gen" value="ambas" checked> ambas</label><label><input type="radio" name="gen" value="fem"> \u2640 mujer</label><label><input type="radio" name="gen" value="masc"> \u2642 hombre</label></span></div><div id="estSuave"></div><div id="vista" class="vgrid"></div>
     <div class="lbl">Avisos</div><ul id="avisos"></ul></div>
   </div>
   <div class="lbl">Fila siguiente (clic para abrir)</div><div class="ctx" id="ctxSig" title="Celda siguiente de la misma hoja; clic para abrirla."></div>
@@ -184,9 +194,9 @@ mark{background:#ffd24d;color:#111} .res{border-bottom:1px solid #333;padding:3p
 <div style="display:flex;gap:8px;height:52vh;margin-top:6px"><div id="nvLista" style="width:36%;overflow:auto;border:1px solid #444"></div><div id="nvDet" style="flex:1;overflow:auto;border:1px solid #444;padding:4px"></div></div>
 <p style="display:flex;gap:8px;flex-wrap:wrap"><button id="nvMis" class="sec" title="Cierra esta ventana y abre la hoja elegida en el modo «Por mision / hoja» para traducirla.">Traducir esta hoja</button><button id="nvAcepTodas" class="sec" style="display:none" title="Arrastra la traduccion de TODAS las filas movidas pendientes (pide confirmacion; solo escribe en tus ediciones, nunca en el repo).">Aceptar todas las movidas</button><button id="nvCerrar" class="sec">Cerrar</button></p></dialog>
 <dialog id="dCfg"><h3>Ajustes</h3>
- <label>Repositorio (propietario/nombre)</label><input id="cRepo"><label>Rama</label><input id="cRama">
- <label>Token personal de GitHub (se guarda solo en este PC)</label><input id="cToken" type="password" autocomplete="off">
- <label>Carpeta sqpack/ffxiv del juego</label><input id="cJuego"><label>Carpeta de destino del translations.dat</label><input id="cDat">
+ <p style="font-size:12px;color:#9aa;margin:0 0 6px">GitHub es OPCIONAL: solo para bajar la traduccion ES de partida y los glosarios. El japones y el frances salen del juego instalado.</p><label>Repositorio de GitHub (opcional, propietario/nombre)</label><input id="cRepo"><label>Rama</label><input id="cRama">
+ <label>Token personal de GitHub (opcional; se guarda solo en este PC)</label><input id="cToken" type="password" autocomplete="off">
+ <label>Carpeta sqpack/ffxiv del juego (de aqui se extrae el japones y el frances)</label><input id="cJuego"><label>Carpeta de destino del translations.dat</label><input id="cDat">
  <label>Puerta: minimo de entradas</label><input id="cMin"><label>Puerta: maximo de rechazos</label><input id="cMax">
  <p style="display:flex;gap:8px"><button id="cGuardar" title="Guarda los ajustes en este PC.">Guardar</button><button class="sec" id="cBorrar" title="Elimina el token de GitHub guardado en este PC.">Borrar token guardado</button><button class="sec" id="cCerrar" title="Cierra sin guardar.">Cerrar</button></p>
 </dialog>
@@ -198,9 +208,10 @@ mark{background:#ffd24d;color:#111} .res{border-bottom:1px solid #333;padding:3p
 <p id="aSeguridad" style="font-size:12px;color:#ffd24d"></p>
 <p style="font-size:12px;color:#9aa">No ejecutes el editor desde una carpeta sincronizada con OneDrive (o similar): editor.db pesa unos 400 MB, OneDrive lo bloquea al sincronizar y el arranque o el guardado pueden colgarse. Usa una carpeta local (p. ej. C:\GridaniaEditor).</p>
 <h4>Cabecera</h4><dl>
-<dt>Actualizar desde GitHub</dt><dd>Baja del repositorio la traduccion, los glosarios y los textos japones y frances. Antes rellena repo y token en Ajustes.</dd>
+<dt>Actualizar desde GitHub (opcional)</dt><dd>Solo si quieres bajar del repositorio la traduccion ES de partida y los glosarios (antes rellena repo y token en Ajustes). NO es necesario para el japones y el frances: se extraen del juego instalado con «Importar parche», en este PC y sin descargar nada.</dd>
 <dt>Importar parche</dt><dd>Con el juego ya actualizado, pulsa este boton (carpeta sqpack/ffxiv en Ajustes). Extrae el japones y el frances a una carpeta temporal y SOLO si todo va bien sustituye la extraccion anterior (si falla, nada cambia y se muestra el error); guarda una copia de la anterior en datos/copias (las 3 ultimas), anota la version del juego (ffxivgame.ver) y calcula las novedades. Nunca modifica tus traducciones, ediciones ni el espanol. Las filas nuevas y las de japones cambiado pasan a «Por hacer» con la etiqueta de la version (las nuevas ya «Hecho» no se tocan; una cambiada «Hecho» vuelve a «Por hacer» con su traduccion intacta). Importar dos veces el mismo parche no duplica nada. Si una hoja no se puede leer del juego se CONSERVA la anterior (no se borra ni se cuenta como borrada) y se avisa. Si la extraccion trae menos de la mitad de celdas que la anterior se rechaza y el programa pregunta si quieres forzarla.</dd>
 <dt>Novedades</dt><dd>Informe del parche (datos/parches/&lt;version&gt;.json): <b>nuevas</b> (clave que no existia), <b>cambiadas</b> (el japones cambio: tu traduccion se conserva y queda en naranja «a revisar», se ve el japones anterior y el nuevo), <b>borradas</b> (ya no estan; se muestra su traduccion por si hace falta) y <b>movidas</b> (misma frase japonesa que una borrada de la misma hoja: se propone arrastrar su traduccion, con vista previa, y solo se aplica si pulsas Aceptar, por hoja o todas; escribe en tus ediciones, no en el repo; solo se proponen frases UNICAS en su hoja y con el mismo frances, y nunca se pisa un destino que ya tenga traduccion o edicion). Si el parche inserta una frase en medio de una escena y las filas siguientes se desplazan, esas filas salen como <b>cambiadas</b> (con su traduccion intacta y el japones anterior a la vista) y no se pierde nada). Las hojas salen en el orden de traduccion (expansion y nombre) y al abrir una se ve cada celda con la anterior y la siguiente; filtro «Solo nuevas» / «Solo cambiadas». Flujo recomendado: <b>Importar parche → Novedades → traducir → Exportar cambios</b>.</dd>
+<dt>Aplicar / Quitar espaciado automatico a todo</dt><dd>Operan en masa sobre TODAS las hojas, con barra de progreso (boton Tareas), cancelables. Solo celdas verdes (las naranjas se respetan). <b>Aplicar</b> reajusta los saltos con el reflujo del editor (dialogo de misiones y PNJ: 58 caracteres, maximo 4 lineas por ventana; creador de personaje: 49); objetivos, menus y descripciones se espacian al generar el .dat y la vista previa ya lo muestra. <b>Quitar</b> une los saltos de presentacion donde el .dat suaviza. No tocan Balloon, NpcYell, narrador ni cajas de ancho fijo, ni cambian palabras, macros o el numero de trozos. Cada ejecucion se registra en datos/espaciado (un .jsonl con antes/despues de cada celda) y se deshace con <b>Deshacer espaciado masivo</b> (lo editado despues no se toca).</dd>
 <dt>Generar translations.dat</dt><dd>Fabrica el fichero que usa el parche. Une repo y tus cambios, aplica el espaciado corregido (suavizado de saltos de linea: el mismo programa del repo, antes de construir el .dat) y pasa las comprobaciones. Tarda mucho.</dd>
 <dt>Exportar cambios</dt><dd>Copia tus ediciones a una carpeta para subirlas al repositorio.</dd>
 <dt>Buscar global</dt><dd>Alterna entre la tabla y la busqueda en todos los textos.</dd>
@@ -239,10 +250,12 @@ mark{background:#ffd24d;color:#111} .res{border-bottom:1px solid #333;padding:3p
 <dt>Ventana oscura</dt><dd>Cada recuadro es una ventana de dialogo del juego. Arriba, en una etiqueta, el hablante <code>(-Nombre-)</code>. Los colores del juego se ven en amarillo.</dd>
 <dt>▼ / ■</dt><dd>▼ indica que hay que pulsar para continuar; ■ marca la ultima ventana.</dd>
 <dt>Ventana 1/3, lineas, ancho</dt><dd>En el pie, numero de ventana y de lineas. A la derecha de cada linea: caracteres usados / caracteres seguros (el limite duro sale al pasar el raton). Amarillo = pasa del limite recomendado; rojo = supera el limite duro (no cabe).</dd>
+<dt>Cuadro de ancho fijo</dt><dd>La fuente es monoespaciada y el cuadro mide exactamente el limite duro de la caja en columnas (dialogo 61, creador de personaje 51...): una linea nunca se parte por el ancho del panel (se desplaza en horizontal), asi que un salto que ves es un salto real. Las dos lineas punteadas marcan el ancho seguro (ambar) y el limite duro (rojo); las columnas que se pasan se pintan en ese color.</dd>
+<dt>Piezas azules</dt><dd>Nombre del jugador, de un objeto o de un PNJ (macros del juego): se muestran con el ancho estimado que ocuparan, nunca como etiquetas crudas.</dd>
 <dt>↵</dt><dd>Marca discreta de cada salto de linea.</dd>
 <dt>Avisos en rojo</dt><dd>Mas de 4 lineas en una ventana, linea mas ancha que la caja, o ultima ventana huerfana (una sola linea de dos palabras o menos).</dd>
 <dt>Suavizado</dt><dd>Sobre la vista se indica si la celda se ha suavizado o ya cumplia. La vista muestra el texto ya suavizado, igual que saldra en el .dat.</dd>
-<dt>♀ Mujer / ♂ Hombre</dt><dd>Si el texto tiene variantes segun el sexo del jugador, se ven las dos a la vez, una junto a otra. Si no, una sola vista.</dd></dl>
+<dt>♀ Mujer / ♂ Hombre</dt><dd>Si el texto tiene la macro de genero, se ven las dos variantes a la vez, o solo una con el selector «Ver». Si no, una sola vista.</dd></dl>
 <h4>Busqueda global</h4><dl>
 <dt>Texto, modo, JP/FR/ES</dt><dd>Que buscar y donde. Modos: subcadena, texto exacto, palabra completa, regex (avanzado).</dd>
 <dt>Clase, color y estado de trabajo</dt><dd>Filtros que se combinan con el texto.</dd>
@@ -251,6 +264,7 @@ mark{background:#ffd24d;color:#111} .res{border-bottom:1px solid #333;padding:3p
 <dt>Exportar lista</dt><dd>Guarda los resultados en un TSV.</dd></dl>
 <p><button id="aCerrar" title="Cierra la ayuda.">Cerrar</button></p></dialog>
 <script src="/borradores.js"></script>
+<script src="/vista.js"></script>
 <script>
 const {claveCelda,decidirBorrador,puedeEnviarBorrador,crearCarga}=Borradores;
 const K='__CLAVE__';
@@ -312,23 +326,14 @@ async function cargar(){const f=filtroTabla();const p=new URLSearchParams({estad
  $('pInfo').textContent=`${total?off+1:0}-${Math.min(off+LIM,total)} de ${total.toLocaleString('es')}`}
 async function hojas(){const d=await api('/api/hojas');$('hojas').innerHTML=d.hojas.map(h=>`<option value="${esc(h.hoja)}">`).join('')}
 // ---------- vista ingame
-function anchoLinea(l){return l.replace(/[\x01\x02]/g,'').length+(l.match(/\x03/g)||[]).length}
-function colorear(l){return esc(l).replace(/\x01/g,'<span class="c">').replace(/\x02/g,'</span>').replace(/\x03/g,'\u25A3')||'\u200b'}
-function palabras(l){return l.replace(/[\x01\x02\x03]/g,'').trim().split(/\s+/).filter(Boolean).length}
-function ingame(v,opt){opt=opt||{};if(!v)return '';const seg=v.caja.seguro,dur=v.caja.duro,N=v.nventanas,MAXL=4;const nom=v.hablante;
- return v.ventanas.map((w,i)=>{const ult=i===N-1;const probs=[];
-  if(!opt.compacto){if(v.caja.tipo!=='subtitulo'&&w.length>MAXL)probs.push(`mas de ${MAXL} lineas (${w.length})`);if(dur&&w.some(l=>anchoLinea(l)>dur))probs.push('linea mas ancha que la caja');if(ult&&N>1&&w.length===1&&palabras(w[0])<=2)probs.push('ventana final huerfana')}
-  const lin=w.map(l=>{const a=anchoLinea(l);const cl=(!opt.compacto&&dur&&a>dur)?'mal':((!opt.compacto&&seg&&a>seg)?'aviso':'');
-   return `<div class="ln ${cl}"><span class="t">${colorear(l)}</span><span class="nl" title="Salto de linea">\u21B5</span>${opt.compacto||!seg?'':`<span class="an" title="Caracteres de la linea / seguros (recomendado). Limite duro: ${dur}">${a}/${seg}</span>`}</div>`}).join('');
-  return `<div class="vent ${opt.compacto?'compacto':''} ${probs.length?'mala':''}">${nom?`<div class="nom" title="Hablante">${esc(nom)}</div>`:''}${lin}<div class="vpie"><span>ventana ${i+1}/${N} \u00B7 ${w.length} lineas</span>${probs.length?`<span class="prob">\u26A0 ${esc(probs.join('; '))}</span>`:''}<span class="sig" title="${ult?'Ultima ventana':'Pulsa para continuar'}">${ult?'\u25A0':'\u25BC'}</span></div></div>`}).join('')}
-function vistaFuente(v,el){$(el).innerHTML=ingame(v,{compacto:true})}
-function vistaES(r){const cont=$('vista');const sua=!!(r.suavizado&&r.suavizado.suavizado==='aplicado');
- if(r.variantes){cont.innerHTML=[['fem','\u2640 Mujer'],['masc','\u2642 Hombre']].map(([g,t])=>`<div><div class="vtit" title="Asi se ve si el jugador es ${g==='fem'?'mujer':'hombre'}">${t}</div>${ingame(r.variantes[g])}</div>`).join('');const v=r.variantes.masc||r.vista;if(v)info(v,sua)}
- else{cont.innerHTML=r.vista?ingame(r.vista):'';if(r.vista)info(r.vista,sua)}
- const s=r.suavizado;let t='';if(s){const m={aplicado:'Suavizado: <b>aplicado</b> (la vista muestra el espaciado corregido, igual que saldra en el .dat).',cumplia:'Suavizado: <b class="ok">ya cumplia</b>, no hace falta cambiar nada.',no_aplica:'Suavizado: no se aplica a este tipo de celda.'}[s.suavizado]||'';t=m;
-  if(s.reflujo==='cambiada')t+=' Reflujo: la vista reajusta los saltos; pulsa «Usar texto con reflujo» para llevarlo al cuadro.'}
- $('estSuave').innerHTML=t}
-function info(v,sua){$('cajaInfo').textContent=`(caja ${v.caja.tipo}, ${v.caja.seguro}/${v.caja.duro} car., ${v.nlineas} lineas${sua&&v.caja.tipo==='subtitulo'?' tras el suavizado del .dat, que une saltos a media frase':''}, ${v.nventanas} ventanas)`}
+const {ventanasHtml,vistaHtml,resumenCaja,textoSuavizado}=VistaJuego;
+let ultimaEval=null,selGen='ambas';
+function vistaFuente(v,el){$(el).innerHTML=v?ventanasHtml(v,{compacto:true}):''}
+function vistaES(r){ultimaEval=r;const sua=!!(r.suavizado&&r.suavizado.suavizado==='aplicado');
+ $('vista').innerHTML=vistaHtml(r,selGen);$('selGen').style.display=r.variantes?'':'none';
+ const v=r.variantes?(r.variantes.masc||r.vista):r.vista;$('cajaInfo').textContent=v?resumenCaja(v,sua):'';
+ $('estSuave').innerHTML=textoSuavizado(r.suavizado)}
+document.querySelectorAll('#selGen input').forEach(x=>x.onchange=()=>{selGen=x.value;if(ultimaEval)$('vista').innerHTML=vistaHtml(ultimaEval,selGen)});
 let ultimoTexto='';
 function pintar(r){vistaES(r);ultimoTexto=r.texto;if(r.vista_ja!==undefined){vistaFuente(r.vista_ja,'vja');vistaFuente(r.vista_fr,'vfr')}
  const li=[...r.errores.map(e=>`<li class="err">ERROR ${esc(e[0])}: ${esc(e[1])}</li>`),...r.avisos.map(e=>`<li class="avi">${esc(e[0])}: ${esc(e[1])}</li>`)];
@@ -454,17 +459,24 @@ $('bqSelTodo').onchange=e=>document.querySelectorAll('#bqRes .sel').forEach(x=>x
 // ---------- tareas
 function progTarea(t){const p=t.progreso||{},bar=$('tProg');bar.style.display=t.estado==='ejecutando'?'':'none';if(p.total>0){bar.max=p.total;bar.value=p.hecho}else bar.removeAttribute('value');$('tFase').textContent=t.estado==='ejecutando'?(p.fase||'')+(p.total>0?` ${p.hecho.toLocaleString('es')}/${p.total.toLocaleString('es')}`:''):'';$('tCancel').style.display=(t.estado==='ejecutando'&&t.cancelable)?'':'none'}
 function tareaLog(){api('/api/tarea?desde='+tareaDesde).then(t=>{$('tNombre').textContent=`${t.nombre||'Tarea'}: ${t.estado} (${t.segundos}s)`;if(t.log.length){$('log').textContent+=t.log.join('\n')+'\n';$('log').scrollTop=1e9}tareaDesde=t.siguiente;progTarea(t);
- if(t.estado==='ejecutando'){sondeo=setTimeout(tareaLog,1000)}else{sondeo=null;if(t.resultado&&t.nombre==='generar')$('log').textContent+='RESULTADO '+JSON.stringify(t.resultado,null,1)+'\n';if(t.error)$('log').textContent+='ERROR: '+t.error+'\n';if(t.nombre==='extraer'&&t.resultado&&t.resultado.parche&&t.resultado.parche.hojas_conservadas.length)alert('ATENCION: '+t.resultado.parche.hojas_conservadas.length+' hojas no se pudieron leer del juego y se han conservado como estaban (no se cuentan como borradas). Mira el registro.');if(t.nombre==='extraer'&&t.error&&t.error.indexOf('ExtraccionIncompleta')>=0&&confirm(t.error+'\n\n¿Forzar la importacion de todos modos? (la extraccion anterior se copia en datos/copias)'))lanzar('/api/extraer',{forzar:true});cargar();hojas()}}).catch(e=>{sondeo=null;$('log').textContent+='Sin respuesta del servidor: '+e.message+'\n'})}
+ if(t.estado==='ejecutando'){sondeo=setTimeout(tareaLog,1000)}else{sondeo=null;if(t.resultado&&t.nombre==='generar')$('log').textContent+='RESULTADO '+JSON.stringify(t.resultado,null,1)+'\n';if(t.resultado&&(t.nombre==='espaciado'||t.nombre==='espaciado_deshacer')){const r=t.resultado;$('log').textContent+='RESULTADO '+JSON.stringify(r.categorias||r,null,1)+'\n';
+  alert(t.nombre==='espaciado'?`Espaciado ${r.modo} ${r.estado}: ${(r.cambiadas||0).toLocaleString('es')} celdas cambiadas en ${r.hojas_cambiadas||0} hojas.\nRegistro: ${r.ruta_registro||''}\nPuedes deshacerlo con «Deshacer espaciado masivo».`:`Espaciado deshecho: ${r.restauradas.toLocaleString('es')} celdas restauradas; ${r.cambiadas_despues} no se tocan (editadas despues).`)}if(t.error)$('log').textContent+='ERROR: '+t.error+'\n';if(t.nombre==='extraer'&&t.resultado&&t.resultado.parche&&t.resultado.parche.hojas_conservadas.length)alert('ATENCION: '+t.resultado.parche.hojas_conservadas.length+' hojas no se pudieron leer del juego y se han conservado como estaban (no se cuentan como borradas). Mira el registro.');if(t.nombre==='extraer'&&t.error&&t.error.indexOf('ExtraccionIncompleta')>=0&&confirm(t.error+'\n\n¿Forzar la importacion de todos modos? (la extraccion anterior se copia en datos/copias)'))lanzar('/api/extraer',{forzar:true});cargar();hojas()}}).catch(e=>{sondeo=null;$('log').textContent+='Sin respuesta del servidor: '+e.message+'\n'})}
 $('tCancel').onclick=()=>api('/api/tarea_cancelar',{}).catch(e=>alert(e.message));
 async function lanzar(ruta,cuerpo){try{$('tareas').style.display='flex';$('log').textContent='';tareaDesde=0;await api(ruta,cuerpo||{});if(!sondeo)tareaLog()}catch(e){$('log').textContent=e.message}}
 $('bSync').onclick=()=>lanzar('/api/sync');$('bIdx').onclick=e=>{$('bannerIdx').classList.remove('on');lanzar('/api/indexar',{forzar:!!(e.ctrlKey||e.metaKey)})};$('bExt').onclick=()=>lanzar('/api/extraer');$('bGen').onclick=()=>lanzar('/api/generar');
+const TXT_ESP={aplicar:'APLICAR espaciado automatico a TODO el texto traducido (todas las hojas)?\n\nSe reajustan los saltos de linea (58 caracteres, maximo 4 lineas por ventana; creador a 49) solo en celdas verdes de misiones y dialogos. Balloon, NpcYell, narrador y cajas de ancho fijo no se tocan. Nunca cambia palabras, macros ni el numero de trozos.\n\nTarda unos minutos, tiene barra de progreso y se puede deshacer con «Deshacer espaciado masivo».',
+ quitar:'QUITAR el espaciado automatico de TODO el texto traducido (todas las hojas)?\n\nSe quitan los saltos de presentacion (uniendo con un espacio) donde el .dat suaviza; los saltos que exige el japones se conservan. Balloon, NpcYell, narrador, creador y cajas de ancho fijo no se tocan.\n\nTarda unos minutos, tiene barra de progreso y se puede deshacer con «Deshacer espaciado masivo».'};
+$('bEspAp').onclick=()=>{if(confirm(TXT_ESP.aplicar))lanzar('/api/espaciado_masivo',{modo:'aplicar'})};
+$('bEspQu').onclick=()=>{if(confirm(TXT_ESP.quitar))lanzar('/api/espaciado_masivo',{modo:'quitar'})};
+$('bEspDe').onclick=async()=>{try{const r=await api('/api/espaciado_registros');if(!r.deshacer_disponible){alert('No hay ningun espaciado masivo que deshacer.');return}const u=r.registros.find(x=>!x.deshecho&&x.cambiadas);
+ if(confirm(`Deshacer el ultimo espaciado masivo (${u?u.modo+', '+u.fecha+', '+u.cambiadas.toLocaleString('es')+' celdas':''})?\nLas celdas que editaste despues no se tocan.`))lanzar('/api/espaciado_deshacer',{})}catch(e){alert(e.message)}};
 $('bTar').onclick=()=>{$('tareas').style.display='flex';tareaDesde=0;$('log').textContent='';tareaLog()};$('tCerrar').onclick=()=>$('tareas').style.display='none';
 $('bExp').onclick=async()=>{try{const r=await api('/api/exportar',{});alert(`Exportadas ${r.filas} filas de ${r.hojas} hojas a:\n${r.carpeta}`)}catch(e){alert(e.message)}};
 $('bSalir').onclick=async()=>{await api('/api/salir',{});document.body.innerHTML='<p style="padding:20px">Editor cerrado. Puedes cerrar esta pestana.</p>'};
 $('bAyuda').onclick=async()=>{try{const e=await api('/api/estado');const c=e.config||{};$('aSeguridad').textContent=c.aviso_token||(c.token_proteccion==='claro'?'El token de GitHub esta guardado SIN cifrar en config.json (este sistema no tiene DPAPI): no compartas ni sincronices esa carpeta.':(c.token_proteccion==='dpapi'?'El token de GitHub esta cifrado con DPAPI (solo este usuario de Windows puede leerlo).':''))}catch(x){}$('dAyuda').showModal()};$('aLogs').onclick=async()=>{try{const r=await api('/api/abrir_registros',{});$('aLogRuta').textContent=r.ruta}catch(e){$('aLogRuta').textContent=e.message}};$('aNavegador').onclick=async()=>{try{await api('/api/abrir_navegador',{})}catch(e){}};$('aCerrar').onclick=()=>$('dAyuda').close();
 // ---------- ajustes
 $('bCfg').onclick=async()=>{const e=await api('/api/estado');const c=e.config;$('cRepo').value=c.repo;$('cRama').value=c.rama;$('cToken').value='';$('cToken').placeholder=c.token_guardado?'(guardado; deja vacio para conservarlo)':'ghp_...';
- $('cJuego').value=c.ruta_juego;$('cDat').value=c.carpeta_dat;$('cMin').value=c.min_entradas;$('cMax').value=c.max_rechazos;$('dCfg').showModal()};
+ $('cJuego').value=c.ruta_juego||e.ruta_juego_detectada||'';$('cJuego').placeholder=e.ruta_juego_detectada?'(detectada: pulsa Guardar para usarla)':'C:\\...\\game\\sqpack\\ffxiv';$('cDat').value=c.carpeta_dat;$('cMin').value=c.min_entradas;$('cMax').value=c.max_rechazos;$('dCfg').showModal()};
 $('cCerrar').onclick=()=>$('dCfg').close();
 $('cGuardar').onclick=async()=>{await api('/api/config',{repo:$('cRepo').value,rama:$('cRama').value,token:$('cToken').value,ruta_juego:$('cJuego').value,carpeta_dat:$('cDat').value,min_entradas:$('cMin').value,max_rechazos:$('cMax').value});$('dCfg').close()};
 $('cBorrar').onclick=async()=>{await api('/api/borrar_token',{});$('cToken').placeholder='ghp_...'};
@@ -526,7 +538,7 @@ async function ofrecerIndice(motivo){
  CLASES=e.clases||[];avisoTop(e.aviso);
  for(const id of ['bqClase','mClase'])$(id).innerHTML=(id==='mClase'?'<option value="">Clase: todas</option>':'<option value="">todas las clases</option>')+CLASES.map(c=>`<option>${esc(c)}</option>`).join('');
  if(e.tarea.estado==='ejecutando'){cgOcultar();$('tareas').style.display='flex';tareaLog()}
- else if(!e.repo_ok){cgOcultar();$('vacio').textContent='Primero abre Ajustes (repo y token) y pulsa «Actualizar desde GitHub».'}
+ else if(!e.textos_ok){cgOcultar();$('vacio').textContent='Primero abre Ajustes, indica la carpeta sqpack/ffxiv del juego instalado y pulsa «Importar parche (extraer JA/FR)»: el japones y el frances se extraen del juego en este PC, sin descargar nada. GitHub es opcional (solo trae la traduccion ES de partida).'}
  else if(!(e.indice&&e.indice.celdas>0)){const ok=await ofrecerIndice('El editor aun no tiene indice de celdas para este repo.');if(ok)e=await api('/api/estado');cgOcultar()}
  else{cgOcultar();const v=e.indice_estado;if(v&&v.vigente===false&&v.hojas_cambiadas>0){const sf=v.motivo==='sin_firmas';$('bannerIdxT').textContent=sf?'El indice viene de una version anterior del editor: funciona, pero conviene actualizarlo una vez.':`El repo, el juego o tus ediciones han cambiado desde el ultimo indice (${v.hojas_cambiadas.toLocaleString('es')} hojas).`;$('bannerIdx').classList.add('on')}}
  $('bannerIdxIr').onclick=()=>$('bIdx').click();$('bannerIdxNo').onclick=()=>$('bannerIdx').classList.remove('on');

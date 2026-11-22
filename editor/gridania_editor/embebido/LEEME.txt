@@ -1,0 +1,3 @@
+Copia literal (solo codigo y tablas de caja, sin textos del juego ni traducciones) de tools/py del repo gridania, commit 75d0ad39.
+El editor la usa cuando no hay una copia descargada de GitHub (datos/repo/tools/py). No editar aqui a mano: resincronizar desde gridania.
+Contenido: los modulos que importa repo_env.NOMBRES (y sus dependencias), lotes/cajas/perfiles_caja.tsv, lotes/allowlist_fr.txt y grupos_interfaz.txt.

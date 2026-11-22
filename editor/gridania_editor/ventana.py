@@ -1,6 +1,6 @@
 """Ventana propia SIN pywebview/pythonnet: Microsoft Edge (o Chrome) en modo aplicacion con perfil propio.
 El pid del Popen es solo una PISTA (el lanzador puede delegar y salir, o Edge seguir en segundo plano): el cierre de la ventana se detecta por latido de la UI (ver app.py).
-Perfil: %LOCALAPPDATA%\\GridaniaEditor\\perfil-ventana (o <datos>/perfil-ventana si no hay LOCALAPPDATA). NO son datos del usuario, solo cache/cookies del navegador; se puede borrar.
+Perfil: <datos>/perfil-ventana (junto al programa; nunca en AppData). NO son datos del usuario, solo cache/cookies del navegador; se puede borrar.
 Sin Edge/Chrome -> None y el llamador usa el navegador predeterminado."""
 import logging, os, subprocess, sys
 
@@ -47,9 +47,8 @@ def buscar_navegador(env=None, winreg=None, existe=os.path.isfile):
 
 
 def dir_perfil(home, env=None):
-    env = os.environ if env is None else env
-    base = env.get('LOCALAPPDATA')
-    return os.path.join(base, 'GridaniaEditor', 'perfil-ventana') if base else os.path.join(home, 'perfil-ventana')
+    """perfil del navegador de la ventana: SIEMPRE dentro de la carpeta de datos del editor (junto al .exe), nunca en %LOCALAPPDATA%. `env` se conserva por compatibilidad y no se usa."""
+    return os.path.join(home, 'perfil-ventana')
 
 
 def perfil_libre(home, env=None, pid_vivo=None, hay_ventana=None):

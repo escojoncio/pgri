@@ -1,0 +1,67 @@
+# Hojas de interfaz cuyas traducciones se reutilizan del corpus (importar_corpus.py). Una hoja por linea; las lineas "# Grupo:" nombran el grupo.
+# Grupo: HUD y menus
+Addon
+AddonTransient
+AddonParam
+Lobby
+LogMessage
+Title
+TextCommand
+TextCommandParam
+Emote
+EmoteTransient
+EmoteCategory
+MainCommand
+MainCommandCategory
+GeneralAction
+Error
+Platform
+ConfigKey
+# Grupo: Clases y habilidades
+Action
+ActionTransient
+ActionTimeline
+Status
+CraftAction
+Trait
+TraitTransient
+Companion
+CompanionTransient
+ClassJob
+ClassJobCategory
+PetAction
+ActionComboRoute
+ActionComboRouteTransient
+Pet
+ActionCategory
+CompanionMove
+PetMirage
+# Grupo: Tutoriales y pop-ups
+# Balloon (burbujas de NPC) EXCLUIDA: los dialogos de NPC se traducen desde el japones, no se importan del corpus.
+EventItemHelp
+DescriptionString
+HowToPage
+HowTo
+HowToCategory
+NotebookDivision
+NotebookDivisionCategory
+Description
+MultipleHelpString
+MultipleHelp
+DescriptionStandAloneTransient
+EventTutorialPage
+EventTutorial
+ContentsTutorialPage
+ContentsTutorial
+# Grupo: Creacion de personaje
+CharaMakeName
+CharaCardDecoration
+CharaCardDesignPreset
+CharaCardBase
+CharaCardHeader
+CharaCardPlayStyle
+CharaCardDesignCategory
+Tribe
+GuardianDeity
+Race
+Town

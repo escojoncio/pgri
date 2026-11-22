@@ -23,6 +23,7 @@ def puerta(n_entradas, n_rechazos, n_elipsis, min_entradas=MIN_ENTRADAS, max_rec
 
 def clonar(src, dst, copiar=False):
     """arbol src -> dst con enlaces duros (copia si no se puede o copiar=True)"""
+    os.makedirs(dst, exist_ok=True)      # src puede no existir (sin copia de GitHub: solo ediciones)
     for d, _, fs in os.walk(src):
         rel = os.path.relpath(d, src); o = dst if rel == '.' else os.path.join(dst, rel)
         os.makedirs(o, exist_ok=True)

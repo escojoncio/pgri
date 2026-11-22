@@ -1,7 +1,7 @@
 """Estado de la aplicacion (sin HTTP): ajustes, base de datos, motor de celdas y tareas en segundo plano."""
 import collections, json, logging, os, re, sqlite3, threading, time, traceback
 from . import celda as celda_mod
-from . import builder, busqueda, celda, clases, config, edits, extractor, flujo, github_sync, indexer, parche, registro, repo_env
+from . import builder, busqueda, celda, clases, config, edits, espaciado, extractor, flujo, github_sync, indexer, parche, registro, repo_env
 
 log = logging.getLogger('gridania.app')
 
@@ -62,6 +62,7 @@ class Aplicacion(object):
         self.flujo = flujo.Flujo(os.path.join(self.cfg.home, 'flujo.json'))   # estados Por hacer / Hecho: solo en la carpeta de datos del editor
         self._R = None; self._motor = None; self._indice = None
         self.lock = threading.RLock()
+        self.lock_ediciones = threading.RLock()          # una sola escritura de ediciones/ a la vez (guardar una celda / espaciado masivo por hoja)
         self.aviso = ''                                  # mensaje visible en la UI (p. ej. fallback a navegador)
         self.arranque = {'listo': True, 'fase': '', 'hecho': 0, 'total': 0}
         self._fondo = False; self.vigencia = None                             # estado del indice persistente: {'vigente', 'hojas_cambiadas', 'motivo'}
@@ -126,7 +127,7 @@ class Aplicacion(object):
 
     def refrescar_vigencia(self):
         try:
-            if not repo_env.hay_repo(self.cfg.repo_dir): self.vigencia = {'vigente': False, 'hojas_cambiadas': 0, 'motivo': 'sin_repo'}; return self.vigencia
+            if not self.hay_textos(): self.vigencia = {'vigente': False, 'hojas_cambiadas': 0, 'motivo': 'sin_repo'}; return self.vigencia
             self.vigencia = indexer.estado_indice(None, self.base, self.cfg.repo_dir, self.raiz_textos(), self.cfg.ediciones_dir)
         except Exception as x:
             log.warning('vigencia: %s', x); self.vigencia = None
@@ -141,6 +142,10 @@ class Aplicacion(object):
     def raiz_textos(self):
         j = self.cfg.juego_dir
         return j if os.path.exists(os.path.join(j, 'info.json')) and os.path.isdir(os.path.join(j, 'textos', 'ja')) else self.cfg.repo_dir
+
+    def hay_textos(self):
+        """hay japones (y frances) con el que trabajar: la extraccion LOCAL del juego (datos/juego) o, opcionalmente, la copia descargada de GitHub. No se necesita GitHub."""
+        return os.path.isdir(os.path.join(self.raiz_textos(), 'textos', 'ja'))
 
     def motor(self):
         with self.lock:
@@ -166,7 +171,8 @@ class Aplicacion(object):
         except sqlite3.Error as x:      # /api/estado responde SIEMPRE (con arranque.fase y progreso) aunque la BD este ocupada
             log.warning('estado: base no disponible: %s', x); indice = None; contadores = {e: 0 for e in indexer.ESTADOS}
         return {'config': self.cfg.publico(), 'sync': self._leer('sync_info.json'), 'juego': j, 'indice': indice, 'contadores': contadores,
-                'ediciones': edits.contar(self.cfg.ediciones_dir), 'repo_ok': repo_env.hay_repo(self.cfg.repo_dir), 'tarea': self.tarea.ver(10 ** 9),
+                'ediciones': edits.contar(self.cfg.ediciones_dir), 'repo_ok': repo_env.hay_repo(self.cfg.repo_dir), 'textos_ok': self.hay_textos(), 'textos_fuente': 'juego' if self.raiz_textos() == self.cfg.juego_dir else ('repo' if self.hay_textos() else ''),
+                'ruta_juego_detectada': extractor.detectar_ruta_juego() if not self.cfg['ruta_juego'] else '', 'tarea': self.tarea.ver(10 ** 9),
                 'version_recomendada': self._recomendada(), 'clases': clases.CLASES, 'flujo': self.flujo.totales(),
                 'arranque': dict(self.arranque, ocupada=self.motivo_base()), 'indice_estado': self.vigencia, 'aviso': self.aviso, 'registro': registro.ruta_log(self.cfg.home)}
 
@@ -259,7 +265,7 @@ class Aplicacion(object):
         r = m.evaluar(c, texto, 'masc', True)
         if r['errores'] or r['es'] is None:
             return {'guardado': False, 'evaluacion': self._resumen(r)}
-        edits.guardar(self.base, self.cfg.ediciones_dir, m.R, c, r['es'])
+        with self.lock_ediciones: edits.guardar(self.base, self.cfg.ediciones_dir, m.R, c, r['es'])
         if self._indice is not None: self._indice.actualizar(id_, edits_plano(r['es']), 'verde')
         return {'guardado': True, 'evaluacion': self._resumen(r)}
 
@@ -541,6 +547,9 @@ class Aplicacion(object):
     def _calcular_novedades(self, R, raiz_anterior, textos_nuevos, info, log):
         """compara el textos/ja anterior con la extraccion nueva (aun sin cambiar). SOLO LECTURA: no escribe nada (el informe se guarda despues del cambio). -> dict"""
         raiz_nuevo = os.path.dirname(textos_nuevos)
+        if not parche._hojas(raiz_anterior):      # primera extraccion local y sin copia de GitHub: no hay con que comparar (todo seria «nuevo»); sin informe ni marcas en el flujo
+            log('primera extraccion del juego: no hay version anterior con la que comparar; no se marca nada como nuevo')
+            return {}
         log('comparando con la version anterior (%s)...' % (self._version_base(raiz_anterior) or 'repo'))
         return parche.comparar(raiz_anterior, raiz_nuevo, self.cfg.repo_dir, self.cfg.ediciones_dir, R.G.tiene_cjk, R.G.hash_ja, log, excluir=info.get('fallidas') or ())
 
@@ -696,6 +705,31 @@ class Aplicacion(object):
             with open(tmp, 'w', encoding='utf-8') as f: json.dump(inf, f, ensure_ascii=False, separators=(',', ':'))
             os.replace(tmp, ruta)
         return {'aplicadas': len(hechos), 'fallos': [{'hoja': c.hoja, 'a': [c.row, c.sub, c.col], 'motivo': t} for c, t in fallos], 'omitidas': omitidas}
+
+    # ------------------------------------------------------------ espaciado automatico masivo (todas las hojas)
+    def tarea_espaciado(self, modo):
+        """«Aplicar / Quitar espaciado automatico a todo»: tarea en segundo plano con barra de progreso, cancelable, con registro y deshacer (ver espaciado.py)"""
+        if modo not in espaciado.MODOS: raise ValueError('modo desconocido')
+        self.base.exigir_libre()
+        t = self.tarea
+        def fn(log):
+            r = espaciado.ejecutar(self, modo, log, t.avance, t.cancelar_ev)
+            self._indice = None
+            return {k: v for k, v in r.items() if k != 'hojas_con_mas_cambios'}
+        t.iniciar('espaciado', fn, cancelable=True)
+
+    def tarea_espaciado_deshacer(self):
+        self.base.exigir_libre()
+        if espaciado.ultimo_registro(self.cfg)[1] is None: raise ValueError('no hay ningun espaciado masivo que deshacer')
+        t = self.tarea
+        def fn(log):
+            r = espaciado.deshacer(self, log, t.avance)
+            self._indice = None
+            return r
+        t.iniciar('espaciado_deshacer', fn)
+
+    def espaciado_registros(self):
+        return {'registros': espaciado.listar(self.cfg), 'deshacer_disponible': espaciado.ultimo_registro(self.cfg)[1] is not None}
 
     def tarea_indexar(self, forzar=False):
         self.tarea.iniciar('indexar', lambda log: self._indexar(log, bool(forzar)), cancelable=True)

@@ -173,11 +173,11 @@ def test_linea_de_comandos_exacta_y_lanzar(tmp_path):
     assert ventana.lanzar('u', str(tmp_path), buscar=lambda: 'E', popen=malo, env={}) is None         # fallo al lanzar
 
 
-def test_perfil_en_localappdata_y_fallo_de_makedirs(tmp_path):
+def test_perfil_junto_al_programa_nunca_en_appdata_y_fallo_de_makedirs(tmp_path):
     from gridania_editor import ventana
     la = tmp_path / 'la'; la.mkdir()
-    assert ventana.dir_perfil('H', {'LOCALAPPDATA': str(la)}) == os.path.join(str(la), 'GridaniaEditor', 'perfil-ventana')
+    assert ventana.dir_perfil('H', {'LOCALAPPDATA': str(la)}) == os.path.join('H', 'perfil-ventana')       # con LOCALAPPDATA definido sigue yendo a <datos>
     assert ventana.dir_perfil('H', {}) == os.path.join('H', 'perfil-ventana')
     lanzados = []
     bloq = tmp_path / 'fichero'; bloq.write_text('x')                      # un fichero donde deberia haber carpeta: makedirs falla
-    assert ventana.lanzar('u', 'H', buscar=lambda: 'E', popen=lambda c, **k: lanzados.append(c), env={'LOCALAPPDATA': str(bloq)}) is None and lanzados == []
+    assert ventana.lanzar('u', str(bloq), buscar=lambda: 'E', popen=lambda c, **k: lanzados.append(c), env={}) is None and lanzados == []
