@@ -143,6 +143,10 @@ class Aplicacion(object):
         j = self.cfg.juego_dir
         return j if os.path.exists(os.path.join(j, 'info.json')) and os.path.isdir(os.path.join(j, 'textos', 'ja')) else self.cfg.repo_dir
 
+    def _ruta_detectada(self):
+        if getattr(self, '_ruta_det', None) is None: self._ruta_det = extractor.detectar_ruta_juego()
+        return self._ruta_det
+
     def hay_textos(self):
         """hay japones (y frances) con el que trabajar: la extraccion LOCAL del juego (datos/juego) o, opcionalmente, la copia descargada de GitHub. No se necesita GitHub."""
         return os.path.isdir(os.path.join(self.raiz_textos(), 'textos', 'ja'))
@@ -172,7 +176,7 @@ class Aplicacion(object):
             log.warning('estado: base no disponible: %s', x); indice = None; contadores = {e: 0 for e in indexer.ESTADOS}
         return {'config': self.cfg.publico(), 'sync': self._leer('sync_info.json'), 'juego': j, 'indice': indice, 'contadores': contadores,
                 'ediciones': edits.contar(self.cfg.ediciones_dir), 'repo_ok': repo_env.hay_repo(self.cfg.repo_dir), 'textos_ok': self.hay_textos(), 'textos_fuente': 'juego' if self.raiz_textos() == self.cfg.juego_dir else ('repo' if self.hay_textos() else ''),
-                'ruta_juego_detectada': extractor.detectar_ruta_juego() if not self.cfg['ruta_juego'] else '', 'tarea': self.tarea.ver(10 ** 9),
+                'ruta_juego_detectada': self._ruta_detectada() if not self.cfg['ruta_juego'] else '', 'tarea': self.tarea.ver(10 ** 9),
                 'version_recomendada': self._recomendada(), 'clases': clases.CLASES, 'flujo': self.flujo.totales(),
                 'arranque': dict(self.arranque, ocupada=self.motivo_base()), 'indice_estado': self.vigencia, 'aviso': self.aviso, 'registro': registro.ruta_log(self.cfg.home)}
 
@@ -309,7 +313,7 @@ class Aplicacion(object):
                     'errores': [list(x) for x in r['errores']], 'avisos': [list(x) for x in r['avisos']]}
             if r['errores'] or r['es'] is None: rechazadas.append(item); continue
             if b.get('aplicar'):
-                edits.guardar(self.base, self.cfg.ediciones_dir, m.R, c, r['es'], comprobar=False)
+                with self.lock_ediciones: edits.guardar(self.base, self.cfg.ediciones_dir, m.R, c, r['es'], comprobar=False)
                 self.indice().actualizar(f['id'], edits_plano(r['es']), 'verde')
             cambios.append(item)
         return {'aplicado': bool(b.get('aplicar')), 'cambios': cambios[:300], 'n_cambios': len(cambios), 'rechazadas': rechazadas[:300], 'n_rechazadas': len(rechazadas), 'sin_cambio': sin_cambio}
@@ -417,7 +421,7 @@ class Aplicacion(object):
         m = self.motor(); items = []; por_id = {}
         for x in cambios:
             c = m.contexto(x['hoja'], x['row'], x['sub'], x['col']); items.append((c, x['es_despues'])); por_id[c.k, c.hoja] = x
-        hechos, fallos = edits.guardar_lote(self.base, self.cfg.ediciones_dir, m.R, items)
+        with self.lock_ediciones: hechos, fallos = edits.guardar_lote(self.base, self.cfg.ediciones_dir, m.R, items)
         reg = []
         for h in hechos:
             c = h['c']; x = por_id[c.k, c.hoja]
@@ -443,7 +447,7 @@ class Aplicacion(object):
             except ValueError: actual = None
             if actual != x['es_despues']: cambiadas.append({k: x[k] for k in ('hoja', 'row', 'sub', 'col')}); continue
             ok.append(x)
-        edits.restaurar_lote(self.base, self.cfg.ediciones_dir, ok)
+        with self.lock_ediciones: edits.restaurar_lote(self.base, self.cfg.ediciones_dir, ok)
         if self._indice is not None:
             for x in ok:
                 r = self.base.q('SELECT id,es FROM celdas WHERE hoja=? AND row=? AND sub IS ? AND col=?', (x['hoja'], x['row'], x['sub'], x['col']))
@@ -695,7 +699,7 @@ class Aplicacion(object):
                 if r[0]['estado'] not in ('rojo', 'blanco') or (r[0]['es'] or '').strip() or r[0]['editada']:
                     omitidas.append({'hoja': h, 'a': list(a), 'motivo': 'el destino ya tiene traduccion o edicion'}); continue
                 items.append((m_.contexto(h, a[0], a[1], a[2]), m['es'])); refs.append((h, m))
-        hechos, fallos = edits.guardar_lote(self.base, self.cfg.ediciones_dir, m_.R, items) if items else ([], [])
+        with self.lock_ediciones: hechos, fallos = edits.guardar_lote(self.base, self.cfg.ediciones_dir, m_.R, items) if items else ([], [])
         mal = {(c.hoja,) + c.k for c, _ in fallos}
         for h, m in refs:
             if (h,) + tuple(m['a']) not in mal: m['aceptada'] = True

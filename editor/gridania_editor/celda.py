@@ -297,7 +297,7 @@ class Motor(object):
             else:
                 txt = self._plano_color(dura, pf, activo); partes = self._envolver_c(txt, pf) if envolver else [txt]
             lineas += partes
-        n = pf.lineas if (pf.lineas and pf.envuelve) else (0 if pf.tipo in ('subtitulo', 'hud_fijo') else 4)
+        n = pf.lineas if (pf.lineas and pf.envuelve) else (0 if (pf.tipo in ('subtitulo', 'hud_fijo', 'descripcion') or c.hoja == 'Lobby' or c.hoja.startswith('CharaMake')) else 4)
         vent = [lineas[i:i + n] for i in range(0, len(lineas), n)] if n else [lineas]
         seguro, duro = pf.seguro, pf.duro
         if pf.tipo == 'subtitulo':   # tope RELATIVO AL FRANCES por celda (como nucleo.problemas y suavizar_saltos.modo_de), no el 58 base del perfil

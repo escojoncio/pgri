@@ -6,7 +6,8 @@ Reglas (mismas que el .dat y que la vista previa; ver celda.Motor.modo_suavizado
 - Solo celdas VERDES (traduccion vigente con el h actual). Las naranjas (japones cambiado, a revisar) NO se tocan: guardarlas las pasaria a verde y borraria la marca de revision.
 - Balloon y NpcYell: nunca se tocan (en ningun modo). ENpcResident, Lobby y CharaMake* estan excluidos del SUAVIZADO del .dat: «quitar» no los toca.
 - Narrador (perfil de caja subtitulo, o clave NARRAT / MYSTERYVOICE): sus trozos son frases sueltas que nunca se funden: no se tocan.
-- Cajas de ancho fijo (hud_fijo, descripcion, sistema): no se tocan.
+- Cajas de ancho fijo (hud_fijo, descripcion, sistema): en QUITAR no se tocan (el .dat no las suaviza); en APLICAR SI se reflujan (creador de personaje: 49).
+- APLICAR solo toca celdas que INCUMPLEN (ventana final huerfana o ultima linea < 10 car.) y solo si el reflujo mejora (violaciones y coste), como `reflujar_lineas --solo-incumplen`.
 - APLICAR = el reflujo del editor (el mismo que el boton «Suavizar saltos» de una celda): dialogo de quest/* y DefaultTalk a 58 caracteres y maximo 4 lineas por ventana, creador de
   personaje (Lobby) a 49. El resto de clases (objetivos, menus, descripciones...) se espacia al GENERAR el .dat (suavizar_saltos): no cambia el texto guardado, y la vista previa ya lo
   muestra. Nunca cambia palabras, macros ni el numero de trozos (si cambiase algo mas que saltos, la celda se descarta).
@@ -19,7 +20,7 @@ SIEMPRE_EXCLUIDAS = ('Balloon', 'NpcYell')        # nunca se tocan, en ningun mo
 CONSERVAR_REGISTROS = 5
 NL_RE = re.compile(r'<NewLine(?:#\d+)?>|\n')
 CATEGORIAS = ('cambiada', 'ya_cumplia', 'se_espacia_en_el_dat', 'sin_saltos', 'no_admite', 'excluida', 'narrador', 'caja_fija', 'solo_saltos', 'rechazada',
-              'sin_japones', 'cambiada_durante', 'error', 'naranja_no_tocada', 'escritura_fallida')
+              'sin_mejora', 'sin_japones', 'cambiada_durante', 'error', 'naranja_no_tocada', 'escritura_fallida')
 
 
 def dir_registros(cfg):
@@ -69,13 +70,20 @@ def espaciar_celda(m, c, es0, modo):
             return (None, 'caja_fija') if SS.modo_de(c.pf, c.fr_text)[0] is None else (None, 'se_espacia_en_el_dat')
         if not _tiene_salto(es0) and not (isinstance(es0, list) and len(es0) > 1): return None, 'sin_saltos'
         RL = m.R.RL
-        RL.CFG.paginar = True; RL.CFG.macros = True; RL.CFG.maxwin = 4; RL.CFG.solo = False
-        try: st, a, _ = RL.procesar_celda(c.text, c.raw, m._fila(c, es0), W, c.creador, c.clave)
+        RL.CFG.paginar = True; RL.CFG.macros = True; RL.CFG.maxwin = 4
+        d = {}      # procesar_celda ignora CFG.solo (lo lee procesar_hoja): el filtro «solo incumplen» se reproduce aqui
+        try: st, a, info = RL.procesar_celda(c.text, c.raw, m._fila(c, es0), W, c.creador, c.clave, d)
         except Exception: return None, 'error'
-        if st == 'cambiada': nuevo = a
-        elif st == 'ya_correcta': return None, 'ya_cumplia'
-        elif st == 'sin_saltos': return None, 'sin_saltos'
-        else: return None, 'rechazada'
+        if st == 'sin_saltos': return None, 'sin_saltos'
+        if st not in ('cambiada', 'ya_correcta'): return None, 'rechazada'
+        s0 = d.get('antes')
+        if s0 is None: return None, 'rechazada'
+        v0 = RL.violaciones(s0)
+        if v0 == 0 or st == 'ya_correcta': return None, 'ya_cumplia'      # gridania: solo se toca lo que incumple
+        v1 = RL.violaciones(d.get('despues') or s0)
+        ca, cn = (info.get('coste') or (None, None)) if isinstance(info, dict) else (None, None)
+        if v1 >= v0 or (ca is not None and ca != float('inf') and cn > ca): return None, 'sin_mejora'
+        nuevo = a
     else:
         if not _tiene_salto(es0): return None, 'sin_saltos'
         try: nuevo = m.sin_saltos(c, es0)
@@ -160,7 +168,7 @@ def ejecutar(app, modo, log=print, avance=None, cancelar=None):
                     for h in hechos:
                         c = h['c']
                         jf.write(json.dumps({'hoja': hoja, 'row': c.row, 'sub': c.sub, 'col': c.col, 'antes': antes[c.k], 'despues': nuevo_de[c.k], 'previa': h['previa'], 'db': h['db']}, ensure_ascii=False) + '\n')
-                    jf.flush()
+                    jf.flush(); resumen['cambiadas'] = cont['cambiada'] + hc['cambiada']; _escribir_json(ruta_r, resumen)
                 cont.update(hc); hecho += n
                 if hc['cambiada'] > 0: por_hoja[hoja] = hc['cambiada']
                 if cancelar is not None and cancelar.is_set(): cancelado = True; break
@@ -183,7 +191,13 @@ def ultimo_registro(cfg):
         try:
             with open(r, encoding='utf-8') as f: x = json.load(f)
         except (OSError, ValueError): continue
-        if not x.get('deshecho') and x.get('cambiadas') and x.get('estado') in ('completo', 'cancelado', 'error'): return r, x
+        if x.get('deshecho'): continue
+        if x.get('estado') == 'en_curso' and not x.get('cambiadas'):      # cuelgue: se cuentan las lineas del registro
+            try:
+                with open(os.path.join(dir_registros(cfg), x.get('registro', '')), encoding='utf-8') as f: n = sum(1 for l in f if l.strip() and '"tipo": "cabecera"' not in l)
+            except OSError: n = 0
+            if n: x['cambiadas'] = n
+        if x.get('cambiadas') and x.get('estado') in ('completo', 'cancelado', 'error', 'en_curso'): return r, x
     return None, None
 
 

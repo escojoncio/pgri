@@ -63,7 +63,7 @@
 
   function problemas(v, w, ult, N) {
     var p = [], seg = v.caja.seguro, dur = v.caja.duro, tope = v.caja.lineas || MAXL;
-    if (v.caja.tipo !== 'subtitulo' && v.caja.tipo !== 'hud_fijo' && w.length > tope) p.push('mas de ' + tope + ' lineas (' + w.length + ')');
+    if (v.caja.tipo !== 'subtitulo' && v.caja.tipo !== 'hud_fijo' && v.caja.tipo !== 'descripcion' && !v.caja.creador && w.length > tope) p.push('mas de ' + tope + ' lineas (' + w.length + ')');
     if (dur && w.some(function (l) { return anchoLinea(l) > dur; })) p.push('linea mas ancha que la caja');
     if (ult && N > 1 && w.length === 1 && palabras(w[0]) <= 2) p.push('ventana final huerfana');
     return p;

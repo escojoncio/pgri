@@ -10,8 +10,17 @@
 - CI: `.github/workflows/editor.yml` anade `--add-data gridania_editor/embebido`.
 - Tests: `editor/tests/test_espaciado_vista.py` (nuevo); `test_arranque2.py` y `conftest.py` adaptados (`GRIDANIA_TEST_REPO`).
 
+### Correcciones tras revision adversarial (ciclo 1)
+- `espaciado.espaciar_celda` (aplicar): ya no es reflujo global; reproduce `--solo-incumplen` (violaciones antes == 0 -> ya_cumplia; descarta si violaciones no bajan o el coste empeora -> categoria nueva `sin_mejora`). El boton de una celda (celda.py) no cambia. CAMBIO DE COMPORTAMIENTO: «aplicar» toca menos celdas.
+- `celda.Motor.vista`: n=0 (sin limite de lineas por ventana) tambien para `descripcion`, Lobby y CharaMake*; `vista.js` no avisa de >4 lineas si `caja.creador` o tipo descripcion.
+- `espaciado.ultimo_registro`: acepta `en_curso` si el .jsonl tiene filas; `ejecutar` actualiza `cambiadas` del resumen tras cada hoja (deshacer tras cuelgue).
+- `aplicacion.py`: todos los escritores de ediciones (guardar_lote/restaurar_lote/guardar) bajo `lock_ediciones`.
+- Docstring y dialogos de espaciado corregidos: en «aplicar» las cajas fijas SI se reflujan (49); «quitar» no las toca.
+- `/api/estado`: `detectar_ruta_juego` cacheado por sesion (`Aplicacion._ruta_detectada`).
+- Tests nuevos (SQLite temporal + Motor falso, NO el motor real): ejecutar->deshacer restaura es/es_json/origen/h_es/editada y fila de ediciones; guardado concurrente; en_curso; n=0 creador; filtro solo-incumplen.
+
 ### Estado de pruebas
-- `pytest editor/tests`: 122 passed, 57 skipped (los skip necesitan checkout completo de gridania/juego instalado).
+- `pytest editor/tests`: 126 passed, 57 skipped (los skip necesitan checkout completo de gridania/juego instalado).
 - SIN PROBAR: `espaciado.ejecutar/deshacer` de extremo a extremo (necesita BD indexada y textos reales); `vista.js` en Edge real (solo node, sin DOM); PyInstaller con embebido; detectar_ruta_juego en Windows real; extraccion real desde sqpack con la copia embebida.
 
 ### Pendientes
