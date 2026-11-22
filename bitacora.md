@@ -19,8 +19,13 @@
 - `/api/estado`: `detectar_ruta_juego` cacheado por sesion (`Aplicacion._ruta_detectada`).
 - Tests nuevos (SQLite temporal + Motor falso, NO el motor real): ejecutar->deshacer restaura es/es_json/origen/h_es/editada y fila de ediciones; guardado concurrente; en_curso; n=0 creador; filtro solo-incumplen.
 
+### Correcciones tras revision adversarial (ciclo 2)
+- `espaciado.ejecutar`: en `aplicar` fija `RL.MARGEN = 0.0` (como `--solo-incumplen`) y lo restaura en `finally`; `ya_correcta` con violaciones > 0 se etiqueta `sin_mejora` (no `ya_cumplia`).
+- Textos (docstring, title de bEspAp, ayuda, confirmacion): aplicar solo reflujan quest* (58), DefaultTalk (58) y Lobby (49); sistema, descripciones y CharaMake no se tocan.
+- `celda.Motor.lineas_ventana(pf, hoja)` (nuevo, estatico): n lineas por ventana de la vista (0 = sin limite); test de comportamiento en lugar de buscar texto en el fuente.
+
 ### Estado de pruebas
-- `pytest editor/tests`: 126 passed, 57 skipped (los skip necesitan checkout completo de gridania/juego instalado).
+- `pytest editor/tests`: 127 passed, 57 skipped (los skip necesitan checkout completo de gridania/juego instalado).
 - SIN PROBAR: `espaciado.ejecutar/deshacer` de extremo a extremo (necesita BD indexada y textos reales); `vista.js` en Edge real (solo node, sin DOM); PyInstaller con embebido; detectar_ruta_juego en Windows real; extraccion real desde sqpack con la copia embebida.
 
 ### Pendientes

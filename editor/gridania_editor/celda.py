@@ -297,7 +297,7 @@ class Motor(object):
             else:
                 txt = self._plano_color(dura, pf, activo); partes = self._envolver_c(txt, pf) if envolver else [txt]
             lineas += partes
-        n = pf.lineas if (pf.lineas and pf.envuelve) else (0 if (pf.tipo in ('subtitulo', 'hud_fijo', 'descripcion') or c.hoja == 'Lobby' or c.hoja.startswith('CharaMake')) else 4)
+        n = self.lineas_ventana(pf, c.hoja)
         vent = [lineas[i:i + n] for i in range(0, len(lineas), n)] if n else [lineas]
         seguro, duro = pf.seguro, pf.duro
         if pf.tipo == 'subtitulo':   # tope RELATIVO AL FRANCES por celda (como nucleo.problemas y suavizar_saltos.modo_de), no el 58 base del perfil
@@ -308,6 +308,12 @@ class Motor(object):
         return {'ventanas': vent, 'genero': genero, 'nlineas': len(lineas), 'nventanas': len(vent), 'hablante': hablante,
                 'caja': {'tipo': pf.tipo, 'seguro': seguro, 'duro': duro, 'lineas': pf.lineas or 4, 'envuelve': bool(pf.envuelve), 'fija': pf.tipo in ('hud_fijo', 'sistema', 'descripcion') or c.hoja == 'Lobby' or c.hoja.startswith('CharaMake'),
                          'creador': c.hoja == 'Lobby' or c.hoja.startswith('CharaMake')}}
+
+    @staticmethod
+    def lineas_ventana(pf, hoja):
+        """lineas por ventana de la vista (0 = sin limite: subtitulo, hud_fijo, descripcion y creador de personaje)"""
+        if pf.lineas and pf.envuelve: return pf.lineas
+        return 0 if (pf.tipo in ('subtitulo', 'hud_fijo', 'descripcion') or hoja == 'Lobby' or hoja.startswith('CharaMake')) else 4
 
     def _envolver(self, txt, pf):
         return self.R.NC.envolver(txt, pf) if pf.envuelve else [txt]

@@ -81,6 +81,7 @@ class _R(object):
         def modo_de(pf, fr): return ('libre', 58)
     class RL(object):
         CFG = types.SimpleNamespace(paginar=True, macros=True, maxwin=4, solo=False)
+        MARGEN = 4.0
         # texto con '<NewLine>' = salto; incumple si la ultima linea es < 10 car.; el reflujo falso lo arregla quitando el salto
         @staticmethod
         def violaciones(s): L = s.split('<NewLine>'); return 1 if len(L) >= 2 and len(L[-1]) < 10 else 0
@@ -153,9 +154,27 @@ def test_ultimo_registro_en_curso_tras_cuelgue(tmp_path):
 
 def test_n0_en_creador_y_sin_aviso_4_lineas():
     from gridania_editor import celda
-    src = open(celda.__file__, encoding='utf-8').read()
-    assert "'descripcion') or c.hoja == 'Lobby' or c.hoja.startswith('CharaMake')) else 4" in src
+    P = lambda tipo, lineas=0, envuelve=False: types.SimpleNamespace(tipo=tipo, lineas=lineas, envuelve=envuelve)
+    L = celda.Motor.lineas_ventana
+    assert L(P('descripcion'), 'Lobby') == 0 and L(P('dialogo'), 'CharaMakeType') == 0
+    assert L(P('descripcion'), 'Item') == 0 and L(P('dialogo'), 'quest/000/x') == 4 and L(P('dialogo', 3, True), 'quest/x') == 3
     if NODE:
         js = "const V=require(%r);const l=['a','b','c','d','e','f'];const v={ventanas:[l],nventanas:1,nlineas:6,caja:{tipo:'descripcion',seguro:49,duro:51,lineas:4,creador:true}};" \
              "if(V.ventanasHtml(v,{}).includes('mas de'))throw new Error('aviso');v.caja={tipo:'dialogo',seguro:58,duro:61,lineas:4};if(!V.ventanasHtml(v,{}).includes('mas de'))throw new Error('falta');" % VISTA
         r = subprocess.run([NODE, '-e', js], capture_output=True, text=True); assert r.returncode == 0, r.stderr
+
+
+def test_margen_se_restaura_y_sin_mejora(tmp_path):
+    app, base = _app(tmp_path)
+    RL = _R.RL; RL.MARGEN = 4.0
+    seen = []; orig = RL.procesar_celda
+    def pc(*a, **k): seen.append(RL.MARGEN); return orig(*a, **k)
+    RL.procesar_celda = staticmethod(pc)
+    try: r = espaciado.ejecutar(app, 'aplicar', lambda *a: None)
+    finally: RL.procesar_celda = staticmethod(orig)
+    assert seen and set(seen) == {0.0} and RL.MARGEN == 4.0                 # 0.0 durante la pasada, restaurado despues
+    # incumple (v0>0) pero el reflujo dice ya_correcta -> sin_mejora (no ya_cumplia)
+    m = app.motor(); c = m.contexto('H', 0, None, 1)
+    RL.procesar_celda = staticmethod(lambda t, r_, e, W, cr, cl=None, d=None: (d.update(antes=e['es'], despues=e['es']), ('ya_correcta', None, {}))[1])
+    try: assert espaciado.espaciar_celda(m, c, 'uno dos<NewLine>tres', 'aplicar') == (None, 'sin_mejora')
+    finally: RL.procesar_celda = staticmethod(orig)
