@@ -28,6 +28,9 @@
 - `pytest editor/tests`: 127 passed, 57 skipped (los skip necesitan checkout completo de gridania/juego instalado).
 - SIN PROBAR: `espaciado.ejecutar/deshacer` de extremo a extremo (necesita BD indexada y textos reales); `vista.js` en Edge real (solo node, sin DOM); PyInstaller con embebido; detectar_ruta_juego en Windows real; extraccion real desde sqpack con la copia embebida.
 
+### Limitacion conocida (revision adversarial pase 3, gravedad baja)
+- `RL.MARGEN` y `RL.CFG.*` son globales del modulo de reflujo: si se pulsa «Suavizar saltos» de una celda mientras corre «aplicar espaciado», esa vista previa usa `MARGEN=0.0` (algo mas agresivo) hasta que acaba la tarea. Transitorio, no corrompe datos; misma carrera que ya existia con `RL.CFG` en `celda.py`. `base.ocupar` no sirve (`espaciado.ejecutar` llama a `exigir_libre`); arreglo limpio: pasar margen/cfg por parametro a `procesar_celda`.
+
 ### Pendientes
 - Probar en Windows: Importar parche sin GitHub, ambos botones de espaciado con deshacer, vista de creador (51) y macros de genero.
 - Resincronizar `embebido/` desde gridania (commit 75d0ad39) cuando cambie tools/py.
