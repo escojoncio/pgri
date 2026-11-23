@@ -28,6 +28,11 @@
 - `pytest editor/tests`: 127 passed, 57 skipped (los skip necesitan checkout completo de gridania/juego instalado).
 - SIN PROBAR: `espaciado.ejecutar/deshacer` de extremo a extremo (necesita BD indexada y textos reales); `vista.js` en Edge real (solo node, sin DOM); PyInstaller con embebido; detectar_ruta_juego en Windows real; extraccion real desde sqpack con la copia embebida.
 
+### Generar .dat sin suavizado automatico (2026-11-23)
+- CAMBIO DE COMPORTAMIENTO: `builder.generar(..., suavizar=False)` y `preparar_stage(..., suavizar=False)` ya NO ejecutan `SS.procesar_hoja` (suavizado de saltos) al generar; el `.dat` lleva exactamente el texto guardado en el editor (repo + ediciones). `tarea_generar` / `/api/generar` aceptan `suavizar` (por defecto False). El espaciado se aplica antes con los botones de espaciado masivo / suavizar. La validacion del blob (`validar_blob_suavizado`) es estructural y sigue pasando sin suavizado.
+- Ficheros: `builder.py`, `aplicacion.py`, `servidor.py`, `ui/index.html` (textos de ayuda), `celda.py` (comentario). Tests: 127 passed, 57 skipped. SIN PROBAR: generacion real del .dat con juego instalado.
+- Consecuencia: objetivos/menus/descripciones que antes se espaciaban solo al generar ya no lo hacen; si hace falta, aplicar el espaciado masivo antes de generar.
+
 ### Limitacion conocida (revision adversarial pase 3, gravedad baja)
 - `RL.MARGEN` y `RL.CFG.*` son globales del modulo de reflujo: si se pulsa «Suavizar saltos» de una celda mientras corre «aplicar espaciado», esa vista previa usa `MARGEN=0.0` (algo mas agresivo) hasta que acaba la tarea. Transitorio, no corrompe datos; misma carrera que ya existia con `RL.CFG` en `celda.py`. `base.ocupar` no sirve (`espaciado.ejecutar` llama a `exigir_libre`); arreglo limpio: pasar margen/cfg por parametro a `procesar_celda`.
 

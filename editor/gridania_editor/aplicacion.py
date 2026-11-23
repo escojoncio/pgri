@@ -744,14 +744,14 @@ class Aplicacion(object):
     def abrir_registros(self):
         return {'ruta': registro.abrir_carpeta(self.cfg.home)}
 
-    def tarea_generar(self, destino=None, relajar='auto', validar=True):
+    def tarea_generar(self, destino=None, relajar='auto', validar=True, suavizar=False):
         cfg = self.cfg
         if destino: cfg.actualizar({'carpeta_dat': destino})
         destino = cfg['carpeta_dat']
         if not destino: raise ValueError('elige la carpeta de destino del .dat en Ajustes')
         extractor.comprobar_ruta(cfg['ruta_juego'])
         def fn(log):
-            return builder.generar(self.R(), cfg, destino, self.raiz_textos(), log, relajar, validar)
+            return builder.generar(self.R(), cfg, destino, self.raiz_textos(), log, relajar, validar, suavizar)
         self.tarea.iniciar('generar', fn)
 
     def exportar(self, destino=None):

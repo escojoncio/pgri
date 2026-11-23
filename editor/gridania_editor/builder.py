@@ -1,4 +1,4 @@
-"""Genera translations.dat: fusiona repo + ediciones -> suavizado de saltos -> construir_dat (puerta) -> validar_blob_suavizado."""
+"""Genera translations.dat: fusiona repo + ediciones -> (suavizado de saltos solo si se pide) -> construir_dat (puerta) -> validar_blob_suavizado."""
 import collections, contextlib, hashlib, io, json, os, shutil, sys, time
 from . import edits, extractor, indexer
 
@@ -51,8 +51,8 @@ class _Salida(io.TextIOBase):
         return len(s)
 
 
-def preparar_stage(R, cfg, raiz_textos, progreso):
-    """stage/ = traducciones (repo + ediciones, COPIA) + textos ja/fr (enlaces) + suavizado de saltos aplicado sobre las filas. -> (ruta, n_ediciones, resumen suavizado)"""
+def preparar_stage(R, cfg, raiz_textos, progreso, suavizar=False):
+    """stage/ = traducciones (repo + ediciones, COPIA) + textos ja/fr (enlaces). El suavizado de saltos SOLO se aplica si suavizar=True (por defecto NO: el .dat lleva exactamente lo que hay en el editor). -> (ruta, n_ediciones, resumen suavizado)"""
     stage = cfg.sub('stage')
     if os.path.isdir(stage): shutil.rmtree(stage)
     os.makedirs(stage)
@@ -63,6 +63,7 @@ def preparar_stage(R, cfg, raiz_textos, progreso):
     for idi in ('ja', 'fr'):
         s = os.path.join(raiz_textos, 'textos', idi)
         if os.path.isdir(s): clonar(s, os.path.join(stage, 'textos', idi))
+    if not suavizar: return stage, n_ed, {'suavizado': 'desactivado (el .dat lleva el texto tal cual)'}
     SS = R.SS
     SS.init_worker(R.raiz)
     out = os.path.join(stage, '_suave'); os.makedirs(out)
@@ -89,7 +90,7 @@ def preparar_stage(R, cfg, raiz_textos, progreso):
     return stage, n_ed, dict(tot)
 
 
-def generar(R, cfg, destino, raiz_textos, progreso=print, relajar='auto', validar=True):
+def generar(R, cfg, destino, raiz_textos, progreso=print, relajar='auto', validar=True, suavizar=False):
     """-> dict(entradas, rechazos, tamano, sha256, ruta, puerta, validacion). Lanza ErrorPuerta / ValueError."""
     game = cfg['ruta_juego']
     extractor.comprobar_ruta(game)
@@ -101,7 +102,7 @@ def generar(R, cfg, destino, raiz_textos, progreso=print, relajar='auto', valida
     ver = extractor.raiz_version(game)
     if relajar == 'auto': relajar = bool(ver and rec and ver != rec)
     t0 = time.time()
-    stage, n_ed, suave = preparar_stage(R, cfg, raiz_textos, progreso)
+    stage, n_ed, suave = preparar_stage(R, cfg, raiz_textos, progreso, suavizar)
     progreso('suavizado: %s' % json.dumps(suave))
     from sqpack_raw import Pack   # tools/py del repo (en sys.path)
     pk = Pack(game); cache = {}

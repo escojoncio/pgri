@@ -216,7 +216,7 @@ class Servidor(object):
         if ruta == '/api/indexar': a.tarea_indexar(bool(b.get('forzar'))); return {'ok': True}
         if ruta == '/api/tarea_cancelar': return a.tarea_cancelar()
         if ruta == '/api/abrir_registros': return a.abrir_registros()
-        if ruta == '/api/generar': a.tarea_generar(b.get('destino') or None, b.get('relajar', 'auto'), bool(b.get('validar', True))); return {'ok': True}
+        if ruta == '/api/generar': a.tarea_generar(b.get('destino') or None, b.get('relajar', 'auto'), bool(b.get('validar', True)), bool(b.get('suavizar', False))); return {'ok': True}
         if ruta == '/api/flujo_marcar': return a.flujo_marcar(b)
         if ruta == '/api/flujo_exportar': return a.flujo_exportar(b.get('destino') or None)
         if ruta == '/api/flujo_importar': return a.flujo_importar(b.get('contenido'), b.get('reemplazar'), b.get('ruta'))

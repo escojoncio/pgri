@@ -185,7 +185,7 @@ class Motor(object):
                 else: info['suavizado'] = 'cumplia'; info['motivo'] = str(motivo or '')
             except Exception as x:
                 avisos.append(('SUAVIZADO_NO_APLICADO', '%s: %s' % (type(x).__name__, x)))
-        res['es'] = es2   # se guarda SIN marcas: el suavizado se aplica al generar el .dat (igual que el flujo del repo)
+        res['es'] = es2   # se guarda SIN marcas; el .dat ya NO suaviza por su cuenta (builder.generar suavizar=False)
         res['texto'] = self.es_a_texto(c, es2)
         self._comprobaciones(c, es2, errores, avisos)
         s_juego = R.S.aplicar_marcas(self.tokenizada(c, es3) or '')
