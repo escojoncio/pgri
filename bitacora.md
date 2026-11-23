@@ -63,3 +63,7 @@
 ### 2026-11-23 (2): INTOCABLES U+E0F0 en modo una linea
 - `celda.Motor._comprobaciones` quita `S.MARCA` (U+E0F0) de `es` antes de `AG.revisar_fila`/`LAT`/`SIMB`: la auditoria `dif_intocables` la contaba como glifo extra y avisaba `INTOCABLES trozo N: sobran ['U+E0F0']` en toda celda guardada con marcas. Era solo aviso (INTOCABLES no esta en `CRITICOS_AG`). Test `test_comprobaciones_ignoran_la_marca`. SIN PROBAR con textos reales.
 - Pendiente/riesgo: los scripts del repo gridania (`auditar_global`, hook `verificar_antes_de_commit`) siguen viendo U+E0F0 como glifo extra en filas con marcas al subir; revisar alli si se exporta con modo una linea.
+
+## 2026-11-23: salida del parche en paginas `_en` (orden del propietario)
+- `PatchPipeline.OutputExdPath` (nuevo): el .pmp declara cada pagina parcheada como `exd/..._en.exd` aunque el .dat siga con `exdPath` `_ja` y source japones (el parcheador lee y casa contra la pagina `_ja`; solo cambia el nombre bajo el que el mod la redirige). Rutas sin `_ja` no cambian. Test: `OutputExdPathTests`.
+- SIN COMPILAR NI PROBAR (sin dotnet en el entorno): lo valida Actions. CAMBIO DE COMPORTAMIENTO: el cliente del juego debe estar en INGLES para ver el parche.

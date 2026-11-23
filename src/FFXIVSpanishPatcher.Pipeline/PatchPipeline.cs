@@ -487,7 +487,7 @@ public sealed class PatchPipeline
 
                     if (result.Applied > 0)
                     {
-                        writer.AddPatchedExd(exdPath, result.Bytes, page.Domain);
+                        writer.AddPatchedExd(OutputExdPath(exdPath), result.Bytes, page.Domain);
                         category.PatchedPages++;
                     }
                     else
@@ -774,6 +774,16 @@ public sealed class PatchPipeline
            $"en páginas no soportadas y {statistics.UnsafeSeStringEntries} fila(s) SeString omitida(s).";
 
     /// <summary>Single-line, length-capped source preview for diagnostic logs.</summary>
+    /// <summary>
+    /// The pages are read and matched against the Japanese EXD (<c>_ja</c>, the translation source), but the
+    /// patched file is declared under the English client path (<c>_en</c>) so the mod redirects the English pages
+    /// (owner order 2026-11-23). Language-less pages and any other suffix are left unchanged.
+    /// </summary>
+    public static string OutputExdPath(string exdPath)
+        => exdPath.EndsWith("_ja.exd", StringComparison.Ordinal)
+            ? string.Concat(exdPath.AsSpan(0, exdPath.Length - "_ja.exd".Length), "_en.exd")
+            : exdPath;
+
     private static string Preview(string source)
     {
         var flat = source.Replace("\r", " ").Replace("\n", " ");
