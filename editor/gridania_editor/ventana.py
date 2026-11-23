@@ -97,7 +97,7 @@ def lanzar(url, home, buscar=None, popen=subprocess.Popen, env=None):
 URL_IA = 'https://gemini.google.com/app'
 
 
-def lanzar_ia(home, url=URL_IA, buscar=None, popen=subprocess.Popen, env=None):
+def lanzar_ia(home, url=URL_IA, buscar=None, popen=subprocess.Popen, env=None, puerto=None):
     """mini ventana de Gemini (Edge/Chrome en modo aplicacion, cerrable, perfil propio `<datos>/perfil-ia` para conservar el inicio de sesion).
     NO usa el navegador predeterminado. -> Popen, o None si no hay Edge/Chrome o no se pudo lanzar. No participa en el latido/cierre del editor."""
     exe = (buscar or buscar_navegador)()
@@ -107,6 +107,7 @@ def lanzar_ia(home, url=URL_IA, buscar=None, popen=subprocess.Popen, env=None):
     except OSError:
         log.warning('no se pudo crear el perfil de la ventana de IA %s', perfil, exc_info=True); return None
     cmd = linea_comando(exe, url, perfil, 540, 860)
+    if puerto: cmd += ['--remote-debugging-port=%d' % puerto, '--remote-allow-origins=*']      # solo 127.0.0.1; permite escribir el prompt (ia_cdp)
     log.info('ventana de IA: %s', cmd)
     kw = dict(stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, close_fds=True)
     if sys.platform.startswith('win'): kw['creationflags'] = getattr(subprocess, 'CREATE_NO_WINDOW', 0x08000000)

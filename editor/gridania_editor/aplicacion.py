@@ -741,9 +741,22 @@ class Aplicacion(object):
     def tarea_cancelar(self):
         return {'cancelada': self.tarea.cancelar()}
 
-    def abrir_ia(self):
-        from . import ventana
-        if ventana.lanzar_ia(self.cfg.home) is None: raise ValueError('no se encuentra Microsoft Edge ni Chrome para abrir la ventana de Gemini')
+    def abrir_ia(self, texto=None, enviar=True):
+        """abre (o reutiliza) la mini ventana de Gemini y, en segundo plano, escribe `texto` y lo envia. Siempre queda ademas en el portapapeles (lo pone la UI)."""
+        import socket
+        from . import ventana, ia_cdp
+        ia = getattr(self, '_ia', None)
+        reutiliza = bool(ia and ia_cdp.responde(ia))
+        if not reutiliza:
+            s = socket.socket(); s.bind(('127.0.0.1', 0)); puerto = s.getsockname()[1]; s.close()
+            if ventana.lanzar_ia(self.cfg.home, puerto=puerto) is None: raise ValueError('no se encuentra Microsoft Edge ni Chrome para abrir la ventana de Gemini')
+            self._ia = puerto
+        if texto:
+            def trabajo():
+                try: ok = ia_cdp.escribir_y_enviar(self._ia, texto, enviar, url=ventana.URL_IA if reutiliza else None)
+                except Exception: log.warning('IA: no se pudo escribir en Gemini', exc_info=True); ok = False
+                log.info('IA: texto %s', 'escrito' if ok else 'NO escrito (queda en el portapapeles)')
+            threading.Thread(target=trabajo, daemon=True, name='ia-escribir').start()
         return {'ok': True}
 
     def abrir_registros(self):
