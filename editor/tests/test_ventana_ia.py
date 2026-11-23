@@ -88,3 +88,14 @@ def test_unida_pocas_palabras_da_error_claro():
     c = types.SimpleNamespace(seps=['<NewLine>', '<NewLine>'], ch=['a', 'b', 'c'])
     try: m._unida(c, 'solo dos'); assert False
     except ValueError as x: assert 'al menos una palabra' in str(x)
+
+
+def test_comprobaciones_ignoran_la_marca():
+    m = _motor_falso(); vistos = []
+    m.R.AG = types.SimpleNamespace(revisar_fila=lambda e, ch, seps, tok, text: vistos.append(e['es']) or [])
+    m.R.LAT = types.SimpleNamespace(detectar=lambda es, text: [])
+    m.R.SIMB = types.SimpleNamespace(objetivas_puerta=lambda ch, es: [])
+    m._glosario = lambda *a: None; m._say = lambda *a: None
+    c = types.SimpleNamespace(row=1, sub=None, col=0, h='x', tipo='simple', ch=['a', 'b'], seps=['<NewLine>'], tok='', text='')
+    m._comprobaciones(c, ['hola', 'mundo'], [], [])
+    assert vistos == [['hola', 'mundo']]

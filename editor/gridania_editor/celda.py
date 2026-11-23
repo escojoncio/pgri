@@ -264,6 +264,8 @@ class Motor(object):
 
     def _comprobaciones(self, c, es, errores, avisos):
         R = self.R; AG, LAT, SIMB = R.AG, R.LAT, R.SIMB
+        M = R.S.MARCA      # la marca «salto -> espacio» (U+E0F0) no es texto: las auditorias (intocables, simbologia...) la ven como glifo extra
+        es = [x.replace(M, '') if isinstance(x, str) else x for x in es] if isinstance(es, list) else (es.replace(M, '') if isinstance(es, str) else es)
         e = self._fila(c, es)
         try:
             for cod, det in AG.revisar_fila(e, c.ch if (c.tipo == 'simple' and isinstance(es, list)) else None, c.seps, c.tok, c.text):

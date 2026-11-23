@@ -59,3 +59,7 @@
 - `aplicacion.py`/`servidor.py`: `preview`/`guardar` aceptan `unir`; `/api/celda` devuelve `unida`. `ui/index.html`: selector `#estruc` («estructura japonesa» | «una linea (como el frances)»), se pone solo en «una linea» al abrir una celda ya guardada asi.
 - Verificado con `construir_dat.evaluar_cadena` real (marcas aceptadas) y tests unitarios (`test_ventana_ia.py`, 3 nuevos con motor falso). SIN PROBAR: extremo a extremo con textos reales; solo celdas SIMPLES (las complejas ya aceptan 1 linea); reproduce 1 linea, no las N lineas del frances si el frances tiene varias.
 - Aviso rojo «linea mas ancha que la caja» (`vista.js`) es solo visual, no bloquea; en modo una linea puede seguir saliendo.
+
+### 2026-11-23 (2): INTOCABLES U+E0F0 en modo una linea
+- `celda.Motor._comprobaciones` quita `S.MARCA` (U+E0F0) de `es` antes de `AG.revisar_fila`/`LAT`/`SIMB`: la auditoria `dif_intocables` la contaba como glifo extra y avisaba `INTOCABLES trozo N: sobran ['U+E0F0']` en toda celda guardada con marcas. Era solo aviso (INTOCABLES no esta en `CRITICOS_AG`). Test `test_comprobaciones_ignoran_la_marca`. SIN PROBAR con textos reales.
+- Pendiente/riesgo: los scripts del repo gridania (`auditar_global`, hook `verificar_antes_de_commit`) siguen viendo U+E0F0 como glifo extra en filas con marcas al subir; revisar alli si se exporta con modo una linea.
