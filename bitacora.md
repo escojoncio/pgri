@@ -39,3 +39,6 @@
 ### Pendientes
 - Probar en Windows: Importar parche sin GitHub, ambos botones de espaciado con deshacer, vista de creador (51) y macros de genero.
 - Resincronizar `embebido/` desde gridania (commit 75d0ad39) cuando cambie tools/py.
+
+## 2026-11-23: textos de ayuda del editor
+- `ui/index.html` (tooltip `bGen`, ayuda «Generar translations.dat», «Suavizado») y `ui/vista.js` (`MOTIVOS`/estado «aplicado»): ya NO dicen que generar el .dat aplica suavizado; `builder.generar(suavizar=False)` es el comportamiento real. Tests `test_espaciado_vista.py` 11 OK. Sin recompilar el exe: hace falta nueva build en Actions para ver el cambio.

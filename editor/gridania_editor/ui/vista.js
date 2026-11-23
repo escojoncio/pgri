@@ -119,7 +119,7 @@
     caja_fija: 'caja de ancho fijo: el .dat no la suaviza' };
   function textoSuavizado(s) {
     if (!s) return '';
-    var m = { aplicado: 'Suavizado: <b>aplicado</b> (la vista muestra el espaciado corregido, igual que saldra en el .dat).', cumplia: 'Suavizado: <b class="ok">ya cumplia</b>, no hace falta cambiar nada.',
+    var m = { aplicado: 'Suavizado: <b>aplicado</b> (la vista muestra el espaciado corregido; el .dat no lo aplica solo).', cumplia: 'Suavizado: <b class="ok">ya cumplia</b>, no hace falta cambiar nada.',
       no_aplica: 'Suavizado: no se aplica a esta celda' + (MOTIVOS[s.motivo] ? ' (' + MOTIVOS[s.motivo] + ').' : '.') }[s.suavizado] || '';
     if (s.reflujo === 'cambiada') m += ' Reflujo: la vista reajusta los saltos; pulsa «Usar texto con reflujo» para llevarlo al cuadro.';
     return m;
