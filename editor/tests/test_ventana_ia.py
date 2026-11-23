@@ -56,3 +56,35 @@ def test_ws_y_escribir_y_enviar(monkeypatch):
     ins = [m for m in recibidos if m['method'] == 'Input.insertText']
     assert ins and ins[0]['params']['text'] == texto
     assert any(m['method'] == 'Runtime.evaluate' and 'send-button' in m['params']['expression'] for m in recibidos)
+
+
+# ---- modo «una linea (como el frances)»
+import re, types
+from gridania_editor import celda as celda_mod
+
+
+def _motor_falso():
+    m = celda_mod.Motor.__new__(celda_mod.Motor)
+    m.R = types.SimpleNamespace(S=types.SimpleNamespace(MARCA=''), G=types.SimpleNamespace(NL_RE=re.compile(r'<NewLine(?:#[0-9]+)?>\Z')))
+    return m
+
+
+def test_palabras_no_parte_tokens():
+    m = _motor_falso()
+    assert m._palabras('uno <If(1 2)>dos<MacroEnd> tres') == ['uno', '<If(1 2)>dos<MacroEnd>', 'tres']
+
+
+def test_unida_reparte_y_marca_los_newline():
+    m = _motor_falso()
+    c = types.SimpleNamespace(seps=['<NewLine>', '<NewLine#2>'], ch=['aaaa', 'bbbb', 'cccc'])
+    es = m._unida(c, 'uno dos tres cuatro cinco seis')
+    assert len(es) == 3 and all(x.strip('') for x in es)
+    assert es[0][0] != '' and es[1][0] == '' and es[2][0] == ''
+    assert ' '.join(x.strip('') for x in es) == 'uno dos tres cuatro cinco seis'
+
+
+def test_unida_pocas_palabras_da_error_claro():
+    m = _motor_falso()
+    c = types.SimpleNamespace(seps=['<NewLine>', '<NewLine>'], ch=['a', 'b', 'c'])
+    try: m._unida(c, 'solo dos'); assert False
+    except ValueError as x: assert 'al menos una palabra' in str(x)

@@ -204,10 +204,10 @@ class Aplicacion(object):
                 if c.k in pv: d['ja_previo'] = self._legible(R.S.tokenize_raw(R.G.bytes_ja(*pv[c.k])))
             except Exception: pass
         if es is not None:
-            d['es_texto'] = m.es_a_texto(c, es); d['sin_traduccion'] = False
+            d['unida'] = m.esta_unida(c, es); d['es_texto'] = m.es_a_texto(c, es, d['unida']); d['sin_traduccion'] = False
         else:
             d['es_texto'] = self.plantilla(c); d['sin_traduccion'] = True
-        d['evaluacion'] = self._resumen(m.evaluar(c, d['es_texto'], 'masc', False)) if es is not None else None
+        d['evaluacion'] = self._resumen(m.evaluar(c, d['es_texto'], 'masc', False, unir=d.get('unida', False))) if es is not None else None
         return d
 
     @staticmethod
@@ -249,10 +249,10 @@ class Aplicacion(object):
     def _resumen(r):
         return {'ok': r['ok'], 'errores': [list(x) for x in r['errores']], 'avisos': [list(x) for x in r['avisos']], 'vista': r['vista'], 'variantes': r.get('variantes'), 'suavizado': r.get('suavizado'), 'texto': r['texto']}
 
-    def preview(self, id_, texto, genero='masc', reflujo=True):
+    def preview(self, id_, texto, genero='masc', reflujo=True, unir=False):
         reg = indexer.obtener(self.base, id_)
         m = self.motor(); c = m.contexto(reg['hoja'], reg['row'], reg['sub'], reg['col'])
-        r = self._resumen(m.evaluar(c, texto, genero, reflujo))
+        r = self._resumen(m.evaluar(c, texto, genero, reflujo, unir=unir))
         r['vista_ja'] = self._vista_fuente_g(m, c, c.tok, genero); r['vista_fr'] = self._vista_fuente_g(m, c, c.fr_tok, genero) if c.fr_tok else None
         return r
 
@@ -261,12 +261,12 @@ class Aplicacion(object):
         try: return m.vista(c, tok, genero, False)
         except Exception: return None
 
-    def guardar(self, id_, texto):
+    def guardar(self, id_, texto, unir=False):
         self.base.exigir_libre()
         reg = indexer.obtener(self.base, id_)
         if not reg: raise KeyError('celda desconocida')
         m = self.motor(); c = m.contexto(reg['hoja'], reg['row'], reg['sub'], reg['col'])
-        r = m.evaluar(c, texto, 'masc', True)
+        r = m.evaluar(c, texto, 'masc', True, unir=unir)
         if r['errores'] or r['es'] is None:
             return {'guardado': False, 'evaluacion': self._resumen(r)}
         with self.lock_ediciones: edits.guardar(self.base, self.cfg.ediciones_dir, m.R, c, r['es'])

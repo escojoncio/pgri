@@ -92,22 +92,62 @@ class Motor(object):
         if c.tipo == 'simple' and len(es) == len(c.seps) + 1: return G.recomponer(c.seps, es)
         return None
 
-    def es_a_texto(self, c, es):
+    def es_a_texto(self, c, es, unir=False):
         """es (lista o cadena) -> texto del editor: la cadena tokenizada sin marcas; en celdas simples los <NewLine> se ven como saltos de linea"""
         S = self.R.S
         s = self.tokenizada(c, es)
         if s is None: s = ''
+        if unir: s = re.sub(NL_RE.pattern + S.MARCA, ' ', s)       # separadores marcados (salto -> espacio): una sola linea
         s = s.replace(S.MARCA, '')
         return NL_RE.sub('\n', s) if c.tipo == 'simple' else s
 
-    def texto_a_es(self, c, texto):
+    def esta_unida(self, c, es):
+        s = self.tokenizada(c, es)
+        return bool(s) and c.tipo == 'simple' and bool(re.search(NL_RE.pattern + self.R.S.MARCA, s))
+
+    @staticmethod
+    def _palabras(s):
+        """parte `s` por espacios FUERA de tokens <...> (un token nunca se parte); '<<' es un '<' literal"""
+        out = []; cur = []; prof = 0; i = 0
+        while i < len(s):
+            ch = s[i]
+            if ch == '<' and s[i + 1:i + 2] == '<': cur.append('<<'); i += 2; continue
+            if ch == '<': prof += 1
+            elif ch == '>' and prof: prof -= 1
+            if ch.isspace() and not prof:
+                if cur: out.append(''.join(cur)); cur = []
+            else: cur.append(ch)
+            i += 1
+        if cur: out.append(''.join(cur))
+        return out
+
+    def _unida(self, c, texto):
+        """modo «una linea» (como el frances): el texto es un solo parrafo; se reparte por palabras en los len(seps)+1 trozos del japones (proporcional a su longitud)
+        y cada separador <NewLine> se marca (MARCA al inicio del trozo siguiente): el juego lo descarta y deja un espacio, asi que se ve UNA linea que envuelve sola."""
+        S, G = self.R.S, self.R.G
+        pal = self._palabras(texto); n = len(c.seps) + 1
+        if len(pal) < n: raise ValueError('estructura: el texto tiene %d palabras y el original %d trozos (cada trozo necesita al menos una palabra)' % (len(pal), n))
+        ch = list(c.ch) if getattr(c, 'ch', None) and len(c.ch) == n else [1] * n
+        pesos = [max(1, len(x)) for x in ch]; total = sum(pesos); acum = 0; cortes = [0]
+        for i in range(n - 1):
+            acum += pesos[i]; k = round(len(pal) * acum / total)
+            cortes.append(min(max(k, cortes[-1] + 1), len(pal) - (n - 1 - i)))
+        cortes.append(len(pal)); out = []
+        for i in range(n):
+            t = ' '.join(pal[cortes[i]:cortes[i + 1]]).replace('<<', '<')
+            if i >= 1 and G.NL_RE.match(c.seps[i - 1]): t = S.MARCA + t
+            out.append(t)
+        return out
+
+    def texto_a_es(self, c, texto, unir=False):
         S, RL = self.R.S, self.R.RL
         t = texto.replace('\r\n', '\n').replace('\r', '\n').replace(S.MARCA, '')
         if c.tipo != 'simple': return t
+        if unir and not S.contiene_color_propio(t): return self._unida(c, ' '.join(t.split('\n')))
         s = S.renumerar_newlines(t.replace('\n', '<NewLine>'), c.tok)
         if S.contiene_color_propio(s): return s
         try: return RL.partir_lista(s, c.seps)
-        except ValueError as x: raise ValueError('estructura: faltan separadores del original (%s)' % x)
+        except ValueError as x: raise ValueError('estructura: faltan separadores del original (%s). El original tiene %d saltos; para guardar en UNA linea elige «una linea (como el frances)»' % (x, len(c.seps)))
 
     # ------------------------------------------------------------ evaluacion
     def _fila(self, c, es):
@@ -148,12 +188,13 @@ class Motor(object):
         except Exception: pass
         return act if self._validar(c, act) else None
 
-    def evaluar(self, c, texto, genero='masc', reflujo=True, es_actual=None):
+    def evaluar(self, c, texto, genero='masc', reflujo=True, es_actual=None, unir=False):
         """-> dict(errores, avisos, es (lo que se guardaria), texto (editor, tras reflujo), vista). No escribe nada."""
         R = self.R; S, C, RL, SS, NC = R.S, R.C, R.RL, R.SS, R.NC
         errores = []; avisos = []
         res = {'errores': errores, 'avisos': avisos, 'es': None, 'texto': texto, 'vista': None, 'ok': False}
-        try: es0 = self.texto_a_es(c, texto)
+        if unir: reflujo = False      # el reflujo reharia los saltos que el modo una-linea acaba de unir
+        try: es0 = self.texto_a_es(c, texto, unir)
         except ValueError as x:
             errores.append(('ESTRUCTURA', str(x))); self._poner_vistas(res, self.vista_texto, c, texto, genero); return res
         es1 = SS.normalizar(es0)
@@ -186,7 +227,7 @@ class Motor(object):
             except Exception as x:
                 avisos.append(('SUAVIZADO_NO_APLICADO', '%s: %s' % (type(x).__name__, x)))
         res['es'] = es2   # se guarda SIN marcas; el .dat ya NO suaviza por su cuenta (builder.generar suavizar=False)
-        res['texto'] = self.es_a_texto(c, es2)
+        res['texto'] = self.es_a_texto(c, es2, unir)
         self._comprobaciones(c, es2, errores, avisos)
         s_juego = R.S.aplicar_marcas(self.tokenizada(c, es3) or '')
         self._poner_vistas(res, self.vista, c, s_juego, genero)

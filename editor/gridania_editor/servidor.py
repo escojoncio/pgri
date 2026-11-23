@@ -205,8 +205,8 @@ class Servidor(object):
 
     def post(self, ruta, b):
         a = self.app
-        if ruta == '/api/preview': return a.preview(int(b['id']), b['texto'], b.get('genero', 'masc'), bool(b.get('reflujo', True)))
-        if ruta == '/api/guardar': return a.guardar(int(b['id']), b['texto'])
+        if ruta == '/api/preview': return a.preview(int(b['id']), b['texto'], b.get('genero', 'masc'), bool(b.get('reflujo', True)), bool(b.get('unir')))
+        if ruta == '/api/guardar': return a.guardar(int(b['id']), b['texto'], bool(b.get('unir')))
         if ruta == '/api/config': a.cfg.actualizar(b); return a.cfg.publico()
         if ruta == '/api/borrar_token': a.cfg.borrar_token(); return a.cfg.publico()
         if ruta == '/api/sync': a.tarea_sync(); return {'ok': True}
