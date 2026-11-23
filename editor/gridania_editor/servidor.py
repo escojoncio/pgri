@@ -230,6 +230,7 @@ class Servidor(object):
         if ruta == '/api/buscar_exportar': return a.exportar_busqueda(b)
         if ruta == '/api/reemplazar': return a.reemplazar(b)
         if ruta == '/api/exportar': return a.exportar(b.get('destino') or None)
+        if ruta == '/api/abrir_ia': return a.abrir_ia()
         if ruta == '/api/abrir_navegador':
             if self.url_navegador: self.url_navegador()
             else: import webbrowser; webbrowser.open(self.url)

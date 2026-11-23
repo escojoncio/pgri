@@ -741,6 +741,11 @@ class Aplicacion(object):
     def tarea_cancelar(self):
         return {'cancelada': self.tarea.cancelar()}
 
+    def abrir_ia(self):
+        from . import ventana
+        if ventana.lanzar_ia(self.cfg.home) is None: raise ValueError('no se encuentra Microsoft Edge ni Chrome para abrir la ventana de Gemini')
+        return {'ok': True}
+
     def abrir_registros(self):
         return {'ruta': registro.abrir_carpeta(self.cfg.home)}
 

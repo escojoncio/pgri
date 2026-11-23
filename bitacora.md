@@ -42,3 +42,9 @@
 
 ## 2026-11-23: textos de ayuda del editor
 - `ui/index.html` (tooltip `bGen`, ayuda «Generar translations.dat», «Suavizado») y `ui/vista.js` (`MOTIVOS`/estado «aplicado»): ya NO dicen que generar el .dat aplica suavizado; `builder.generar(suavizar=False)` es el comportamiento real. Tests `test_espaciado_vista.py` 11 OK. Sin recompilar el exe: hace falta nueva build en Actions para ver el cambio.
+
+## 2026-11-23: boton «Traducir con Gemini» (PRUEBA, sin probar en Windows real)
+- `ventana.lanzar_ia(home)` (nuevo): mini ventana Edge/Chrome `--app=https://gemini.google.com/app`, 540x860, perfil `<datos>/perfil-ia` (conserva sesion de Google); NO usa el navegador predeterminado (sin Edge/Chrome -> error en la UI). No participa en latido/cierre del editor. `Aplicacion.abrir_ia`, ruta `POST /api/abrir_ia` (`servidor.py`).
+- `ui/index.html` (fila de botones del ES): `bIA` copia «Traduce esto al castellano:\n\n» + texto JA o FR de la celda (`iaFuente`) y abre la ventana; `bIAPegar` pega el portapapeles en `#es` y dispara `input` (previa). Flujo manual: Ctrl+V en Gemini, copiar respuesta, «Pegar respuesta», revisar, Guardar.
+- Tests: `editor/tests/test_ventana_ia.py` (2 OK, popen falso). SIN PROBAR: ventana real de Gemini, `navigator.clipboard.readText` en la ventana Edge (puede pedir permiso), build PyInstaller.
+- Pendiente: si la prueba gusta, lotes (varias celdas por prompt) y pegado que reparta por celdas.
